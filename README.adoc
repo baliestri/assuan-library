@@ -1,0 +1,23 @@
+= Assuan Library .NET
+
+A .NET library for interacting with the Assuan protocol, commonly used in GnuPG for secure communication between components.
+
+== Usage
+
+Install the NuGet package:
+
+[source,shell]
+----
+dotnet add package AssuanLibrary
+----
+
+Or add the package reference directly to your `.csproj` file:
+
+[source,xml]
+----
+<ItemGroup>
+  <PackageReference Include="AssuanLibrary" Version="1.0.0" />
+</ItemGroup>
+----
+
+TO BE CONTINUED...

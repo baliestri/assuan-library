@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>true</IsPackable>
+
+    <PolyArgumentExceptions>true</PolyArgumentExceptions>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>Bruno Sales</Authors>
+    <Description>A .NET library for interacting with the Assuan protocol.</Description>
+    <Copyright>Copyright (c) $([System.DateTime]::Now.Year) Bruno Sales &lt;me@baliestri.dev&gt;</Copyright>
+    <PackageId>AssuanLibrary</PackageId>
+    <PackageProjectUrl>https://github.com/baliestri/assuan-library</PackageProjectUrl>
+    <PackageTags>assuan; gpg; gpgme; gnupg</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/baliestri/assuan-library</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Company>baliestri</Company>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.md" Pack="true" PackagePath="\" Condition="Exists('..\LICENSE.md')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AssuanLibrary.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Polyfill">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

@@ -163,6 +163,24 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
   public byte[] ToBytes()
     => AssuanEncoder.AsBytes(Count == 1 ? Name : string.Join(' ', _entries));
 
+  /// <summary>
+  ///   Determines whether two <see cref="AssuanCommand" /> instances are equal.
+  /// </summary>
+  /// <param name="left">The left instance.</param>
+  /// <param name="right">The right instance.</param>
+  /// <returns><see langword="true" /> if the two instances are equal; otherwise, <see langword="false" />.</returns>
+  public static bool operator ==(AssuanCommand? left, AssuanCommand? right)
+    => Equals(left, right);
+
+  /// <summary>
+  ///   Determines whether two <see cref="AssuanCommand" /> instances are not equal.
+  /// </summary>
+  /// <param name="left">The left instance.</param>
+  /// <param name="right">The right instance.</param>
+  /// <returns><see langword="true" /> if the two instances are not equal; otherwise, <see langword="false" />.</returns>
+  public static bool operator !=(AssuanCommand? left, AssuanCommand? right)
+    => !Equals(left, right);
+
   private IEnumerable<string> GetEntries() {
     for (var i = 0; i < Count; i++) {
       yield return _entries[i];

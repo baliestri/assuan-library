@@ -1,7 +1,6 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Text;
 using AssuanLibrary.Utility;
 
 namespace AssuanLibrary;
@@ -34,21 +33,21 @@ public static class AssuanEncoder {
       return string.Empty;
     }
 
-    var stringBuilder = new StringBuilder();
+    using var writer = new PooledStringWriter((value.Length * 3) / 2);
 
     foreach (var c in value) {
       if (c < 128 &&
           _isSafeChar[c]) {
-        stringBuilder.Append(c);
+        writer.Write(c);
         continue;
       }
 
-      stringBuilder.Append('%');
-      stringBuilder.Append(_hexLookup[(c >> 4) & 0xF]);
-      stringBuilder.Append(_hexLookup[c & 0xF]);
+      writer.Write('%');
+      writer.Write(_hexLookup[(c >> 4) & 0xF]);
+      writer.Write(_hexLookup[c & 0xF]);
     }
 
-    return stringBuilder.ToString();
+    return writer.ToString();
   }
 
   /// <summary>

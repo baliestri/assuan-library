@@ -1,7 +1,6 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Text;
 using AssuanLibrary.Utility;
 
 namespace AssuanLibrary;
@@ -244,7 +243,7 @@ public static class AssuanDecoder {
       return string.Empty;
     }
 
-    var stringBuilder = new StringBuilder();
+    using var writer = new PooledStringWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
       var c = value[i];
@@ -257,17 +256,17 @@ public static class AssuanDecoder {
           var b = (HexToNibble(h1) << 4) | HexToNibble(h2);
 
           if (b is not -1) {
-            stringBuilder.Append((char)b);
+            writer.Write((char)b);
             i += 2;
             continue;
           }
         }
       }
 
-      stringBuilder.Append(c);
+      writer.Write(c);
     }
 
-    return stringBuilder.ToString();
+    return writer.ToString();
   }
 
   /// <summary>
@@ -280,7 +279,7 @@ public static class AssuanDecoder {
       return string.Empty;
     }
 
-    var stringBuilder = new StringBuilder();
+    using var writer = new PooledStringWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
       var b = value[i];
@@ -293,17 +292,17 @@ public static class AssuanDecoder {
           var decodedByte = (HexToNibble(h1) << 4) | HexToNibble(h2);
 
           if (decodedByte is not -1) {
-            stringBuilder.Append((char)decodedByte);
+            writer.Write((char)decodedByte);
             i += 2;
             continue;
           }
         }
       }
 
-      stringBuilder.Append((char)b);
+      writer.Write((char)b);
     }
 
-    return stringBuilder.ToString();
+    return writer.ToString();
   }
 
   /// <summary>
@@ -316,7 +315,7 @@ public static class AssuanDecoder {
       return string.Empty;
     }
 
-    var stringBuilder = new StringBuilder();
+    using var writer = new PooledStringWriter((value.Length * 3) >> 2);
     var span = value.Span;
 
     for (var i = 0; i < span.Length; i++) {
@@ -330,16 +329,16 @@ public static class AssuanDecoder {
           var decodedByte = (HexToNibble(h1) << 4) | HexToNibble(h2);
 
           if (decodedByte is not -1) {
-            stringBuilder.Append((char)decodedByte);
+            writer.Write((char)decodedByte);
             i += 2;
             continue;
           }
         }
       }
 
-      stringBuilder.Append((char)b);
+      writer.Write((char)b);
     }
 
-    return stringBuilder.ToString();
+    return writer.ToString();
   }
 }

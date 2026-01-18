@@ -61,7 +61,7 @@ public static class AssuanEncoder {
       return [];
     }
 
-    using var buffer = new ByteBufferWriter((value.Length * 3) / 2);
+    using var buffer = new PooledByteWriter((value.Length * 3) / 2);
 
     foreach (var c in value) {
       if (c < 128 &&
@@ -88,7 +88,7 @@ public static class AssuanEncoder {
       return ReadOnlyMemory<byte>.Empty;
     }
 
-    using var buffer = new ByteBufferWriter((value.Length * 3) / 2);
+    using var buffer = new PooledByteWriter((value.Length * 3) / 2);
 
     foreach (var c in value) {
       if (c < 128 &&

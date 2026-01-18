@@ -26,7 +26,7 @@ public static class AssuanDecoder {
       return [];
     }
 
-    using var writer = new ByteBufferWriter((value.Length * 3) >> 2);
+    using var writer = new PooledByteWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
       var c = value[i];
@@ -62,7 +62,7 @@ public static class AssuanDecoder {
       return [];
     }
 
-    using var writer = new ByteBufferWriter((value.Length * 3) >> 2);
+    using var writer = new PooledByteWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
       var b = value[i];
@@ -98,7 +98,7 @@ public static class AssuanDecoder {
       return [];
     }
 
-    using var writer = new ByteBufferWriter((value.Length * 3) >> 2);
+    using var writer = new PooledByteWriter((value.Length * 3) >> 2);
     var span = value.Span;
 
     for (var i = 0; i < span.Length; i++) {
@@ -135,7 +135,7 @@ public static class AssuanDecoder {
       return ReadOnlyMemory<byte>.Empty;
     }
 
-    using var writer = new ByteBufferWriter((value.Length * 3) >> 2);
+    using var writer = new PooledByteWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
       var c = value[i];
@@ -171,7 +171,7 @@ public static class AssuanDecoder {
       return ReadOnlyMemory<byte>.Empty;
     }
 
-    using var writer = new ByteBufferWriter((value.Length * 3) >> 2);
+    using var writer = new PooledByteWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
       var b = value[i];
@@ -207,7 +207,7 @@ public static class AssuanDecoder {
       return ReadOnlyMemory<byte>.Empty;
     }
 
-    using var writer = new ByteBufferWriter((value.Length * 3) >> 2);
+    using var writer = new PooledByteWriter((value.Length * 3) >> 2);
     var span = value.Span;
 
     for (var i = 0; i < span.Length; i++) {

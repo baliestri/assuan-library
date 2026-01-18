@@ -10,14 +10,14 @@ namespace AssuanLibrary.Utility;
 ///   A high-performance buffer writer for bytes that utilizes array pooling.
 /// </summary>
 /// <param name="initialCapacity">The initial capacity of the buffer.</param>
-public struct ByteBufferWriter(int initialCapacity) : IBufferWriter<byte>, IDisposable {
+public struct PooledByteWriter(int initialCapacity) : IBufferWriter<byte>, IDisposable {
   private byte[] _buffer = BytePool.Shared.Rent(initialCapacity);
   private int _written = 0;
   private bool _disposed;
 
   /// <inheritdoc />
   public void Advance(int count) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ByteBufferWriter));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
     ArgumentOutOfRangeException.ThrowIfNegative(count);
 
     _written += count;
@@ -25,7 +25,7 @@ public struct ByteBufferWriter(int initialCapacity) : IBufferWriter<byte>, IDisp
 
   /// <inheritdoc />
   public Memory<byte> GetMemory(int sizeHint = 0) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ByteBufferWriter));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
     EnsureCapacity(sizeHint);
 
     return _buffer.AsMemory(_written);
@@ -33,7 +33,7 @@ public struct ByteBufferWriter(int initialCapacity) : IBufferWriter<byte>, IDisp
 
   /// <inheritdoc />
   public Span<byte> GetSpan(int sizeHint = 0) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ByteBufferWriter));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
     EnsureCapacity(sizeHint);
 
     return _buffer.AsSpan(_written);
@@ -44,7 +44,7 @@ public struct ByteBufferWriter(int initialCapacity) : IBufferWriter<byte>, IDisp
   /// </summary>
   /// <param name="value">The byte to write.</param>
   public void Write(byte value) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ByteBufferWriter));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
     EnsureCapacity(1);
 
     _buffer[_written++] = value;
@@ -55,7 +55,7 @@ public struct ByteBufferWriter(int initialCapacity) : IBufferWriter<byte>, IDisp
   /// </summary>
   /// <returns>A <see cref="ReadOnlyMemory{T}" /> containing the written data.</returns>
   public ReadOnlyMemory<byte> ToReadOnlyMemory() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ByteBufferWriter));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
 
     return _buffer.AsSpan(0, _written).ToArray();
   }
@@ -65,7 +65,7 @@ public struct ByteBufferWriter(int initialCapacity) : IBufferWriter<byte>, IDisp
   /// </summary>
   /// <returns>A byte array containing the written data.</returns>
   public byte[] ToArray() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ByteBufferWriter));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
 
     return _buffer.AsSpan(0, _written).ToArray();
   }

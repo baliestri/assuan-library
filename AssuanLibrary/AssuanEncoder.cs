@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Text;
+using AssuanLibrary.Utility;
 
 namespace AssuanLibrary;
 
@@ -60,20 +61,47 @@ public static class AssuanEncoder {
       return [];
     }
 
-    var result = new List<byte>((value.Length * 3) / 2);
+    using var buffer = new ByteBufferWriter((value.Length * 3) / 2);
 
     foreach (var c in value) {
       if (c < 128 &&
           _isSafeChar[c]) {
-        result.Add((byte)c);
+        buffer.Write((byte)c);
         continue;
       }
 
-      result.Add((byte)'%');
-      result.Add((byte)_hexLookup[(c >> 4) & 0xF]);
-      result.Add((byte)_hexLookup[c & 0xF]);
+      buffer.Write((byte)'%');
+      buffer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
+      buffer.Write((byte)_hexLookup[c & 0xF]);
     }
 
-    return result.ToArray();
+    return buffer.ToArray();
+  }
+
+  /// <summary>
+  ///   Encodes the given string into a ReadOnlyMemory&lt;byte&gt; according to the Assuan protocol.
+  /// </summary>
+  /// <param name="value">The string to encode.</param>
+  /// <returns>The encoded ReadOnlyMemory&lt;byte&gt;.</returns>
+  public static ReadOnlyMemory<byte> AsReadOnlyMemory(string value) {
+    if (string.IsNullOrWhiteSpace(value)) {
+      return ReadOnlyMemory<byte>.Empty;
+    }
+
+    using var buffer = new ByteBufferWriter((value.Length * 3) / 2);
+
+    foreach (var c in value) {
+      if (c < 128 &&
+          _isSafeChar[c]) {
+        buffer.Write((byte)c);
+        continue;
+      }
+
+      buffer.Write((byte)'%');
+      buffer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
+      buffer.Write((byte)_hexLookup[c & 0xF]);
+    }
+
+    return buffer.ToReadOnlyMemory();
   }
 }

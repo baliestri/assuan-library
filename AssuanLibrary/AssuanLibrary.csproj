@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="AssuanLibrary.AssuanPredefined" Static="true" />
     <InternalsVisibleTo Include="AssuanLibrary.Tests" />
   </ItemGroup>
 

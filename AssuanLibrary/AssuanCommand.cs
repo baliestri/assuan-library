@@ -164,6 +164,13 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     => AssuanEncoder.AsBytes(Count == 1 ? Name : string.Join(' ', _entries));
 
   /// <summary>
+  ///   Returns a read-only memory representation of the command.
+  /// </summary>
+  /// <returns>A read-only memory representing the command.</returns>
+  public ReadOnlyMemory<byte> ToReadOnlyMemory()
+    => AssuanEncoder.AsReadOnlyMemory(Count == 1 ? Name : string.Join(' ', _entries));
+
+  /// <summary>
   ///   Determines whether two <see cref="AssuanCommand" /> instances are equal.
   /// </summary>
   /// <param name="left">The left instance.</param>

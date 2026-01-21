@@ -27,8 +27,9 @@ public static class AssuanEncoder {
   ///   Encodes the given string according to the Assuan protocol.
   /// </summary>
   /// <param name="value">The string to encode.</param>
+  /// <param name="appendLineFeed">Whether to append a line feed character at the end.</param>
   /// <returns>The encoded string.</returns>
-  public static string AsString(string value) {
+  public static string AsString(string value, bool appendLineFeed = true) {
     if (string.IsNullOrWhiteSpace(value)) {
       return string.Empty;
     }
@@ -47,6 +48,10 @@ public static class AssuanEncoder {
       writer.Write(_hexLookup[c & 0xF]);
     }
 
+    if (appendLineFeed) {
+      writer.Write('\n');
+    }
+
     return writer.ToString();
   }
 
@@ -54,8 +59,9 @@ public static class AssuanEncoder {
   ///   Encodes the given string into a byte array according to the Assuan protocol.
   /// </summary>
   /// <param name="value">The string to encode.</param>
+  /// <param name="appendLineFeed">Whether to append a line feed character at the end.</param>
   /// <returns>The encoded byte array.</returns>
-  public static byte[] AsBytes(string value) {
+  public static byte[] AsBytes(string value, bool appendLineFeed = true) {
     if (string.IsNullOrWhiteSpace(value)) {
       return [];
     }
@@ -74,6 +80,10 @@ public static class AssuanEncoder {
       buffer.Write((byte)_hexLookup[c & 0xF]);
     }
 
+    if (appendLineFeed) {
+      buffer.Write(Characters.LF);
+    }
+
     return buffer.ToArray();
   }
 
@@ -81,8 +91,9 @@ public static class AssuanEncoder {
   ///   Encodes the given string into a ReadOnlyMemory&lt;byte&gt; according to the Assuan protocol.
   /// </summary>
   /// <param name="value">The string to encode.</param>
+  /// <param name="appendLineFeed">Whether to append a line feed character at the end.</param>
   /// <returns>The encoded ReadOnlyMemory&lt;byte&gt;.</returns>
-  public static ReadOnlyMemory<byte> AsReadOnlyMemory(string value) {
+  public static ReadOnlyMemory<byte> AsReadOnlyMemory(string value, bool appendLineFeed = true) {
     if (string.IsNullOrWhiteSpace(value)) {
       return ReadOnlyMemory<byte>.Empty;
     }
@@ -99,6 +110,10 @@ public static class AssuanEncoder {
       buffer.Write((byte)'%');
       buffer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
       buffer.Write((byte)_hexLookup[c & 0xF]);
+    }
+
+    if (appendLineFeed) {
+      buffer.Write(Characters.LF);
     }
 
     return buffer.ToReadOnlyMemory();

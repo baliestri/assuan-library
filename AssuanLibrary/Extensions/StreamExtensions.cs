@@ -12,10 +12,17 @@ namespace AssuanLibrary.Extensions;
 internal static class StreamExtensions {
   extension(Stream stream) {
     /// <summary>
-    ///   Writes the contents of the specified <see cref="ReadOnlyMemory{Byte}" /> to the stream.
+    ///   Writes the contents of the specified byte array to the stream.
     /// </summary>
     /// <param name="buffer">The buffer containing the data to write.</param>
     public void Write(byte[] buffer)
       => stream.Write(buffer, 0, buffer.Length);
+
+    /// <summary>
+    ///   Writes the contents of the specified <see cref="ReadOnlyMemory{Byte}" /> to the stream.
+    /// </summary>
+    /// <param name="buffer">The buffer containing the data to write.</param>
+    public void Write(ReadOnlyMemory<byte> buffer)
+      => stream.Write(buffer.Span.ToArray());
   }
 }

@@ -34,11 +34,9 @@ public static class PortAndNonceReader {
 
     var splitIndex = content.Length - NONCE_LENGTH;
     var portSpan = content[..splitIndex];
-    var nonceSpan = content[splitIndex..NONCE_LENGTH];
+    var nonceSpan = content[splitIndex..];
 
-    var portText = Encoding.UTF8.GetString(portSpan);
-
-    return !ushort.TryParse(portText, out var port)
+    return !ushort.TryParse(portSpan, out var port)
       ? throw new FormatException("Invalid port number format in GnuPG socket file.")
       : new PortAndNonce(port, nonceSpan);
   }
@@ -48,55 +46,43 @@ public static class PortAndNonceReader {
       throw new FormatException("Cygwin socket content too short.");
     }
 
-    var spaceIndex = content.IndexOf((byte)' ');
+    var spaceIndex = content.IndexOf(Characters.SPACE);
     if (spaceIndex == -1) {
       throw new FormatException("Cannot find port/nonce separator in Cygwin socket file.");
     }
 
     var portSpan = content[..spaceIndex];
-    var portText = Encoding.UTF8.GetString(portSpan);
 
-    if (!ushort.TryParse(portText, out var port)) {
+    if (!ushort.TryParse(portSpan, out var port)) {
       throw new FormatException("Invalid port number in Cygwin socket file.");
     }
 
-    var rest = content[(spaceIndex + 1)..];
+    var rest = content[spaceIndex..];
 
     if (!rest.StartsWith(" s "u8)) {
       throw new FormatException("Expected ' s ' prefix before nonce in Cygwin format.");
     }
 
     var nonce = new byte[NONCE_LENGTH];
-    var pos = 3;
+    var position = 3;
 
     for (var i = 0; i < 4; i++) {
-      if ((pos + 8) > rest.Length) {
+      if ((position + 8) > rest.Length) {
         throw new FormatException("Nonce too short in Cygwin format.");
       }
 
-      var hex = Encoding.UTF8.GetString(rest.Slice(pos, 8));
+      var hex = Encoding.UTF8.GetString(rest[position..8]);
       if (!uint.TryParse(hex, NumberStyles.HexNumber, null, out var value)) {
         throw new FormatException($"Invalid hex in nonce part {i + 1}.");
       }
 
       BitConverter.GetBytes(value).CopyTo(nonce, i * 4);
 
-      pos += 8;
-
-      if (i < 3) {
-        if (pos >= rest.Length ||
-            rest[pos] != (byte)'-') {
-          throw new FormatException("Expected '-' separator in nonce.");
-        }
-
-        pos++;
-        continue;
-      }
-
-      if (pos >= rest.Length ||
-          rest[pos] != (byte)'x') {
-        throw new FormatException("Expected 'x' at the end of nonce.");
-      }
+      position += i switch {
+        < 3 when rest[position + 8] != (byte)'-' => throw new FormatException("Expected '-' separator in the nonce."),
+        3 when rest[position + 8] != (byte)'x' => throw new FormatException("Expected 'x' at the end of nonce."),
+        var _ => 9
+      };
     }
 
     return new PortAndNonce(port, nonce);

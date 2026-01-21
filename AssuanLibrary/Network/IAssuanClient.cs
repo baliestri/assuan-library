@@ -27,6 +27,11 @@ public interface IAssuanClient : IAsyncDisposable, IDisposable {
   void Connect(IPAddress ipAddress, PortAndNonce portAndNonce);
 
   /// <summary>
+  ///   Disconnects from the server.
+  /// </summary>
+  void Disconnect();
+
+  /// <summary>
   ///   Connects to the server asynchronously using the specified <see cref="AssuanClientOptions" />.
   /// </summary>
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
@@ -41,6 +46,13 @@ public interface IAssuanClient : IAsyncDisposable, IDisposable {
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A task that represents the asynchronous connect operation.</returns>
   Task ConnectAsync(IPAddress ipAddress, PortAndNonce portAndNonce, CancellationToken ct = default);
+
+  /// <summary>
+  ///   Disconnects from the server asynchronously.
+  /// </summary>
+  /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+  /// <returns>A task that represents the asynchronous disconnect operation.</returns>
+  Task DisconnectAsync(CancellationToken ct = default);
 
   /// <summary>
   ///   Invokes the specified command.

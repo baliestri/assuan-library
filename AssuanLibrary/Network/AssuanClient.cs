@@ -55,6 +55,17 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
   }
 
   /// <inheritdoc />
+  public void Disconnect() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (!IsConnected) {
+      return;
+    }
+
+    _wrapper.Disconnect();
+  }
+
+  /// <inheritdoc />
   public async Task ConnectAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
@@ -69,7 +80,7 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
       await _wrapper.ConnectAsync(ipAddress, portAndNonce, ct);
     }
     catch (SocketException ex) {
-      Dispose();
+      await DisposeAsync();
       throw new AssuanTcpClientException("Failed to connect to the Assuan server.", ex);
     }
   }
@@ -87,9 +98,20 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
       await _wrapper.ConnectAsync(ipAddress, portAndNonce, ct);
     }
     catch (SocketException ex) {
-      Dispose();
+      await DisposeAsync();
       throw new AssuanTcpClientException("Failed to connect to the Assuan server.", ex);
     }
+  }
+
+  /// <inheritdoc />
+  public async Task DisconnectAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (!IsConnected) {
+      return;
+    }
+
+    await _wrapper.DisconnectAsync(ct);
   }
 
   /// <inheritdoc />

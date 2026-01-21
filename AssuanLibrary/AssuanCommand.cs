@@ -152,21 +152,21 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
 
   /// <inheritdoc />
   public override string ToString()
-    => AssuanEncoder.AsString(string.Join(' ', _entries));
+    => AssuanEncoder.AsString(string.Join(' ', this));
 
   /// <summary>
   ///   Returns a byte array representation of the command.
   /// </summary>
   /// <returns>A byte array representing the command.</returns>
   public byte[] ToBytes()
-    => AssuanEncoder.AsBytes(string.Join(' ', _entries));
+    => AssuanEncoder.AsBytes(string.Join(' ', this));
 
   /// <summary>
   ///   Returns a read-only memory representation of the command.
   /// </summary>
   /// <returns>A read-only memory representing the command.</returns>
   public ReadOnlyMemory<byte> ToReadOnlyMemory()
-    => AssuanEncoder.AsReadOnlyMemory(string.Join(' ', _entries));
+    => AssuanEncoder.AsReadOnlyMemory(string.Join(' ', this));
 
   /// <summary>
   ///   Determines whether two <see cref="AssuanCommand" /> instances are equal.

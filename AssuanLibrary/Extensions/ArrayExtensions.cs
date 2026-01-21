@@ -1,7 +1,6 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Buffers;
 using System.Diagnostics.Contracts;
 
 namespace AssuanLibrary.Extensions;
@@ -29,14 +28,11 @@ internal static class ArrayExtensions {
       }
 
       for (var i = 0; i < array.Length; i++) {
-        if (!array[i].Equals(delimiter)) {
+        if (!EqualityComparer<T>.Default.Equals(array[i], delimiter)) {
           continue;
         }
 
-        var copyArray = ArrayPool<T>.Shared.Rent(array.Length - i - 1);
-
-        Array.Copy(array, i + 1, copyArray, 0, copyArray.Length);
-        return copyArray;
+        return array.AsSpan(i + 1).ToArray();
       }
 
       return [];
@@ -55,14 +51,11 @@ internal static class ArrayExtensions {
       }
 
       for (var i = 0; i < array.Length; i++) {
-        if (!array[i].Equals(delimiter)) {
+        if (!EqualityComparer<T>.Default.Equals(array[i], delimiter)) {
           continue;
         }
 
-        var copyArray = ArrayPool<T>.Shared.Rent(i);
-
-        Array.Copy(array, 0, copyArray, 0, copyArray.Length);
-        return copyArray;
+        return array.AsSpan(0, i).ToArray();
       }
 
       return array;
@@ -83,27 +76,18 @@ internal static class ArrayExtensions {
       var startIndex = 0;
 
       for (var i = 0; i < array.Length; i++) {
-        if (!array[i].Equals(delimiter)) {
+        if (!EqualityComparer<T>.Default.Equals(array[i], delimiter)) {
           continue;
         }
 
-        var length = includeDelimiter
-          ? (i - startIndex) + 1
-          : i - startIndex;
-        var copyArray = ArrayPool<T>.Shared.Rent(length);
-
-        Array.Copy(array, startIndex, copyArray, 0, length);
-        yield return copyArray;
+        var length = (i - startIndex) + (includeDelimiter ? 1 : 0);
+        yield return array.AsSpan(startIndex, length).ToArray();
 
         startIndex = i + 1;
       }
 
       if (startIndex < array.Length) {
-        var length = array.Length - startIndex;
-        var copyArray = ArrayPool<T>.Shared.Rent(length);
-
-        Array.Copy(array, startIndex, copyArray, 0, length);
-        yield return copyArray;
+        yield return array.AsSpan(startIndex).ToArray();
       }
     }
 

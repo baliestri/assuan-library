@@ -47,14 +47,6 @@ public enum AssuanResponseType {
 ///   Extension methods for the <see cref="AssuanResponseType" />.
 /// </summary>
 public static class AssuanResponseTypeExtensions {
-  private static readonly Dictionary<byte[], AssuanResponseType> _responseTypes = new() {
-    { "OK"u8.ToArray(), AssuanResponseType.Ok },
-    { "ERR"u8.ToArray(), AssuanResponseType.Error },
-    { "S"u8.ToArray(), AssuanResponseType.Status },
-    { "#"u8.ToArray(), AssuanResponseType.Comment },
-    { "D"u8.ToArray(), AssuanResponseType.Data }
-  };
-
   extension(AssuanResponseType) {
     /// <summary>
     ///   Parses a byte array to determine the corresponding AssuanResponseType.
@@ -64,13 +56,20 @@ public static class AssuanResponseTypeExtensions {
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <paramref name="buffer" /> length exceeds 3 bytes.</exception>
     /// <exception cref="NotSupportedException">Thrown when the response type is not supported.</exception>
     public static AssuanResponseType Parse(byte[] buffer) {
-      if (buffer.Length > 3) {
-        throw new ArgumentOutOfRangeException(nameof(buffer), "Response type buffer length must be at most 3 bytes.");
+      if (buffer.Length is < 1 or > 3) {
+        throw new ArgumentOutOfRangeException(nameof(buffer), buffer.Length, "Response type buffer length must be at most 3 bytes.");
       }
 
-      return _responseTypes.TryGetValue(buffer, out var responseType)
-        ? responseType
-        : throw new NotSupportedException($"Response type '{Encoding.UTF8.GetString(buffer)}' is not supported.");
+      var prefix = buffer.AsSpan(0, Math.Min(3, buffer.Length));
+
+      return prefix switch {
+        var _ when prefix.SequenceEqual("OK"u8) => AssuanResponseType.Ok,
+        var _ when prefix.SequenceEqual("ERR"u8) => AssuanResponseType.Error,
+        var _ when prefix.SequenceEqual("S"u8) => AssuanResponseType.Status,
+        var _ when prefix.SequenceEqual("#"u8) => AssuanResponseType.Comment,
+        var _ when prefix.SequenceEqual("D"u8) => AssuanResponseType.Data,
+        var _ => throw new NotSupportedException($"Unknown response type starting with: '{Encoding.UTF8.GetString(prefix)}'")
+      };
     }
   }
 }

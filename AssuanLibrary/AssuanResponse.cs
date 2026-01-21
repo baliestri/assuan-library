@@ -21,19 +21,11 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
       return;
     }
 
-    var bufferCopy = ArrayPool<byte>.Shared.Rent(buffer.Length);
+    var type = AssuanResponseType.Parse(buffer.Take(Characters.SPACE));
+    var responseBuffer = buffer.Skip(Characters.SPACE).Take(Characters.LF);
 
-    try {
-      buffer.CopyTo(bufferCopy, 0);
-      var type = AssuanResponseType.Parse(bufferCopy.Take(Characters.SPACE));
-      var responseBuffer = bufferCopy.Skip(Characters.SPACE).Take(Characters.LF);
-
-      Type = type;
-      Buffer = responseBuffer;
-    }
-    finally {
-      ArrayPool<byte>.Shared.Return(bufferCopy);
-    }
+    Type = type;
+    Buffer = responseBuffer;
   }
 
   /// <summary>

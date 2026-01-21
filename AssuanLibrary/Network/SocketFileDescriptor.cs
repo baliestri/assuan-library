@@ -8,9 +8,9 @@ namespace AssuanLibrary.Network;
 /// </summary>
 public sealed class SocketFileDescriptor {
   /// <summary>
-  ///   Socket file descriptor for the agent-extra-socket.
+  ///   Socket file descriptor for the agent-socket.
   /// </summary>
-  public static readonly SocketFileDescriptor AgentExtraSocket = new("agent-extra-socket");
+  public static readonly SocketFileDescriptor AgentSocket = new("agent-socket");
 
   /// <summary>
   ///   Socket file descriptor for the dirmngr-socket.

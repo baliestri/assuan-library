@@ -2,7 +2,6 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using System.Net.Sockets;
 
 namespace AssuanLibrary.Network;
@@ -11,6 +10,11 @@ namespace AssuanLibrary.Network;
 public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
   private bool _disposed;
   private AssuanTcpClientWrapper? _wrapper;
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with default options.
+  /// </summary>
+  public AssuanClient() : this(AssuanClientOptions.Empty) { }
 
   /// <inheritdoc />
   [MemberNotNullWhen(true, nameof(_wrapper))]
@@ -25,27 +29,9 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     }
 
     try {
-      var (ipAddress, portAndNonce) = options;
+      var (ipAddress, portAndNonce, timeout) = options;
 
-      _wrapper = new AssuanTcpClientWrapper();
-      _wrapper.Connect(ipAddress, portAndNonce);
-    }
-    catch (SocketException ex) {
-      Dispose();
-      throw new AssuanTcpClientException("Failed to connect to the Assuan server.", ex);
-    }
-  }
-
-  /// <inheritdoc />
-  public void Connect(IPAddress ipAddress, PortAndNonce portAndNonce) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (IsConnected) {
-      return;
-    }
-
-    try {
-      _wrapper = new AssuanTcpClientWrapper();
+      _wrapper = new AssuanTcpClientWrapper(timeout);
       _wrapper.Connect(ipAddress, portAndNonce);
     }
     catch (SocketException ex) {
@@ -74,27 +60,9 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     }
 
     try {
-      var (ipAddress, portAndNonce) = options;
+      var (ipAddress, portAndNonce, timeout) = options;
 
-      _wrapper = new AssuanTcpClientWrapper();
-      await _wrapper.ConnectAsync(ipAddress, portAndNonce, ct);
-    }
-    catch (SocketException ex) {
-      await DisposeAsync();
-      throw new AssuanTcpClientException("Failed to connect to the Assuan server.", ex);
-    }
-  }
-
-  /// <inheritdoc />
-  public async Task ConnectAsync(IPAddress ipAddress, PortAndNonce portAndNonce, CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (IsConnected) {
-      return;
-    }
-
-    try {
-      _wrapper = new AssuanTcpClientWrapper();
+      _wrapper = new AssuanTcpClientWrapper(timeout);
       await _wrapper.ConnectAsync(ipAddress, portAndNonce, ct);
     }
     catch (SocketException ex) {
@@ -128,12 +96,11 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     _wrapper.Write(writtenBuffer);
 
     var readBuffer = _wrapper.Read();
-
     return new AssuanResponseCollection(readBuffer);
   }
 
   /// <inheritdoc />
-  public async Task<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default) {
+  public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (!IsConnected) {
@@ -146,7 +113,6 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     await _wrapper.WriteAsync(writtenBuffer, ct);
 
     var readBuffer = await _wrapper.ReadAsync(ct);
-
     return new AssuanResponseCollection(readBuffer);
   }
 

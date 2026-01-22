@@ -108,7 +108,7 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    using var reader = new StabilizedStreamReader(_tcpClient, timeout);
+    using var reader = new StabilizedTcpClientReader(_tcpClient, timeout);
     return reader.Read();
   }
 
@@ -163,7 +163,7 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    using var reader = new StabilizedStreamReader(_tcpClient, timeout);
+    using var reader = new StabilizedTcpClientReader(_tcpClient, timeout);
     return await reader.ReadAsync(ct);
   }
 

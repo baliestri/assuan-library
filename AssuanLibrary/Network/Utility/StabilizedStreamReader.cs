@@ -4,7 +4,7 @@
 using System.Buffers;
 using System.Net.Sockets;
 
-namespace AssuanLibrary.Network;
+namespace AssuanLibrary.Network.Utility;
 
 /// <summary>
 ///   A reader that reads from a TCP stream until the data stabilizes, indicating no more data is incoming.

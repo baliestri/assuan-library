@@ -3,13 +3,15 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using AssuanLibrary.Network.Platform.Windows;
 
 namespace AssuanLibrary.Network;
 
 /// <inheritdoc />
 public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
   private bool _disposed;
-  private AssuanTcpClientWrapper? _wrapper;
+  private IAssuanClientWrapper? _wrapper;
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanClient" /> class with default options.
@@ -29,14 +31,19 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     }
 
     try {
-      var (ipAddress, portAndNonce, timeout) = options;
+      var (socketDescriptor, timeout) = options;
+      _wrapper = true switch {
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => new AssuanTcpClientWrapper(socketDescriptor, timeout),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => throw new NotImplementedException(),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => throw new NotImplementedException(),
+        var _ => throw new PlatformNotSupportedException("The current platform is not supported by the AssuanClient.")
+      };
 
-      _wrapper = new AssuanTcpClientWrapper(timeout);
-      _wrapper.Connect(ipAddress, portAndNonce);
+      _wrapper.Connect();
     }
     catch (SocketException ex) {
       Dispose();
-      throw new AssuanTcpClientException("Failed to connect to the Assuan server.", ex);
+      throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
     }
   }
 
@@ -60,14 +67,19 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     }
 
     try {
-      var (ipAddress, portAndNonce, timeout) = options;
+      var (socketDescriptor, timeout) = options;
+      _wrapper = true switch {
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => new AssuanTcpClientWrapper(socketDescriptor, timeout),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => throw new NotImplementedException(),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => throw new NotImplementedException(),
+        var _ => throw new PlatformNotSupportedException("The current platform is not supported by the AssuanClient.")
+      };
 
-      _wrapper = new AssuanTcpClientWrapper(timeout);
-      await _wrapper.ConnectAsync(ipAddress, portAndNonce, ct);
+      await _wrapper.ConnectAsync(ct);
     }
     catch (SocketException ex) {
       await DisposeAsync();
-      throw new AssuanTcpClientException("Failed to connect to the Assuan server.", ex);
+      throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
     }
   }
 
@@ -88,7 +100,7 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
 
     if (!IsConnected) {
       return options.ThrowIfNotConnected
-        ? throw new AssuanTcpClientException("The client is not connected to the server.")
+        ? throw new AssuanClientException("The client is not connected to the server.")
         : new AssuanResponseCollection();
     }
 
@@ -105,7 +117,7 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
 
     if (!IsConnected) {
       return options.ThrowIfNotConnected
-        ? throw new AssuanTcpClientException("The client is not connected to the server.")
+        ? throw new AssuanClientException("The client is not connected to the server.")
         : new AssuanResponseCollection();
     }
 

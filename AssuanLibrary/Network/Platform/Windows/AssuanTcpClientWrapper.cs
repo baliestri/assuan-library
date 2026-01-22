@@ -10,7 +10,7 @@ using AssuanLibrary.Network.Utility;
 namespace AssuanLibrary.Network.Platform.Windows;
 
 internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, TimeSpan timeout) : IAssuanClientWrapper {
-  private readonly PortAndNonce _portAndNonce = SocketFileReader.Get(socketDescriptor);
+  private readonly PortAndNonce _portAndNonce = SocketFileReader.GetPortAndNonce(socketDescriptor);
   private bool _disposed;
   private NetworkStream? _networkStream;
   private TcpClient? _tcpClient;

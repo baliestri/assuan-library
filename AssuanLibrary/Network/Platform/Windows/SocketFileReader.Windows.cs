@@ -1,18 +1,14 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
+using AssuanLibrary.Network.Platform.Windows;
 
-namespace AssuanLibrary.Network.Platform.Windows;
+namespace AssuanLibrary.Network;
 
-/// <summary>
-///   Provides functionality to read the port and nonce from GnuPG socket files.
-/// </summary>
-[SupportedOSPlatform("windows")]
-public static class SocketFileReader {
+public static partial class SocketFileReader {
   private const int NONCE_LENGTH = 16;
 
   /// <summary>
@@ -21,7 +17,8 @@ public static class SocketFileReader {
   /// <param name="descriptor">The socket file descriptor to read from.</param>
   /// <returns>A <see cref="PortAndNonce" /> instance containing the port and nonce.</returns>
   /// <remarks>Basically it reads from a file in the machine's filesystem.</remarks>
-  public static PortAndNonce Get(SocketDescriptor descriptor) {
+  [SupportedOSPlatform("windows")]
+  public static PortAndNonce GetPortAndNonce(SocketDescriptor descriptor) {
     var content = ReadSocketFileContent(descriptor);
 
     return content.StartsWith("!<socket >"u8)
@@ -91,7 +88,7 @@ public static class SocketFileReader {
   }
 
   private static ReadOnlySpan<byte> ReadSocketFileContent(SocketDescriptor descriptor) {
-    var socketPath = GetGpgSocketPath(descriptor);
+    var socketPath = GetSocketPath(descriptor);
 
     if (!File.Exists(socketPath)) {
       throw new FileNotFoundException("GnuPG socket file not found.", socketPath);
@@ -100,34 +97,5 @@ public static class SocketFileReader {
     var normalizedPath = socketPath.Replace('\\', '/');
 
     return File.ReadAllBytes(normalizedPath);
-  }
-
-  private static string GetGpgSocketPath(string socketDirKey) {
-    var psi = new ProcessStartInfo {
-      FileName = "gpgconf",
-      Arguments = $"--list-dirs {socketDirKey}",
-      RedirectStandardOutput = true,
-      RedirectStandardError = true,
-      UseShellExecute = false,
-      CreateNoWindow = true
-    };
-
-    using var process = Process.Start(psi) ??
-                        throw new InvalidOperationException("Failed to start gpgconf process.");
-
-    var output = process.StandardOutput.ReadToEnd();
-    var error = process.StandardError.ReadToEnd();
-
-    process.WaitForExit();
-
-    if (process.ExitCode != 0) {
-      throw new InvalidOperationException($"gpgconf --list-dirs failed (exit code {process.ExitCode}): {error}");
-    }
-
-    var lines = output.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries);
-
-    return lines.Length == 0
-      ? throw new InvalidOperationException($"No output from gpgconf --list-dirs {socketDirKey}")
-      : lines[0].Trim();
   }
 }

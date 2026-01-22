@@ -1,13 +1,16 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-namespace AssuanLibrary.Network;
+using System.Runtime.Versioning;
+
+namespace AssuanLibrary.Network.Platform.Windows;
 
 /// <summary>
 ///   Represents a network port along with its associated nonce.
 /// </summary>
 /// <param name="Port">The network port number.</param>
 /// <param name="Nonce">The associated nonce as a read-only memory of bytes.</param>
+[SupportedOSPlatform("windows")]
 public readonly record struct PortAndNonce(ushort Port, ReadOnlyMemory<byte> Nonce) {
   /// <summary>
   ///   A read-only instance of <see cref="PortAndNonce" /> with default values.

@@ -18,7 +18,6 @@ public static class AssuanEncoder {
       table[i] = true;
     }
 
-    table['='] = false;
     table['%'] = false;
     return table;
   }

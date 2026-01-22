@@ -69,6 +69,7 @@ internal sealed class AssuanSocketClientWrapper(SocketDescriptor socketDescripto
 
     var buffer = "BYE\n"u8.ToArray();
     _socket.Send(buffer, SocketFlags.None);
+    _socket.DiscardAvailableData();
     _socket.Shutdown(SocketShutdown.Both);
   }
 
@@ -123,6 +124,7 @@ internal sealed class AssuanSocketClientWrapper(SocketDescriptor socketDescripto
     var buffer = "BYE\n"u8.ToArray();
     var segment = new ArraySegment<byte>(buffer);
     await _socket.SendAsync(segment, SocketFlags.None);
+    await _socket.DiscardAvailableDataAsync();
     _socket.Shutdown(SocketShutdown.Both);
   }
 

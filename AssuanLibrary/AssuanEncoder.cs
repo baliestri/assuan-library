@@ -80,7 +80,7 @@ public static class AssuanEncoder {
     }
 
     if (appendLineFeed) {
-      buffer.Write(Characters.LF);
+      buffer.Write(Characters.LINE_FEED);
     }
 
     return buffer.ToArray();
@@ -112,7 +112,7 @@ public static class AssuanEncoder {
     }
 
     if (appendLineFeed) {
-      buffer.Write(Characters.LF);
+      buffer.Write(Characters.LINE_FEED);
     }
 
     return buffer.ToReadOnlyMemory();

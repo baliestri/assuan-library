@@ -3,14 +3,16 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.Versioning;
 using System.Text;
 
-namespace AssuanLibrary.Network;
+namespace AssuanLibrary.Network.Platform.Windows;
 
 /// <summary>
 ///   Provides functionality to read the port and nonce from GnuPG socket files.
 /// </summary>
-public static class PortAndNonceReader {
+[SupportedOSPlatform("windows")]
+public static class SocketFileReader {
   private const int NONCE_LENGTH = 16;
 
   /// <summary>
@@ -19,7 +21,7 @@ public static class PortAndNonceReader {
   /// <param name="descriptor">The socket file descriptor to read from.</param>
   /// <returns>A <see cref="PortAndNonce" /> instance containing the port and nonce.</returns>
   /// <remarks>Basically it reads from a file in the machine's filesystem.</remarks>
-  public static PortAndNonce Get(SocketFileDescriptor descriptor) {
+  public static PortAndNonce Get(SocketDescriptor descriptor) {
     var content = ReadSocketFileContent(descriptor);
 
     return content.StartsWith("!<socket >"u8)
@@ -88,7 +90,7 @@ public static class PortAndNonceReader {
     return new PortAndNonce(port, nonce);
   }
 
-  private static ReadOnlySpan<byte> ReadSocketFileContent(SocketFileDescriptor descriptor) {
+  private static ReadOnlySpan<byte> ReadSocketFileContent(SocketDescriptor descriptor) {
     var socketPath = GetGpgSocketPath(descriptor);
 
     if (!File.Exists(socketPath)) {

@@ -2,6 +2,12 @@
 
 A .NET library for interacting with the Assuan protocol, commonly used in GnuPG for secure communication between components.
 
+== Compatibility
+
+* [x] Windows
+* [ ] Linux
+* [ ] macOS (will not be tested 'cause I don't have a Macbook)
+
 == Usage
 
 Install the NuGet package:

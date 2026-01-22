@@ -22,7 +22,7 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
     }
 
     var type = AssuanResponseType.Parse(buffer.Take(Characters.SPACE));
-    var responseBuffer = buffer.Skip(Characters.SPACE).Take(Characters.LF);
+    var responseBuffer = buffer.Skip(Characters.SPACE);
 
     Type = type;
     Buffer = responseBuffer;

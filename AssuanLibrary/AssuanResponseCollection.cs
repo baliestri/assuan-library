@@ -28,8 +28,7 @@ public sealed class AssuanResponseCollection : IReadOnlyList<AssuanResponse> {
     }
 
     _entries = buffer
-      .Split(Characters.LF)
-      .Where(entry => entry.All(item => item != Characters.NULL) && entry.Length > 0)
+      .Split(Characters.LINE_FEED)
       .Select(entry => new AssuanResponse(entry))
       .ToArray();
   }

@@ -1,15 +1,15 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using AssuanLibrary.Extensions;
+using AssuanLibrary.Utility;
 
 namespace AssuanLibrary.Network;
 
-internal sealed class AssuanTcpClientWrapper : IAsyncDisposable, IDisposable {
+internal sealed class AssuanTcpClientWrapper(TimeSpan timeout) : IAsyncDisposable, IDisposable {
   private bool _disposed;
   private NetworkStream? _networkStream;
   private TcpClient? _tcpClient;
@@ -117,25 +117,15 @@ internal sealed class AssuanTcpClientWrapper : IAsyncDisposable, IDisposable {
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A task that represents the asynchronous read operation, containing the data read.</returns>
   /// <exception cref="AssuanTcpClientException">Thrown when the TCP client is not connected.</exception>
-  public async Task<byte[]> ReadAsync(CancellationToken ct = default) {
+  public async ValueTask<byte[]> ReadAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanTcpClientWrapper));
 
     if (!IsConnected) {
       throw new AssuanTcpClientException("TCP client is not connected.");
     }
 
-    var currentlyAvailable = _tcpClient.Available;
-
-    if (currentlyAvailable == 0) {
-      return [];
-    }
-
-    using var memoryOwner = MemoryPool<byte>.Shared.Rent(currentlyAvailable);
-    var buffer = memoryOwner.Memory;
-
-    var read = await _networkStream.ReadAsync(buffer, ct);
-
-    return buffer.Span[..read].ToArray();
+    using var reader = new StabilizedStreamReader(_tcpClient, timeout);
+    return await reader.ReadAsync(ct);
   }
 
   /// <summary>
@@ -207,27 +197,8 @@ internal sealed class AssuanTcpClientWrapper : IAsyncDisposable, IDisposable {
       throw new AssuanTcpClientException("TCP client is not connected.");
     }
 
-    if (_tcpClient.Available == 0) {
-      return [];
-    }
-
-    var buffer = ArrayPool<byte>.Shared.Rent(_tcpClient.Available);
-
-    try {
-      var read = _networkStream.Read(buffer, 0, _tcpClient.Available);
-
-      if (read == 0) {
-        return [];
-      }
-
-      var result = new byte[read];
-      Buffer.BlockCopy(buffer, 0, result, 0, read);
-
-      return result;
-    }
-    finally {
-      ArrayPool<byte>.Shared.Return(buffer);
-    }
+    using var reader = new StabilizedStreamReader(_tcpClient, timeout);
+    return reader.Read();
   }
 
   /// <summary>

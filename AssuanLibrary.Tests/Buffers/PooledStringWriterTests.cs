@@ -1,10 +1,10 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using AssuanLibrary.Utility;
+using AssuanLibrary.Buffers;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests.Utility;
+namespace AssuanLibrary.Tests.Buffers;
 
 [TestSubject(typeof(PooledStringWriter))]
 public sealed class PooledStringWriterTests {

@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using AssuanLibrary.Extensions;
-using AssuanLibrary.Utility;
 
 namespace AssuanLibrary.Network;
 

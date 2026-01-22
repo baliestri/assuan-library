@@ -4,7 +4,7 @@
 using System.Buffers;
 using BytePool = System.Buffers.ArrayPool<byte>;
 
-namespace AssuanLibrary.Utility;
+namespace AssuanLibrary.Buffers;
 
 /// <summary>
 ///   A high-performance buffer writer for bytes that utilizes array pooling.

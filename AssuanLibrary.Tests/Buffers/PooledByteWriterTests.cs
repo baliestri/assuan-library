@@ -2,10 +2,10 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Buffers;
-using AssuanLibrary.Utility;
+using AssuanLibrary.Buffers;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests.Utility;
+namespace AssuanLibrary.Tests.Buffers;
 
 [TestSubject(typeof(PooledByteWriter))]
 public sealed class PooledByteWriterTests {

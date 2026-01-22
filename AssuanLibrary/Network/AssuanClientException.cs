@@ -6,10 +6,10 @@ namespace AssuanLibrary.Network;
 /// <summary>
 ///   Represents errors that occur during Assuan TCP client operations.
 /// </summary>
-public sealed class AssuanTcpClientException : Exception {
+public sealed class AssuanClientException : Exception {
   /// <inheritdoc />
-  public AssuanTcpClientException(string message) : base(message) { }
+  public AssuanClientException(string message) : base(message) { }
 
   /// <inheritdoc />
-  public AssuanTcpClientException(string message, Exception innerException) : base(message, innerException) { }
+  public AssuanClientException(string message, Exception innerException) : base(message, innerException) { }
 }

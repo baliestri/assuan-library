@@ -4,6 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using AssuanLibrary.Network.Platform.Unix;
 using AssuanLibrary.Network.Platform.Windows;
 
 namespace AssuanLibrary.Network;
@@ -34,8 +35,8 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
       var (socketDescriptor, timeout) = options;
       _wrapper = true switch {
         true when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => new AssuanTcpClientWrapper(socketDescriptor, timeout),
-        true when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => throw new NotImplementedException(),
-        true when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => throw new NotImplementedException(),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => new AssuanSocketClientWrapper(socketDescriptor, timeout),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => new AssuanSocketClientWrapper(socketDescriptor, timeout),
         var _ => throw new PlatformNotSupportedException("The current platform is not supported by the AssuanClient.")
       };
 
@@ -70,8 +71,8 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
       var (socketDescriptor, timeout) = options;
       _wrapper = true switch {
         true when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => new AssuanTcpClientWrapper(socketDescriptor, timeout),
-        true when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => throw new NotImplementedException(),
-        true when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => throw new NotImplementedException(),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => new AssuanSocketClientWrapper(socketDescriptor, timeout),
+        true when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => new AssuanSocketClientWrapper(socketDescriptor, timeout),
         var _ => throw new PlatformNotSupportedException("The current platform is not supported by the AssuanClient.")
       };
 

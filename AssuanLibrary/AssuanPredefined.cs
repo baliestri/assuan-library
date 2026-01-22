@@ -9,7 +9,6 @@ internal static class AssuanPredefined {
 
   public static class Characters {
     public const byte SPACE = 0x20;
-    public const byte LF = 0x0A;
-    public const byte NULL = 0x00;
+    public const byte LINE_FEED = 0x0A;
   }
 }

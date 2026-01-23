@@ -21,8 +21,12 @@ public static class SymbolicExpressionParser {
   /// <exception cref="InvalidAssuanResponseTypeException">Thrown when the response type is not <see cref="AssuanResponseType.Data" />.</exception>
   /// <exception cref="InvalidBinaryLengthException">Thrown when a binary length is invalid.</exception>
   /// <exception cref="InvalidSymbolicExpressionSyntaxException">Thrown when the symbolic expression has invalid syntax.</exception>
-  public static SymbolicExpression Parse(AssuanResponse assuanResponse, out int bytesConsumed) {
+  public static SymbolicExpression Parse(AssuanResponse? assuanResponse, out int bytesConsumed) {
     bytesConsumed = 0;
+
+    if (assuanResponse is null) {
+      throw new ArgumentNullException(nameof(assuanResponse), "The Assuan response cannot be null.");
+    }
 
     return assuanResponse.Type is not AssuanResponseType.Data
       ? throw new InvalidAssuanResponseTypeException(assuanResponse.Type)
@@ -36,11 +40,11 @@ public static class SymbolicExpressionParser {
   /// <param name="symbolicExpression">The parsed symbolic expression, if successful.</param>
   /// <param name="bytesConsumed">The number of bytes consumed during parsing.</param>
   /// <returns><see langword="true" /> if the parsing was successful; otherwise, <see langword="false" />.</returns>
-  public static bool TryParse(AssuanResponse assuanResponse, [NotNullWhen(true)] out SymbolicExpression? symbolicExpression, out int bytesConsumed) {
+  public static bool TryParse(AssuanResponse? assuanResponse, [NotNullWhen(true)] out SymbolicExpression? symbolicExpression, out int bytesConsumed) {
     symbolicExpression = null;
     bytesConsumed = 0;
 
-    if (assuanResponse.Type is not AssuanResponseType.Data) {
+    if (assuanResponse?.Type is not AssuanResponseType.Data) {
       return false;
     }
 

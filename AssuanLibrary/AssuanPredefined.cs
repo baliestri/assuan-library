@@ -15,6 +15,18 @@ internal static class AssuanPredefined {
     public const byte OPEN_PARENTHESIS = 0x28;
     public const byte CLOSE_PARENTHESIS = 0x29;
     public const byte COLON = 0x3A;
+    public const byte HYPHEN = 0x2D;
+    public const byte UNDERSCORE = 0x5F;
+    public const byte PERIOD = 0x2E;
+    public const byte SLASH = 0x2F;
+    public const byte QUESTION_MARK = 0x3F;
+    public const byte EQUALS = 0x3D;
+    public const byte ASTERISK = 0x2A;
+
+    public const byte LOWER_A = 0x61;
+    public const byte LOWER_Z = 0x7A;
+    public const byte UPPER_A = 0x41;
+    public const byte UPPER_Z = 0x5A;
 
     public const byte DIGIT_ZERO = 0x30;
     public const byte DIGIT_NINE = 0x39;

@@ -6,7 +6,7 @@ namespace AssuanLibrary.Expressions;
 /// <summary>
 ///   Represents a S-Expression (Symbolic Expression).
 /// </summary>
-public abstract class SymbolicExpression : IEquatable<SymbolicExpression> {
+public abstract partial class SymbolicExpression : IEquatable<SymbolicExpression> {
   /// <summary>
   ///   The type of the symbolic expression.
   /// </summary>

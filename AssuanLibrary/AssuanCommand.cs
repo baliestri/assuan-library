@@ -116,7 +116,11 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
       Array.Resize(ref _entries, _entries.Length + INITIAL_COLLECTION_SIZE);
     }
 
-    _entries[Count++] = argument.Trim();
+    var trimmedArgument = argument.Trim();
+
+    _entries[Count++] = trimmedArgument.Contains(' ', StringComparison.Ordinal)
+      ? $"¨{trimmedArgument}¨"
+      : trimmedArgument;
   }
 
   /// <summary>

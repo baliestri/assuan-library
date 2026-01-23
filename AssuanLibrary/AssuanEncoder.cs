@@ -11,6 +11,7 @@ namespace AssuanLibrary;
 public static class AssuanEncoder {
   private static readonly char[] _hexLookup = "0123456789ABCDEF".ToCharArray();
   private static readonly bool[] _isSafeChar = CreateSafeCharTable();
+  private static readonly byte _escapeSpaceChar = (byte)'¨';
 
   private static bool[] CreateSafeCharTable() {
     var table = new bool[128];
@@ -35,9 +36,16 @@ public static class AssuanEncoder {
 
     using var writer = new PooledStringWriter((value.Length * 3) / 2);
 
+    var escapeSpace = false;
     foreach (var c in value) {
+      if (c == _escapeSpaceChar) {
+        escapeSpace = !escapeSpace;
+        continue;
+      }
+
       if (c < 128 &&
-          _isSafeChar[c]) {
+          _isSafeChar[c] &&
+          (!escapeSpace || c != ' ')) {
         writer.Write(c);
         continue;
       }
@@ -67,9 +75,16 @@ public static class AssuanEncoder {
 
     using var buffer = new PooledByteWriter((value.Length * 3) / 2);
 
+    var escapeSpace = false;
     foreach (var c in value) {
+      if (c == _escapeSpaceChar) {
+        escapeSpace = !escapeSpace;
+        continue;
+      }
+
       if (c < 128 &&
-          _isSafeChar[c]) {
+          _isSafeChar[c] &&
+          (!escapeSpace || c != ' ')) {
         buffer.Write((byte)c);
         continue;
       }
@@ -99,9 +114,16 @@ public static class AssuanEncoder {
 
     using var buffer = new PooledByteWriter((value.Length * 3) / 2);
 
+    var escapeSpace = false;
     foreach (var c in value) {
+      if (c == _escapeSpaceChar) {
+        escapeSpace = !escapeSpace;
+        continue;
+      }
+
       if (c < 128 &&
-          _isSafeChar[c]) {
+          _isSafeChar[c] &&
+          (!escapeSpace || c != ' ')) {
         buffer.Write((byte)c);
         continue;
       }

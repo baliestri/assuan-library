@@ -17,6 +17,15 @@ public sealed class SymbolicExpressionAtom(ReadOnlySpan<byte> value) : SymbolicE
   public byte[] Value { get; } = value.ToArray();
 
   /// <inheritdoc />
+  protected override bool InheritorEquals(SymbolicExpression other)
+    => other is SymbolicExpressionAtom otherAtom &&
+       Value.SequenceEqual(otherAtom.Value);
+
+  /// <inheritdoc />
+  protected override int InheritorGetHashCode()
+    => Value.Aggregate(17, (current, b) => (current * 31) + b);
+
+  /// <inheritdoc />
   public override string ToString()
     => $"Atom[{AssuanDecoder.ToString(Value)}]";
 }

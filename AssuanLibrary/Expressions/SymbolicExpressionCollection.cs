@@ -17,6 +17,17 @@ public sealed class SymbolicExpressionCollection(IReadOnlyCollection<SymbolicExp
   public IReadOnlyCollection<SymbolicExpression> Children { get; } = children;
 
   /// <inheritdoc />
+  protected override bool InheritorEquals(SymbolicExpression other)
+    => other is SymbolicExpressionCollection otherCollection &&
+       Children.SequenceEqual(otherCollection.Children);
+
+  /// <inheritdoc />
+  protected override int InheritorGetHashCode()
+    => Children
+      .Select(child => child.GetHashCode())
+      .Aggregate(17, (current, hash) => (current * 31) + hash);
+
+  /// <inheritdoc />
   public override string ToString()
     => $"Collection[{Children.Count} children]";
 }

@@ -14,38 +14,58 @@ public abstract class SymbolicExpression : IEquatable<SymbolicExpression> {
 
   /// <inheritdoc />
   public bool Equals(SymbolicExpression? other) {
-    if (other is null) {
-      return false;
-    }
-
     if (ReferenceEquals(this, other)) {
       return true;
     }
 
-    return Type == other.Type;
-  }
-
-  /// <inheritdoc />
-  public override bool Equals(object? obj) {
-    if (obj is null) {
+    if (other is null ||
+        Type != other.Type) {
       return false;
     }
 
-    if (ReferenceEquals(this, obj)) {
-      return true;
-    }
-
-    return obj.GetType() == GetType() &&
-           Equals((SymbolicExpression)obj);
+    return InheritorEquals(other);
   }
 
   /// <inheritdoc />
-  public override int GetHashCode()
-    => (int)Type;
+  public override bool Equals(object? obj)
+    => obj is SymbolicExpression other && Equals(other);
 
+  /// <inheritdoc />
+  public override int GetHashCode() {
+    var typeHashCode = Type.GetHashCode();
+    var inheritorHashCode = InheritorGetHashCode();
+
+    return typeHashCode ^ inheritorHashCode;
+  }
+
+  /// <summary>
+  ///   Determines whether the inheritor instances are equal.
+  /// </summary>
+  /// <param name="other">The other instance.</param>
+  /// <returns><see langword="true" /> if the two instances are equal; otherwise, <see langword="false" />.</returns>
+  protected abstract bool InheritorEquals(SymbolicExpression other);
+
+  /// <summary>
+  ///   Gets the hash code for the inheritor instance.
+  /// </summary>
+  /// <returns>The hash code.</returns>
+  protected abstract int InheritorGetHashCode();
+
+  /// <summary>
+  ///   Determines whether two <see cref="SymbolicExpression" /> instances are equal.
+  /// </summary>
+  /// <param name="left">The left instance.</param>
+  /// <param name="right">The right instance.</param>
+  /// <returns><see langword="true" /> if the two instances are equal; otherwise, <see langword="false" />.</returns>
   public static bool operator ==(SymbolicExpression? left, SymbolicExpression? right)
     => Equals(left, right);
 
+  /// <summary>
+  ///   Determines whether two <see cref="SymbolicExpression" /> instances are not equal.
+  /// </summary>
+  /// <param name="left">The left instance.</param>
+  /// <param name="right">The right instance.</param>
+  /// <returns><see langword="true" /> if the two instances are not equal; otherwise, <see langword="false" />.</returns>
   public static bool operator !=(SymbolicExpression? left, SymbolicExpression? right)
     => !Equals(left, right);
 }

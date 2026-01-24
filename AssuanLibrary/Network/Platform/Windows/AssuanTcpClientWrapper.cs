@@ -20,57 +20,6 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
   public bool IsConnected => _tcpClient is { Connected: true };
 
   /// <inheritdoc />
-  public async ValueTask DisposeAsync() {
-    if (_disposed) {
-      return;
-    }
-
-    if (IsConnected) {
-      await DisconnectAsync();
-    }
-
-    if (_networkStream is not null) {
-      await CastAndDispose(_networkStream);
-    }
-
-    if (_tcpClient is not null) {
-      await CastAndDispose(_tcpClient);
-    }
-
-    _networkStream = null;
-    _tcpClient = null;
-    _disposed = true;
-
-    return;
-
-    static async ValueTask CastAndDispose(IDisposable resource) {
-      if (resource is IAsyncDisposable resourceAsyncDisposable) {
-        await resourceAsyncDisposable.DisposeAsync();
-        return;
-      }
-
-      resource.Dispose();
-    }
-  }
-
-  /// <inheritdoc />
-  public void Dispose() {
-    if (_disposed) {
-      return;
-    }
-
-    if (IsConnected) {
-      Disconnect();
-    }
-
-    _networkStream?.Dispose();
-    _tcpClient?.Dispose();
-    _networkStream = null;
-    _tcpClient = null;
-    _disposed = true;
-  }
-
-  /// <inheritdoc />
   public void Connect() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanTcpClientWrapper));
 
@@ -113,6 +62,64 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
   }
 
   /// <inheritdoc />
+  public byte[] Read(Action<IInquireContext> inquireHandler) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanTcpClientWrapper));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    using var finalMemoryStream = new MemoryStream();
+    using var memoryStream = new MemoryStream();
+
+    while (true) {
+      var b = _networkStream.ReadByte();
+      if (b < 0) {
+        break; // EOF
+      }
+
+      memoryStream.WriteByte((byte)b);
+
+      if (b != Characters.LINE_FEED) {
+        continue;
+      }
+
+      var responseBuffer = memoryStream.ToArray();
+      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
+
+      Console.WriteLine($"DEBUG: Received response: {response.Type} {response}");
+
+      finalMemoryStream.Write(responseBuffer);
+      memoryStream.SetLength(0);
+
+      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
+        break;
+      }
+
+      if (response.Type is not AssuanResponseType.Inquire) {
+        continue;
+      }
+
+      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
+
+      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
+      var parameters = responseParts.Skip(1).ToArray();
+
+      var ctx = new InquireContext(keyword, parameters, _networkStream);
+
+      try {
+        inquireHandler(ctx);
+      }
+      catch {
+        ctx.Cancel();
+        throw;
+      }
+    }
+
+    return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
   public void Disconnect() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanTcpClientWrapper));
 
@@ -120,7 +127,7 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    _networkStream.Write("BYE\n"u8.ToArray());
+    _networkStream.Write(Keywords.Bye);
     _networkStream.Flush();
     _tcpClient.DiscardAvailableData();
   }
@@ -168,6 +175,62 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
   }
 
   /// <inheritdoc />
+  public async ValueTask<byte[]> ReadAsync(Func<IInquireContext, CancellationToken, Task> inquireHandler, CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanTcpClientWrapper));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    using var finalMemoryStream = new MemoryStream();
+    using var memoryStream = new MemoryStream();
+
+    while (!ct.IsCancellationRequested) {
+      var b = _networkStream.ReadByte();
+      if (b < 0) {
+        break; // EOF
+      }
+
+      memoryStream.WriteByte((byte)b);
+
+      if (b != Characters.LINE_FEED) {
+        continue;
+      }
+
+      var responseBuffer = memoryStream.ToArray();
+      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
+
+      finalMemoryStream.Write(responseBuffer);
+      memoryStream.SetLength(0);
+
+      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
+        break;
+      }
+
+      if (response.Type is not AssuanResponseType.Inquire) {
+        continue;
+      }
+
+      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
+
+      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
+      var parameters = responseParts.Skip(1).ToArray();
+
+      var ctx = new InquireContext(keyword, parameters, _networkStream);
+
+      try {
+        await inquireHandler(ctx, ct);
+      }
+      catch {
+        await ctx.CancelAsync(ct);
+        throw;
+      }
+    }
+
+    return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
   public async Task DisconnectAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanTcpClientWrapper));
 
@@ -175,10 +238,59 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    var buffer = "BYE\n"u8.ToArray();
-
-    await _networkStream.WriteAsync(buffer, ct);
+    await _networkStream.WriteAsync(Keywords.Bye, ct);
     await _networkStream.FlushAsync(ct);
     await _tcpClient.DiscardAvailableDataAsync(ct);
+  }
+
+  /// <inheritdoc />
+  public void Dispose() {
+    if (_disposed) {
+      return;
+    }
+
+    if (IsConnected) {
+      Disconnect();
+    }
+
+    _networkStream?.Dispose();
+    _tcpClient?.Dispose();
+    _networkStream = null;
+    _tcpClient = null;
+    _disposed = true;
+  }
+
+  /// <inheritdoc />
+  public async ValueTask DisposeAsync() {
+    if (_disposed) {
+      return;
+    }
+
+    if (IsConnected) {
+      await DisconnectAsync();
+    }
+
+    if (_networkStream is not null) {
+      await CastAndDispose(_networkStream);
+    }
+
+    if (_tcpClient is not null) {
+      await CastAndDispose(_tcpClient);
+    }
+
+    _networkStream = null;
+    _tcpClient = null;
+    _disposed = true;
+
+    return;
+
+    static async ValueTask CastAndDispose(IDisposable resource) {
+      if (resource is IAsyncDisposable resourceAsyncDisposable) {
+        await resourceAsyncDisposable.DisposeAsync();
+        return;
+      }
+
+      resource.Dispose();
+    }
   }
 }

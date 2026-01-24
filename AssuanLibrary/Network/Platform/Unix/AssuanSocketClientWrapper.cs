@@ -60,6 +60,64 @@ internal sealed class AssuanSocketClientWrapper(SocketDescriptor socketDescripto
   }
 
   /// <inheritdoc />
+  public byte[] Read(Action<IInquireContext> inquireHandler) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanSocketClientWrapper));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    using var finalMemoryStream = new MemoryStream();
+    using var memoryStream = new MemoryStream();
+
+    var b = new byte[1];
+
+    while (true) {
+      var bytesRead = _socket.Receive(b, 0, 1, SocketFlags.None);
+      if (bytesRead < 0) {
+        break; // EOF
+      }
+
+      memoryStream.WriteByte(b[0]);
+
+      if (b[0] != Characters.LINE_FEED) {
+        continue;
+      }
+
+      var responseBuffer = memoryStream.ToArray();
+      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
+
+      finalMemoryStream.Write(responseBuffer);
+      memoryStream.SetLength(0);
+
+      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
+        break;
+      }
+
+      if (response.Type is not AssuanResponseType.Inquire) {
+        continue;
+      }
+
+      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
+
+      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
+      var parameters = responseParts.Skip(1).ToArray();
+
+      var ctx = new InquireContext(keyword, parameters, _socket);
+
+      try {
+        inquireHandler(ctx);
+      }
+      catch {
+        ctx.Cancel();
+        throw;
+      }
+    }
+
+    return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
   public void Disconnect() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanSocketClientWrapper));
 
@@ -111,6 +169,65 @@ internal sealed class AssuanSocketClientWrapper(SocketDescriptor socketDescripto
 
     using var reader = new StabilizedSocketReader(_socket, timeout);
     return await reader.ReadAsync(ct);
+  }
+
+  /// <inheritdoc />
+  public async ValueTask<byte[]> ReadAsync(Func<IInquireContext, CancellationToken, Task> inquireHandler, CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanSocketClientWrapper));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    using var finalMemoryStream = new MemoryStream();
+    using var memoryStream = new MemoryStream();
+
+    var b = new byte[1];
+    var segment = new ArraySegment<byte>(b);
+
+    while (true) {
+      var bytesRead = await _socket.ReceiveAsync(segment, SocketFlags.None);
+      if (bytesRead < 0) {
+        break; // EOF
+      }
+
+      memoryStream.WriteByte(b[0]);
+
+      if (b[0] != Characters.LINE_FEED) {
+        continue;
+      }
+
+      var responseBuffer = memoryStream.ToArray();
+      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
+
+      finalMemoryStream.Write(responseBuffer);
+      memoryStream.SetLength(0);
+
+      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
+        break;
+      }
+
+      if (response.Type is not AssuanResponseType.Inquire) {
+        continue;
+      }
+
+      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
+
+      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
+      var parameters = responseParts.Skip(1).ToArray();
+
+      var ctx = new InquireContext(keyword, parameters, _socket);
+
+      try {
+        await inquireHandler(ctx, ct);
+      }
+      catch {
+        await ctx.CancelAsync(ct);
+        throw;
+      }
+    }
+
+    return finalMemoryStream.ToArray();
   }
 
   /// <inheritdoc />

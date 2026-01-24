@@ -6,6 +6,9 @@ using AssuanLibrary.Buffers;
 namespace AssuanLibrary;
 
 public static class AssuanDecoder {
+  private static int HexToNibble(byte b)
+    => HexToNibble((char)b);
+
   private static int HexToNibble(char c) {
     return c switch {
       >= '0' and <= '9' => c - '0',
@@ -28,24 +31,22 @@ public static class AssuanDecoder {
     using var writer = new PooledByteWriter((value.Length * 3) >> 2);
 
     for (var i = 0; i < value.Length; i++) {
-      var c = value[i];
+      var b = value[i];
 
-      if (c == '%' &&
+      if (b == Characters.PERCENT &&
           (i + 2) < value.Length) {
-        var h1 = value[i + 1];
-        var h2 = value[i + 2];
-
-        var hi = HexToNibble(h1);
-        var lo = HexToNibble(h2);
+        var hi = HexToNibble(value[i + 1]);
+        var lo = HexToNibble(value[i + 2]);
 
         if (hi >= 0 &&
             lo >= 0) {
           writer.Write((byte)((hi << 4) | lo));
           i += 2;
+          continue;
         }
       }
 
-      writer.Write((byte)c);
+      writer.Write((byte)b);
     }
 
     return writer.ToArray();
@@ -66,18 +67,16 @@ public static class AssuanDecoder {
     for (var i = 0; i < value.Length; i++) {
       var b = value[i];
 
-      if (b == (byte)'%' &&
+      if (b == Characters.PERCENT &&
           (i + 2) < value.Length) {
-        var h1 = (char)value[i + 1];
-        var h2 = (char)value[i + 2];
-
-        var hi = HexToNibble(h1);
-        var lo = HexToNibble(h2);
+        var hi = HexToNibble(value[i + 1]);
+        var lo = HexToNibble(value[i + 2]);
 
         if (hi >= 0 &&
             lo >= 0) {
           writer.Write((byte)((hi << 4) | lo));
           i += 2;
+          continue;
         }
       }
 
@@ -100,21 +99,19 @@ public static class AssuanDecoder {
     using var writer = new PooledByteWriter((value.Length * 3) >> 2);
     var span = value.Span;
 
-    for (var i = 0; i < span.Length; i++) {
+    for (var i = 0; i < value.Length; i++) {
       var b = span[i];
 
-      if (b == (byte)'%' &&
-          (i + 2) < span.Length) {
-        var h1 = (char)span[i + 1];
-        var h2 = (char)span[i + 2];
-
-        var hi = HexToNibble(h1);
-        var lo = HexToNibble(h2);
+      if (b == Characters.PERCENT &&
+          (i + 2) < value.Length) {
+        var hi = HexToNibble(span[i + 1]);
+        var lo = HexToNibble(span[i + 2]);
 
         if (hi >= 0 &&
             lo >= 0) {
           writer.Write((byte)((hi << 4) | lo));
           i += 2;
+          continue;
         }
       }
 
@@ -139,18 +136,16 @@ public static class AssuanDecoder {
     for (var i = 0; i < value.Length; i++) {
       var c = value[i];
 
-      if (c == '%' &&
+      if (c == Characters.PERCENT &&
           (i + 2) < value.Length) {
-        var h1 = value[i + 1];
-        var h2 = value[i + 2];
-
-        var hi = HexToNibble(h1);
-        var lo = HexToNibble(h2);
+        var hi = HexToNibble(value[i + 1]);
+        var lo = HexToNibble(value[i + 2]);
 
         if (hi >= 0 &&
             lo >= 0) {
           writer.Write((byte)((hi << 4) | lo));
           i += 2;
+          continue;
         }
       }
 
@@ -175,18 +170,16 @@ public static class AssuanDecoder {
     for (var i = 0; i < value.Length; i++) {
       var b = value[i];
 
-      if (b == (byte)'%' &&
+      if (b == Characters.PERCENT &&
           (i + 2) < value.Length) {
-        var h1 = (char)value[i + 1];
-        var h2 = (char)value[i + 2];
-
-        var hi = HexToNibble(h1);
-        var lo = HexToNibble(h2);
+        var hi = HexToNibble(value[i + 1]);
+        var lo = HexToNibble(value[i + 2]);
 
         if (hi >= 0 &&
             lo >= 0) {
           writer.Write((byte)((hi << 4) | lo));
           i += 2;
+          continue;
         }
       }
 
@@ -209,21 +202,19 @@ public static class AssuanDecoder {
     using var writer = new PooledByteWriter((value.Length * 3) >> 2);
     var span = value.Span;
 
-    for (var i = 0; i < span.Length; i++) {
+    for (var i = 0; i < value.Length; i++) {
       var b = span[i];
 
-      if (b == (byte)'%' &&
-          (i + 2) < span.Length) {
-        var h1 = (char)span[i + 1];
-        var h2 = (char)span[i + 2];
-
-        var hi = HexToNibble(h1);
-        var lo = HexToNibble(h2);
+      if (b == Characters.PERCENT &&
+          (i + 2) < value.Length) {
+        var hi = HexToNibble(span[i + 1]);
+        var lo = HexToNibble(span[i + 2]);
 
         if (hi >= 0 &&
             lo >= 0) {
           writer.Write((byte)((hi << 4) | lo));
           i += 2;
+          continue;
         }
       }
 
@@ -248,18 +239,16 @@ public static class AssuanDecoder {
     for (var i = 0; i < value.Length; i++) {
       var c = value[i];
 
-      if (c == '%') {
-        if ((i + 2) < value.Length) {
-          var h1 = value[i + 1];
-          var h2 = value[i + 2];
+      if (c == Characters.PERCENT &&
+          (i + 2) < value.Length) {
+        var hi = HexToNibble(value[i + 1]);
+        var lo = HexToNibble(value[i + 2]);
 
-          var b = (HexToNibble(h1) << 4) | HexToNibble(h2);
-
-          if (b is not -1) {
-            writer.Write((char)b);
-            i += 2;
-            continue;
-          }
+        if (hi >= 0 &&
+            lo >= 0) {
+          writer.Write((char)((hi << 4) | lo));
+          i += 2;
+          continue;
         }
       }
 
@@ -284,18 +273,16 @@ public static class AssuanDecoder {
     for (var i = 0; i < value.Length; i++) {
       var b = value[i];
 
-      if (b == (byte)'%') {
-        if ((i + 2) < value.Length) {
-          var h1 = (char)value[i + 1];
-          var h2 = (char)value[i + 2];
+      if (b == Characters.PERCENT &&
+          (i + 2) < value.Length) {
+        var hi = HexToNibble(value[i + 1]);
+        var lo = HexToNibble(value[i + 2]);
 
-          var decodedByte = (HexToNibble(h1) << 4) | HexToNibble(h2);
-
-          if (decodedByte is not -1) {
-            writer.Write((char)decodedByte);
-            i += 2;
-            continue;
-          }
+        if (hi >= 0 &&
+            lo >= 0) {
+          writer.Write((char)((hi << 4) | lo));
+          i += 2;
+          continue;
         }
       }
 
@@ -318,21 +305,19 @@ public static class AssuanDecoder {
     using var writer = new PooledStringWriter((value.Length * 3) >> 2);
     var span = value.Span;
 
-    for (var i = 0; i < span.Length; i++) {
+    for (var i = 0; i < value.Length; i++) {
       var b = span[i];
 
-      if (b == (byte)'%') {
-        if ((i + 2) < span.Length) {
-          var h1 = (char)span[i + 1];
-          var h2 = (char)span[i + 2];
+      if (b == Characters.PERCENT &&
+          (i + 2) < value.Length) {
+        var hi = HexToNibble(span[i + 1]);
+        var lo = HexToNibble(span[i + 2]);
 
-          var decodedByte = (HexToNibble(h1) << 4) | HexToNibble(h2);
-
-          if (decodedByte is not -1) {
-            writer.Write((char)decodedByte);
-            i += 2;
-            continue;
-          }
+        if (hi >= 0 &&
+            lo >= 0) {
+          writer.Write((char)((hi << 4) | lo));
+          i += 2;
+          continue;
         }
       }
 

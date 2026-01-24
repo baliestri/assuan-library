@@ -43,7 +43,7 @@ public struct StabilizedSocketReader(Socket socket, TimeSpan timeout) : IStabili
         _written += available;
         consecutiveZeros = 0;
         zeroStartedAt = default;
-        Task.Delay(ReadGracePeriod); // sync delay – consider Thread.Sleep if you prefer
+        Thread.Sleep(ReadGracePeriod);
         continue;
       }
 
@@ -53,7 +53,7 @@ public struct StabilizedSocketReader(Socket socket, TimeSpan timeout) : IStabili
         break;
       }
 
-      Task.Delay(PollInterval);
+      Thread.Sleep(PollInterval);
     }
 
     if (DateTime.UtcNow > deadline) {

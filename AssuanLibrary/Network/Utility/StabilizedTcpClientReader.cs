@@ -44,7 +44,7 @@ public struct StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout) :
         _written += available;
         consecutiveZeros = 0;
         zeroStartedAt = default;
-        Task.Delay(ReadGracePeriod);
+        Thread.Sleep(ReadGracePeriod);
         continue;
       }
 
@@ -54,7 +54,7 @@ public struct StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout) :
         break;
       }
 
-      Task.Delay(PollInterval);
+      Thread.Sleep(PollInterval);
     }
 
     if (DateTime.UtcNow > deadline) {

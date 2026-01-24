@@ -67,6 +67,11 @@ public static class AssuanResponseTypeExtensions {
 
       var prefix = buffer.AsSpan(0, Math.Min(7, buffer.Length));
 
+      var lineFeedIndex = prefix.IndexOf(Characters.LINE_FEED);
+      if (lineFeedIndex is not -1) {
+        prefix = prefix[..lineFeedIndex];
+      }
+
       return prefix switch {
         var _ when prefix.SequenceEqual("OK"u8) => AssuanResponseType.Ok,
         var _ when prefix.SequenceEqual("ERR"u8) => AssuanResponseType.Error,

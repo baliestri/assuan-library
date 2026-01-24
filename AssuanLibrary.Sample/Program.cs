@@ -32,14 +32,14 @@ internal static class Program {
     var versionResponseCollection = await client.InvokeAsync(versionCommand);
     Console.WriteLine("gpg-agent version:");
     foreach (var response in versionResponseCollection) {
-      Console.WriteLine($"  {response.Type} → {response.ToString(false)}");
+      Console.WriteLine($"\t→ {response:GT}");
     }
 
     var pidCommand = new AssuanCommand("GETINFO") { "pid" };
     var pidResponseCollection = await client.InvokeAsync(pidCommand);
     Console.WriteLine("Agent PID:");
     foreach (var response in pidResponseCollection) {
-      Console.WriteLine($"  {response.Type} → {response.ToString(false)}");
+      Console.WriteLine($"\t→ {response:GT}");
     }
   }
 
@@ -58,7 +58,7 @@ internal static class Program {
 
     foreach (var response in responseCollection) {
       // Typical format: KEYINFO <keygrip> <type> <serial> <is_cached> ...
-      Console.WriteLine($"  {response.Type} → {response}");
+      Console.WriteLine($"\t→ {response:GT} ");
     }
   }
 
@@ -71,7 +71,7 @@ internal static class Program {
 
     Console.WriteLine($"Key info for {keygrip}:");
     foreach (var response in responseCollection) {
-      Console.WriteLine($"  {response.Type} → {response}");
+      Console.WriteLine($"\t→ {response:GT} ");
     }
   }
 
@@ -90,7 +90,7 @@ internal static class Program {
         sigKeyResponseCollection.Any(response => response.Type == AssuanResponseType.Error)) {
       Console.WriteLine("SIGKEY command failed:");
       foreach (var response in sigKeyResponseCollection) {
-        Console.WriteLine($"  {response.Type} → {response}");
+        Console.WriteLine($"\t→ {response:GT} ");
       }
 
       return;
@@ -102,7 +102,7 @@ internal static class Program {
         setHashResponseCollection.Any(response => response.Type == AssuanResponseType.Error)) {
       Console.WriteLine("SETHASH command failed:");
       foreach (var response in setHashResponseCollection) {
-        Console.WriteLine($"  {response.Type} → {response}");
+        Console.WriteLine($"\t→ {response:GT} ");
       }
 
       return;
@@ -113,7 +113,7 @@ internal static class Program {
     if (!pkSignResponseCollection.Any(response => response.Type == AssuanResponseType.Data)) {
       Console.WriteLine("PKSIGN command failed:");
       foreach (var response in pkSignResponseCollection) {
-        Console.WriteLine($"  {response.Type} → {response}");
+        Console.WriteLine($"\t→ {response:GT} ");
       }
 
       return;
@@ -156,7 +156,7 @@ internal static class Program {
     });
     Console.WriteLine("GET_PASSPHRASE result:");
     foreach (var response in responseCollection) {
-      Console.WriteLine($"  {response.Type} → {response}");
+      Console.WriteLine($"\t→ {response:DT} ");
     }
   }
 
@@ -182,7 +182,7 @@ internal static class Program {
 
     Console.WriteLine("GET_CONFIRMATION result:");
     foreach (var response in responseCollection) {
-      Console.WriteLine($"  {response.Type} → {response}");
+      Console.WriteLine($"\t→ {response:GT} ");
     }
   }
 

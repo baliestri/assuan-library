@@ -54,10 +54,10 @@ public static class AssuanDecoder {
   /// <summary>
   ///   Decodes the given byte array according to the Assuan protocol.
   /// </summary>
-  /// <param name="value">The byte array to decode.</param>
+  /// <param name="value">The ReadOnlySpan&lt;byte&gt; to decode.</param>
   /// <returns>The decoded byte array.</returns>
-  public static byte[] ToBytes(byte[] value) {
-    if (value.Length == 0) {
+  public static byte[] ToBytes(ReadOnlySpan<byte> value) {
+    if (value.IsEmpty) {
       return [];
     }
 
@@ -340,5 +340,49 @@ public static class AssuanDecoder {
     }
 
     return writer.ToString();
+  }
+
+  /// <summary>
+  ///   Get the inquire parameters from the given buffer.
+  /// </summary>
+  /// <param name="buffer">The buffer containing the inquire parameters.</param>
+  /// <returns>The array of inquire parameters.</returns>
+  public static string[] GetInquireParameters(ReadOnlySpan<byte> buffer) {
+    if (buffer.IsEmpty) {
+      return [];
+    }
+
+    var parameters = new List<string>();
+
+    var i = 0;
+    while (i < buffer.Length) {
+      while (i < buffer.Length &&
+             buffer[i] is Characters.SPACE or Characters.TABULATION) {
+        i++;
+      }
+
+      if (i >= buffer.Length) {
+        break;
+      }
+
+      var start = i;
+      while (i < buffer.Length) {
+        if (buffer[i] == Characters.SPACE) {
+          break;
+        }
+
+        i += buffer[i] == Characters.PERCENT && (i + 2) < buffer.Length
+          ? 3
+          : 1;
+      }
+
+      var parameterSpan = buffer[start..i];
+      var parameter = ToString(parameterSpan.ToArray());
+      parameters.Add(parameter);
+    }
+
+    return parameters
+      .Where(value => !string.IsNullOrWhiteSpace(value))
+      .ToArray();
   }
 }

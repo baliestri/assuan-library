@@ -31,8 +31,6 @@ internal static class AssuanPredefined {
 
     public const byte DIGIT_ZERO = 0x30;
     public const byte DIGIT_NINE = 0x39;
-    public const byte BINARY_LENGTH_CONTINUATION_BIT = 0x80;
-    public const byte BINARY_LENGTH_VALUE_MASK = 0x7F;
   }
 
   public static class Keywords {

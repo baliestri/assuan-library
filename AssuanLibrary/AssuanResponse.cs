@@ -73,5 +73,16 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
 
   /// <inheritdoc />
   public override string ToString()
-    => AssuanDecoder.ToString(Buffer);
+    => ToString();
+
+  /// <summary>
+  ///   Gets the string representation of the response.
+  /// </summary>
+  /// <param name="dataToHex"><see langword="true" /> to convert data responses to hexadecimal string; otherwise, <see langword="false" />.</param>
+  /// <returns>The string representation of the response.</returns>
+  public string ToString(bool dataToHex = true) {
+    return dataToHex && Type is AssuanResponseType.Data
+      ? Convert.ToHexString(DecodedBuffer)
+      : AssuanDecoder.ToString(Buffer);
+  }
 }

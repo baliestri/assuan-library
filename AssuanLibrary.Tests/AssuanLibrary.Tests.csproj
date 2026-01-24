@@ -5,6 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
   </PropertyGroup>
 
   <ItemGroup>

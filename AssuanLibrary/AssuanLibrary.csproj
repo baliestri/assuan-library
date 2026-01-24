@@ -5,6 +5,7 @@
     <LangVersion>latest</LangVersion>
     <IsPackable>true</IsPackable>
 
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
     <PolyArgumentExceptions>true</PolyArgumentExceptions>
   </PropertyGroup>
 
@@ -29,6 +30,7 @@
 
   <ItemGroup>
     <Using Include="AssuanLibrary.AssuanPredefined" Static="true" />
+    <InternalsVisibleTo Include="AssuanLibrary.Tests" />
   </ItemGroup>
 
   <ItemGroup>

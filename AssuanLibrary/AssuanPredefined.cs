@@ -22,6 +22,7 @@ internal static class AssuanPredefined {
     public const byte QUESTION_MARK = 0x3F;
     public const byte EQUALS = 0x3D;
     public const byte ASTERISK = 0x2A;
+    public const byte PERCENT = 0x25;
 
     public const byte LOWER_A = 0x61;
     public const byte LOWER_Z = 0x7A;
@@ -32,5 +33,12 @@ internal static class AssuanPredefined {
     public const byte DIGIT_NINE = 0x39;
     public const byte BINARY_LENGTH_CONTINUATION_BIT = 0x80;
     public const byte BINARY_LENGTH_VALUE_MASK = 0x7F;
+  }
+
+  public static class Keywords {
+    public static readonly byte[] Bye = "BYE\n"u8.ToArray();
+    public static readonly byte[] Data = "D "u8.ToArray();
+    public static readonly byte[] End = "END\n"u8.ToArray();
+    public static readonly byte[] Cancel = "CAN\n"u8.ToArray();
   }
 }

@@ -19,7 +19,6 @@ public static class SymbolicExpressionParser {
   /// <exception cref="AtomLengthOutOfRangeException">Thrown when the declared length of an atom exceeds its actual length.</exception>
   /// <exception cref="IncompleteSymbolicExpressionException">Thrown when the symbolic expression is incomplete.</exception>
   /// <exception cref="InvalidAssuanResponseTypeException">Thrown when the response type is not <see cref="AssuanResponseType.Data" />.</exception>
-  /// <exception cref="InvalidBinaryLengthException">Thrown when a binary length is invalid.</exception>
   /// <exception cref="InvalidSymbolicExpressionSyntaxException">Thrown when the symbolic expression has invalid syntax.</exception>
   public static SymbolicExpression Parse(AssuanResponse? assuanResponse, out int bytesConsumed) {
     bytesConsumed = 0;

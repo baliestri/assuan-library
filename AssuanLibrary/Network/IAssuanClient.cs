@@ -44,10 +44,28 @@ public interface IAssuanClient : IAsyncDisposable, IDisposable {
   AssuanResponseCollection Invoke(AssuanCommand command);
 
   /// <summary>
+  ///   Invokes the specified command with an inquire handler.
+  /// </summary>
+  /// <param name="command">The command to invoke.</param>
+  /// <param name="inquireHandler">The inquire handler to process inquire requests.</param>
+  /// <returns>The response collection from the invoked command.</returns>
+  AssuanResponseCollection Invoke(AssuanCommand command, Action<IInquireContext> inquireHandler);
+
+  /// <summary>
   ///   Invokes the specified command asynchronously.
   /// </summary>
   /// <param name="command">The command to invoke.</param>
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A value task that represents the asynchronous invoke operation, containing the response collection from the invoked command.</returns>
   ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default);
+
+  /// <summary>
+  ///   Invokes the specified command with an inquire handler asynchronously.
+  /// </summary>
+  /// <param name="command">The command to invoke.</param>
+  /// <param name="inquireHandler">The inquire handler to process inquire requests.</param>
+  /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+  /// <returns>A value task that represents the asynchronous invoke operation, containing the response collection from the invoked command.</returns>
+  ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, Func<IInquireContext, CancellationToken, Task> inquireHandler,
+  CancellationToken ct = default);
 }

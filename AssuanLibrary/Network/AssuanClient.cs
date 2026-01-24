@@ -113,6 +113,23 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
   }
 
   /// <inheritdoc />
+  public AssuanResponseCollection Invoke(AssuanCommand command, Action<IInquireContext> inquireHandler) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (!IsConnected) {
+      return options.ThrowIfNotConnected
+        ? throw new AssuanClientException("The client is not connected to the server.")
+        : new AssuanResponseCollection();
+    }
+
+    var writtenBuffer = command.ToBytes();
+    _wrapper.Write(writtenBuffer);
+
+    var readBuffer = _wrapper.Read(inquireHandler);
+    return new AssuanResponseCollection(readBuffer);
+  }
+
+  /// <inheritdoc />
   public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
@@ -126,6 +143,24 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
     await _wrapper.WriteAsync(writtenBuffer, ct);
 
     var readBuffer = await _wrapper.ReadAsync(ct);
+    return new AssuanResponseCollection(readBuffer);
+  }
+
+  /// <inheritdoc />
+  public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, Func<IInquireContext, CancellationToken, Task> inquireHandler,
+  CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (!IsConnected) {
+      return options.ThrowIfNotConnected
+        ? throw new AssuanClientException("The client is not connected to the server.")
+        : new AssuanResponseCollection();
+    }
+
+    var writtenBuffer = command.ToBytes();
+    await _wrapper.WriteAsync(writtenBuffer, ct);
+
+    var readBuffer = await _wrapper.ReadAsync(inquireHandler, ct);
     return new AssuanResponseCollection(readBuffer);
   }
 

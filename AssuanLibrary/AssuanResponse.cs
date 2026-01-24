@@ -1,7 +1,6 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Buffers;
 using AssuanLibrary.Extensions;
 
 namespace AssuanLibrary;
@@ -29,17 +28,19 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
   }
 
   /// <summary>
-  ///   The type of the response.
+  ///   Gets the type of the response.
   /// </summary>
   public AssuanResponseType Type { get; }
 
   /// <summary>
-  ///   The original response buffer.
+  ///   Gets the original response buffer without the type prefix.
   /// </summary>
-  /// <remarks>
-  ///   This buffer does not contain the response type prefix.
-  /// </remarks>
   public byte[] Buffer { get; }
+
+  /// <summary>
+  ///   Gets the decoded response buffer.
+  /// </summary>
+  public byte[] DecodedBuffer => AssuanDecoder.ToBytes(Buffer);
 
   /// <inheritdoc />
   public bool Equals(AssuanResponse? other) {
@@ -67,11 +68,8 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
   ///   Gets a copy of the original response buffer.
   /// </summary>
   /// <returns>A copy of the original response buffer.</returns>
-  public byte[] GetOriginalBuffer() {
-    var copy = ArrayPool<byte>.Shared.Rent(_buffer.Length);
-    _buffer.CopyTo(copy, 0);
-    return copy;
-  }
+  public byte[] GetOriginalBuffer()
+    => _buffer.AsSpan().ToArray();
 
   /// <inheritdoc />
   public override string ToString()

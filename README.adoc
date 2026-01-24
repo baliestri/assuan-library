@@ -124,8 +124,3 @@ Please follow the existing code style and naming conventions used in the project
 == License
 
 This project is licensed under the MIT License — see the `LICENSE.md` file for details.
-
-== Acknowledgements
-
-The Assuan protocol and its implementations (gpg-agent, pinentry) inspired this library.
-See the project's source files for attribution where appropriate.

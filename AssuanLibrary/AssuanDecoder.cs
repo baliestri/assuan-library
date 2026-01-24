@@ -352,7 +352,7 @@ public static class AssuanDecoder {
 
       var start = i;
       while (i < buffer.Length) {
-        if (buffer[i] == Characters.SPACE) {
+        if (buffer[i] is Characters.SPACE or Characters.TABULATION) {
           break;
         }
 

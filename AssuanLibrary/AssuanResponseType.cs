@@ -35,6 +35,11 @@ public enum AssuanResponseType {
   Data,
 
   /// <summary>
+  ///   The response is an inquire request.
+  /// </summary>
+  Inquire,
+
+  /// <summary>
   ///   The response type is unknown.
   /// </summary>
   /// <remarks>
@@ -56,11 +61,11 @@ public static class AssuanResponseTypeExtensions {
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <paramref name="buffer" /> length exceeds 3 bytes.</exception>
     /// <exception cref="NotSupportedException">Thrown when the response type is not supported.</exception>
     public static AssuanResponseType Parse(byte[] buffer) {
-      if (buffer.Length is < 1 or > 3) {
-        throw new ArgumentOutOfRangeException(nameof(buffer), buffer.Length, "Response type buffer length must be at most 3 bytes.");
+      if (buffer.Length is < 1 or > 7) {
+        throw new ArgumentOutOfRangeException(nameof(buffer), buffer.Length, "Response type buffer length must be at most 7 bytes.");
       }
 
-      var prefix = buffer.AsSpan(0, Math.Min(3, buffer.Length));
+      var prefix = buffer.AsSpan(0, Math.Min(7, buffer.Length));
 
       return prefix switch {
         var _ when prefix.SequenceEqual("OK"u8) => AssuanResponseType.Ok,
@@ -68,6 +73,7 @@ public static class AssuanResponseTypeExtensions {
         var _ when prefix.SequenceEqual("S"u8) => AssuanResponseType.Status,
         var _ when prefix.SequenceEqual("#"u8) => AssuanResponseType.Comment,
         var _ when prefix.SequenceEqual("D"u8) => AssuanResponseType.Data,
+        var _ when prefix.SequenceEqual("INQUIRE"u8) => AssuanResponseType.Inquire,
         var _ => throw new NotSupportedException($"Unknown response type starting with: '{Encoding.UTF8.GetString(prefix)}'")
       };
     }

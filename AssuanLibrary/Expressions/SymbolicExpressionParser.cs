@@ -28,9 +28,16 @@ public static class SymbolicExpressionParser {
       throw new ArgumentNullException(nameof(assuanResponse), "The Assuan response cannot be null.");
     }
 
-    return assuanResponse.Type is not AssuanResponseType.Data
-      ? throw new InvalidAssuanResponseTypeException(assuanResponse.Type)
-      : ParseExpression(assuanResponse.Buffer, ref bytesConsumed);
+    if (assuanResponse.Type is not AssuanResponseType.Data) {
+      throw new InvalidAssuanResponseTypeException(assuanResponse.Type);
+    }
+
+    var depth = 0;
+    var symbolicExpression = ParseExpression(assuanResponse.DecodedBuffer, ref bytesConsumed, ref depth);
+
+    return depth is not 0
+      ? throw new IncompleteSymbolicExpressionException($"Unclosed symbolic expression collection (expected ')' for depth {depth}).")
+      : symbolicExpression;
   }
 
   /// <summary>
@@ -49,7 +56,14 @@ public static class SymbolicExpressionParser {
     }
 
     try {
-      symbolicExpression = ParseExpression(assuanResponse.Buffer, ref bytesConsumed);
+      var depth = 0;
+      var expression = ParseExpression(assuanResponse.DecodedBuffer, ref bytesConsumed, ref depth);
+
+      if (depth is not 0) {
+        return false;
+      }
+
+      symbolicExpression = expression;
       return true;
     }
     catch {
@@ -57,7 +71,7 @@ public static class SymbolicExpressionParser {
     }
   }
 
-  private static SymbolicExpression ParseExpression(ReadOnlySpan<byte> input, ref int position) {
+  private static SymbolicExpression ParseExpression(ReadOnlySpan<byte> input, ref int position, ref int depth) {
     SkipWhitespace(input, ref position);
 
     var currentByte = input[position];
@@ -67,19 +81,19 @@ public static class SymbolicExpressionParser {
     }
 
     return currentByte == Characters.OPEN_PARENTHESIS
-      ? ParseCollection(input, ref position)
+      ? ParseCollection(input, ref position, ref depth)
       : ParseAtom(input, ref position);
   }
 
   private static SymbolicExpression ParseAtom(ReadOnlySpan<byte> input, ref int position) {
-    var length = ReadAtomLength(input, ref position, out var isBinaryDigit);
+    var length = ReadLength(input, ref position);
 
-    if (!isBinaryDigit &&
-        (position >= input.Length || input[position] != Characters.COLON)) {
+    if (position >= input.Length ||
+        input[position] != Characters.COLON) {
       throw new InvalidSymbolicExpressionSyntaxException(position, "Expected ':' after atom length");
     }
 
-    position += !isBinaryDigit ? 1 : 0;
+    position++;
 
     if ((position + length) > input.Length) {
       throw new AtomLengthOutOfRangeException(length, input.Length - position, position);
@@ -91,7 +105,7 @@ public static class SymbolicExpressionParser {
     return new SymbolicExpressionAtom(dataSlice);
   }
 
-  private static SymbolicExpression ParseCollection(ReadOnlySpan<byte> input, ref int position) {
+  private static SymbolicExpression ParseCollection(ReadOnlySpan<byte> input, ref int position, ref int depth) {
     if (position >= input.Length) {
       throw new IncompleteSymbolicExpressionException("Unexpected end of input while parsing symbolic expression collection.");
     }
@@ -101,21 +115,31 @@ public static class SymbolicExpressionParser {
     }
 
     position++;
+    depth++;
 
     var children = new List<SymbolicExpression>();
 
     while (position < input.Length) {
       SkipWhitespace(input, ref position);
 
+      if (position >= input.Length) {
+        break;
+      }
+
       var currentByte = input[position];
 
       if (currentByte == Characters.CLOSE_PARENTHESIS) {
         position++;
-        return new SymbolicExpressionCollection(children);
+        depth--;
+        if (depth == 0) {
+          return new SymbolicExpressionCollection(children);
+        }
+
+        continue;
       }
 
-      var child = ParseExpression(input, ref position);
-      children.Add(child);
+      var atomOrCollection = ParseExpression(input, ref position, ref depth);
+      children.Add(atomOrCollection);
     }
 
     return new SymbolicExpressionCollection(children);
@@ -130,40 +154,6 @@ public static class SymbolicExpressionParser {
 
   private static bool IsWhitespace(byte b)
     => b is Characters.SPACE or Characters.TABULATION or Characters.LINE_FEED or Characters.CARRIAGE_RETURN;
-
-  private static int ReadAtomLength(ReadOnlySpan<byte> input, ref int position, out bool isBinaryDigit) {
-    var firstByte = input[position];
-
-    if (firstByte is >= Characters.DIGIT_ZERO and <= Characters.DIGIT_NINE) {
-      isBinaryDigit = false;
-      return ReadLength(input, ref position);
-    }
-
-    isBinaryDigit = true;
-    position++;
-
-    if ((firstByte & Characters.BINARY_LENGTH_CONTINUATION_BIT) == 0) {
-      return firstByte;
-    }
-
-    var count = firstByte & Characters.BINARY_LENGTH_VALUE_MASK;
-
-    if (count is 0 or > 4) {
-      throw new InvalidBinaryLengthException($"Invalid binary length byte at position {position - 1}.");
-    }
-
-    if ((position + count) > input.Length) {
-      throw new UnexpectedEndOfInputException("Unexpected end of input while reading binary length.");
-    }
-
-    var length = 0;
-    for (var i = 0; i < count; i++) {
-      length = (length << 8) | input[position];
-      position++;
-    }
-
-    return length;
-  }
 
   private static int ReadLength(ReadOnlySpan<byte> input, ref int position) {
     var length = 0;

@@ -121,13 +121,9 @@ public sealed class AssuanClientTests {
 
     var mock = new Mock<IAssuanClient>();
 
-    mock.Setup(c => c.InvokeAsync(
-        command,
-        It.IsAny<Func<IInquireContext, CancellationToken, Task>>(),
-        It.IsAny<CancellationToken>()))
+    mock.Setup(c => c.InvokeAsync(command, It.IsAny<Func<IInquireContext, CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
       .Callback<AssuanCommand,
-        Func<IInquireContext, CancellationToken, Task>,
-        CancellationToken>((_, handler, ct) => {
+        Func<IInquireContext, CancellationToken, Task>, CancellationToken>((_, handler, ct) => {
         handler(Mock.Of<IInquireContext>(), ct).GetAwaiter().GetResult();
         handlerCalled = true;
       })

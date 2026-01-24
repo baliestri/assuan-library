@@ -138,9 +138,7 @@ public sealed class AssuanClientWrapperTests {
     var mock = new Mock<IAssuanClientWrapper>();
 
     mock
-      .Setup(c => c.ReadAsync(
-        It.IsAny<Func<IInquireContext, CancellationToken, Task>>(),
-        It.IsAny<CancellationToken>()))
+      .Setup(c => c.ReadAsync(It.IsAny<Func<IInquireContext, CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
       .Callback<Func<IInquireContext, CancellationToken, Task>, CancellationToken>((handler, ct) => {
         handler(Mock.Of<IInquireContext>(), ct).GetAwaiter().GetResult();
         handlerCalled = true;

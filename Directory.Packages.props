@@ -6,6 +6,7 @@
     <PackageVersion Include="Polyfill" Version="9.7.3" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="System.Collections.Immutable" Version="10.0.2" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.2" />
     <PackageVersion Include="TUnit" Version="1.11.64" />
   </ItemGroup>
 </Project>

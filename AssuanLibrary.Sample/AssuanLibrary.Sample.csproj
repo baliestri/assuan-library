@@ -10,4 +10,8 @@
     <ProjectReference Include="..\AssuanLibrary\AssuanLibrary.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+
 </Project>

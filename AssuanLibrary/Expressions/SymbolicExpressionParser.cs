@@ -31,6 +31,10 @@ public static class SymbolicExpressionParser {
       throw new InvalidAssuanResponseTypeException(assuanResponse.Type);
     }
 
+    if (assuanResponse.DecodedBuffer.Length == 0) {
+      throw new IncompleteSymbolicExpressionException("The Assuan response contains no data to parse.");
+    }
+
     var depth = 0;
     var symbolicExpression = ParseExpression(assuanResponse.DecodedBuffer, ref bytesConsumed, ref depth);
 
@@ -50,7 +54,8 @@ public static class SymbolicExpressionParser {
     symbolicExpression = null;
     bytesConsumed = 0;
 
-    if (assuanResponse?.Type is not AssuanResponseType.Data) {
+    if (assuanResponse?.Type is not AssuanResponseType.Data ||
+        assuanResponse.DecodedBuffer.Length == 0) {
       return false;
     }
 

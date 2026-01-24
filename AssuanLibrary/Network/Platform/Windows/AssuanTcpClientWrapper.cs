@@ -87,8 +87,6 @@ internal sealed class AssuanTcpClientWrapper(SocketDescriptor socketDescriptor, 
       var responseBuffer = memoryStream.ToArray();
       var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
 
-      Console.WriteLine($"DEBUG: Received response: {response.Type} {response}");
-
       finalMemoryStream.Write(responseBuffer);
       memoryStream.SetLength(0);
 

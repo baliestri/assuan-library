@@ -40,5 +40,6 @@ internal static class AssuanPredefined {
     public static readonly byte[] Data = "D "u8.ToArray();
     public static readonly byte[] End = "END\n"u8.ToArray();
     public static readonly byte[] Cancel = "CAN\n"u8.ToArray();
+    public static readonly byte[] OptionPinentryModeLoopback = "OPTION pinentry-mode=loopback\n"u8.ToArray();
   }
 }

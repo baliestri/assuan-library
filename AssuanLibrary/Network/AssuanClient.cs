@@ -41,6 +41,8 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
       };
 
       _wrapper.Connect();
+      _wrapper.Write(Keywords.OptionPinentryModeLoopback);
+      _ = _wrapper.Read();
     }
     catch (SocketException ex) {
       Dispose();
@@ -77,6 +79,8 @@ public sealed class AssuanClient(AssuanClientOptions options) : IAssuanClient {
       };
 
       await _wrapper.ConnectAsync(ct);
+      await _wrapper.WriteAsync(Keywords.OptionPinentryModeLoopback, ct);
+      _ = await _wrapper.ReadAsync(ct);
     }
     catch (SocketException ex) {
       await DisposeAsync();

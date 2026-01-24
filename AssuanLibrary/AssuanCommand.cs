@@ -102,7 +102,7 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
   public override int GetHashCode()
     => GetEntries()
       .Select(value => value.GetHashCode())
-      .Aggregate((x, y) => x ^ y);
+      .Aggregate(17, (current, hash) => (current * 31) + hash);
 
   /// <summary>
   ///   Adds an argument to the command.

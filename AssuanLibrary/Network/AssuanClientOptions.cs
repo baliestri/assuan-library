@@ -74,7 +74,7 @@ public sealed class AssuanClientOptions(SocketDescriptor socketDescriptor, TimeS
   public override int GetHashCode()
     => GetEqualityComponents()
       .Select(obj => obj.GetHashCode())
-      .Aggregate((x, y) => x ^ y);
+      .Aggregate(17, (current, hash) => (current * 31) + hash);
 
   /// <summary>
   ///   Determines whether two <see cref="AssuanClientOptions" /> instances are equal.

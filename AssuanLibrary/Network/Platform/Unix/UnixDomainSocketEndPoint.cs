@@ -76,7 +76,7 @@ public sealed class UnixDomainSocketEndPoint(string path) : EndPoint {
   public override int GetHashCode()
     => GetEqualityComponents()
       .Select(obj => obj.GetHashCode())
-      .Aggregate((x, y) => x ^ y);
+      .Aggregate(17, (current, hash) => (current * 31) + hash);
 
   /// <inheritdoc />
   public override string ToString()

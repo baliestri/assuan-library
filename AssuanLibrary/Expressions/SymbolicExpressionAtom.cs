@@ -1,6 +1,8 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Extensions;
+
 namespace AssuanLibrary.Expressions;
 
 /// <summary>
@@ -23,7 +25,7 @@ public sealed class SymbolicExpressionAtom(ReadOnlySpan<byte> value) : SymbolicE
 
   /// <inheritdoc />
   protected override int InheritorGetHashCode()
-    => Value.Aggregate(17, (current, b) => (current * 31) + b);
+    => Value.GetSequenceHashCode();
 
   /// <inheritdoc />
   public override string ToString()

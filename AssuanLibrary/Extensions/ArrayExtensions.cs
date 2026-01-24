@@ -97,7 +97,7 @@ internal static class ArrayExtensions {
     /// <returns>A hash code representing the sequence of elements.</returns>
     [Pure]
     public int GetSequenceHashCode() {
-      return GetHashCodes(array).Aggregate((x, y) => x ^ y);
+      return GetHashCodes(array).Aggregate(17, (current, hashCode) => (current * 31) + hashCode);
 
       static IEnumerable<int> GetHashCodes(T[] array) {
         foreach (var element in array) {

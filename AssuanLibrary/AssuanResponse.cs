@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Globalization;
 using AssuanLibrary.Extensions;
 
 namespace AssuanLibrary;
@@ -8,7 +9,7 @@ namespace AssuanLibrary;
 /// <summary>
 ///   Represents a response from the Assuan protocol.
 /// </summary>
-public sealed class AssuanResponse : IEquatable<AssuanResponse> {
+public sealed class AssuanResponse : IEquatable<AssuanResponse>, IFormattable {
   private readonly byte[] _buffer;
 
   internal AssuanResponse(byte[] buffer) {
@@ -53,6 +54,53 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
   }
 
   /// <inheritdoc />
+  /// <remarks>
+  ///   The supported format specifiers are:
+  ///   <list type="bullet">
+  ///     <item>
+  ///       <description>T: Includes the response type in the output.</description>
+  ///     </item>
+  ///     <item>
+  ///       <description>H: Includes the raw hexadecimal representation of the response buffer.</description>
+  ///     </item>
+  ///     <item>
+  ///       <description>D: Includes the decoded hexadecimal representation of the response buffer.</description>
+  ///     </item>
+  ///     <item>
+  ///       <description>G: Includes the decoded string representation of the response buffer.</description>
+  ///     </item>
+  ///   </list>
+  ///   If no format specifier is provided, the default is 'D' for data responses and 'G' for other types.
+  /// </remarks>
+  public string ToString(string? format, IFormatProvider? formatProvider) {
+    if (string.IsNullOrWhiteSpace(format) ||
+        format!.Length > 2) {
+      format = Type is AssuanResponseType.Data ? "D" : "G";
+    }
+
+    var shouldSpecifyContent = format.IndexOf('H') != -1 || format.IndexOf('G') != -1 || format.IndexOf('D') != -1;
+    var shouldSpecifyType = format.IndexOf('T') != -1;
+    var contentSpecifierIndex = format.IndexOfAny(['H', 'G', 'D']);
+    var contentSpecifier = contentSpecifierIndex != -1
+      ? format[contentSpecifierIndex]
+      : char.MinValue;
+
+    var content = contentSpecifier switch {
+      'D' when shouldSpecifyContent && Type is AssuanResponseType.Data => Convert.ToHexString(DecodedBuffer),
+      'H' when shouldSpecifyContent => Convert.ToHexString(DecodedBuffer),
+      'D' or 'G' when shouldSpecifyContent => AssuanDecoder.ToString(Buffer),
+      var _ when shouldSpecifyContent => throw new FormatException($"The format string '{format}' is not supported."),
+      var _ => string.Empty
+    };
+
+    return shouldSpecifyType switch {
+      true when shouldSpecifyContent => $"{Type.ToStringRepresentation()} {content}",
+      true => Type.ToStringRepresentation(),
+      var _ => content
+    };
+  }
+
+  /// <inheritdoc />
   public override bool Equals(object? obj)
     => obj is AssuanResponse response && Equals(response);
 
@@ -73,16 +121,5 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse> {
 
   /// <inheritdoc />
   public override string ToString()
-    => ToString();
-
-  /// <summary>
-  ///   Gets the string representation of the response.
-  /// </summary>
-  /// <param name="dataToHex"><see langword="true" /> to convert data responses to hexadecimal string; otherwise, <see langword="false" />.</param>
-  /// <returns>The string representation of the response.</returns>
-  public string ToString(bool dataToHex = true) {
-    return dataToHex && Type is AssuanResponseType.Data
-      ? Convert.ToHexString(DecodedBuffer)
-      : AssuanDecoder.ToString(Buffer);
-  }
+    => ToString(null, CultureInfo.CurrentCulture);
 }

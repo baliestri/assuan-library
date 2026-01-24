@@ -52,7 +52,7 @@ public enum AssuanResponseType {
 ///   Extension methods for the <see cref="AssuanResponseType" />.
 /// </summary>
 public static class AssuanResponseTypeExtensions {
-  extension(AssuanResponseType) {
+  extension(AssuanResponseType responseType) {
     /// <summary>
     ///   Parses a byte array to determine the corresponding AssuanResponseType.
     /// </summary>
@@ -80,6 +80,18 @@ public static class AssuanResponseTypeExtensions {
         var _ when prefix.SequenceEqual("D"u8) => AssuanResponseType.Data,
         var _ when prefix.SequenceEqual("INQUIRE"u8) => AssuanResponseType.Inquire,
         var _ => throw new NotSupportedException($"Unknown response type starting with: '{Encoding.UTF8.GetString(prefix)}'")
+      };
+    }
+
+    internal string ToStringRepresentation() {
+      return responseType switch {
+        AssuanResponseType.Ok => "OK",
+        AssuanResponseType.Error => "ERR",
+        AssuanResponseType.Status => "S",
+        AssuanResponseType.Comment => "#",
+        AssuanResponseType.Data => "D",
+        AssuanResponseType.Inquire => "INQUIRE",
+        var _ => throw new NotSupportedException($"The response type '{responseType}' is not supported.")
       };
     }
   }

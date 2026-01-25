@@ -118,9 +118,7 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
 
     var trimmedArgument = argument.Trim();
 
-    _entries[Count++] = trimmedArgument.Contains(' ', StringComparison.Ordinal)
-      ? $"¨{trimmedArgument}¨"
-      : trimmedArgument;
+    _entries[Count++] = trimmedArgument;
   }
 
   /// <summary>

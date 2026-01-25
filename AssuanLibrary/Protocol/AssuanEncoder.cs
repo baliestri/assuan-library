@@ -9,7 +9,6 @@ namespace AssuanLibrary.Protocol;
 ///   Provides methods to encode strings and byte arrays according to the Assuan protocol.
 /// </summary>
 public static class AssuanEncoder {
-  private const byte ESCAPE_SPACE_CHAR = (byte)'¨';
   private static readonly char[] _hexLookup = "0123456789ABCDEF".ToCharArray();
   private static readonly bool[] _isSafeChar = CreateSafeCharTable();
 
@@ -28,25 +27,32 @@ public static class AssuanEncoder {
   /// </summary>
   /// <param name="value">The string to encode.</param>
   /// <param name="appendLineFeed">Whether to append a line feed character at the end.</param>
+  /// <param name="encodeSpace">Whether to encode space characters as %20.</param>
   /// <returns>The encoded string.</returns>
-  public static string AsString(string value, bool appendLineFeed = true) {
+  public static string AsString(string value, bool appendLineFeed = true, bool encodeSpace = false) {
     if (string.IsNullOrWhiteSpace(value)) {
       return string.Empty;
     }
 
     using var writer = new PooledStringWriter((value.Length * 3) / 2);
 
-    var escapeSpace = false;
-    foreach (var c in value) {
-      if (c == ESCAPE_SPACE_CHAR) {
-        escapeSpace = !escapeSpace;
+    for (var i = 0; i < value.Length; i++) {
+      var c = value[i];
+      if (c < 128 &&
+          _isSafeChar[c] &&
+          (!encodeSpace || c != ' ')) {
+        writer.Write(c);
         continue;
       }
 
-      if (c < 128 &&
-          _isSafeChar[c] &&
-          (!escapeSpace || c != ' ')) {
-        writer.Write(c);
+      if (c == '%' &&
+          (i + 2) < value.Length &&
+          IsHexChar(value[i + 1]) &&
+          IsHexChar(value[i + 2])) {
+        writer.Write('%');
+        writer.Write(value[i + 1]);
+        writer.Write(value[i + 2]);
+        i += 2;
         continue;
       }
 
@@ -73,32 +79,37 @@ public static class AssuanEncoder {
       return [];
     }
 
-    using var buffer = new PooledByteWriter((value.Length * 3) / 2);
+    using var writer = new PooledByteWriter((value.Length * 3) / 2);
 
-    var escapeSpace = false;
-    foreach (var c in value) {
-      if (c == ESCAPE_SPACE_CHAR) {
-        escapeSpace = !escapeSpace;
-        continue;
-      }
-
+    for (var i = 0; i < value.Length; i++) {
+      var c = value[i];
       if (c < 128 &&
-          _isSafeChar[c] &&
-          (!escapeSpace || c != ' ')) {
-        buffer.Write((byte)c);
+          _isSafeChar[c]) {
+        writer.Write((byte)c);
         continue;
       }
 
-      buffer.Write(Characters.PERCENT);
-      buffer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
-      buffer.Write((byte)_hexLookup[c & 0xF]);
+      if (c == '%' &&
+          (i + 2) < value.Length &&
+          IsHexChar(value[i + 1]) &&
+          IsHexChar(value[i + 2])) {
+        writer.Write(Characters.PERCENT);
+        writer.Write((byte)value[i + 1]);
+        writer.Write((byte)value[i + 2]);
+        i += 2;
+        continue;
+      }
+
+      writer.Write(Characters.PERCENT);
+      writer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
+      writer.Write((byte)_hexLookup[c & 0xF]);
     }
 
     if (appendLineFeed) {
-      buffer.Write(Characters.LINE_FEED);
+      writer.Write(Characters.LINE_FEED);
     }
 
-    return buffer.ToArray();
+    return writer.ToArray();
   }
 
   /// <summary>
@@ -112,32 +123,37 @@ public static class AssuanEncoder {
       return ReadOnlyMemory<byte>.Empty;
     }
 
-    using var buffer = new PooledByteWriter((value.Length * 3) / 2);
+    using var writer = new PooledByteWriter((value.Length * 3) / 2);
 
-    var escapeSpace = false;
-    foreach (var c in value) {
-      if (c == ESCAPE_SPACE_CHAR) {
-        escapeSpace = !escapeSpace;
-        continue;
-      }
-
+    for (var i = 0; i < value.Length; i++) {
+      var c = value[i];
       if (c < 128 &&
-          _isSafeChar[c] &&
-          (!escapeSpace || c != ' ')) {
-        buffer.Write((byte)c);
+          _isSafeChar[c]) {
+        writer.Write((byte)c);
         continue;
       }
 
-      buffer.Write(Characters.PERCENT);
-      buffer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
-      buffer.Write((byte)_hexLookup[c & 0xF]);
+      if (c == '%' &&
+          (i + 2) < value.Length &&
+          IsHexChar(value[i + 1]) &&
+          IsHexChar(value[i + 2])) {
+        writer.Write(Characters.PERCENT);
+        writer.Write((byte)value[i + 1]);
+        writer.Write((byte)value[i + 2]);
+        i += 2;
+        continue;
+      }
+
+      writer.Write(Characters.PERCENT);
+      writer.Write((byte)_hexLookup[(c >> 4) & 0xF]);
+      writer.Write((byte)_hexLookup[c & 0xF]);
     }
 
     if (appendLineFeed) {
-      buffer.Write(Characters.LINE_FEED);
+      writer.Write(Characters.LINE_FEED);
     }
 
-    return buffer.ToReadOnlyMemory();
+    return writer.ToReadOnlyMemory();
   }
 
   /// <summary>
@@ -151,33 +167,39 @@ public static class AssuanEncoder {
       return ReadOnlyMemory<byte>.Empty;
     }
 
-    using var buffer = new PooledByteWriter((value.Length * 3) / 2);
+    using var writer = new PooledByteWriter((value.Length * 3) / 2);
 
-    var escapeSpace = false;
-    foreach (var b in value) {
-      var c = (char)b;
-
-      if (c == ESCAPE_SPACE_CHAR) {
-        escapeSpace = !escapeSpace;
+    for (var i = 0; i < value.Length; i++) {
+      var b = value[i];
+      if (b < 128 &&
+          _isSafeChar[b]) {
+        writer.Write(b);
         continue;
       }
 
-      if (c < 128 &&
-          _isSafeChar[c] &&
-          (!escapeSpace || c != ' ')) {
-        buffer.Write(b);
+      if (b == '%' &&
+          (i + 2) < value.Length &&
+          IsHexChar((char)value[i + 1]) &&
+          IsHexChar((char)value[i + 2])) {
+        writer.Write(Characters.PERCENT);
+        writer.Write(value[i + 1]);
+        writer.Write(value[i + 2]);
+        i += 2;
         continue;
       }
 
-      buffer.Write(Characters.PERCENT);
-      buffer.Write((byte)_hexLookup[(b >> 4) & 0xF]);
-      buffer.Write((byte)_hexLookup[b & 0xF]);
+      writer.Write(Characters.PERCENT);
+      writer.Write((byte)_hexLookup[(b >> 4) & 0xF]);
+      writer.Write((byte)_hexLookup[b & 0xF]);
     }
 
     if (appendLineFeed) {
-      buffer.Write(Characters.LINE_FEED);
+      writer.Write(Characters.LINE_FEED);
     }
 
-    return buffer.ToReadOnlyMemory();
+    return writer.ToReadOnlyMemory();
   }
+
+  private static bool IsHexChar(char c)
+    => _hexLookup.Contains(char.ToUpperInvariant(c));
 }

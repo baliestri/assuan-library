@@ -3,29 +3,32 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using AssuanLibrary.Client;
+using AssuanLibrary.Endpoints;
 using AssuanLibrary.Expressions;
-using AssuanLibrary.Network;
+using AssuanLibrary.Protocol;
 
 namespace AssuanLibrary.Sample;
 
 internal static class Program {
   private static async Task Main() {
-    const string KEYGRIP = "A1B2C3D4E5F6..."; // ← replace with a real keygrip from your setup
-    var options = new AssuanClientOptions(SocketDescriptor.AgentSocket);
+    const string KEYGRIP = "A1B2C3D4F5G6..."; // ← replace with a real keygrip from your setup
+    var kind = AssuanEndpointKind.AGENT;
+    var options = AssuanClientOptions.Default;
 
-    await ShowVersionAndOtherInfoAsync(options);
-    await ListSecretKeysAsync(options);
-    await GetKeyInfoAsync(KEYGRIP, options);
-    await SignChallengeAsync(KEYGRIP, options);
-    await GetPassphraseAsync(options);
-    await GetPinentryConfirmationAsync(options);
-    await CheckKeyAvailabilityAsync(KEYGRIP, options);
+    await ShowVersionAndOtherInfoAsync(kind, options);
+    await ListSecretKeysAsync(kind, options);
+    await GetKeyInfoAsync(KEYGRIP, kind, options);
+    await SignChallengeAsync(KEYGRIP, kind, options);
+    await GetPassphraseAsync(kind, options);
+    await GetPinentryConfirmationAsync(kind, options);
+    await CheckKeyAvailabilityAsync(KEYGRIP, kind, options);
 
     await Task.CompletedTask;
   }
 
-  private static async Task ShowVersionAndOtherInfoAsync(AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task ShowVersionAndOtherInfoAsync(AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     var versionCommand = new AssuanCommand("GETINFO") { "version" };
@@ -43,8 +46,8 @@ internal static class Program {
     }
   }
 
-  private static async Task ListSecretKeysAsync(AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task ListSecretKeysAsync(AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     var cmd = new AssuanCommand("KEYINFO") { "--list" };
@@ -62,8 +65,8 @@ internal static class Program {
     }
   }
 
-  private static async Task GetKeyInfoAsync(string keygrip, AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task GetKeyInfoAsync(string keygrip, AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     var cmd = new AssuanCommand("KEYINFO") { keygrip };
@@ -75,8 +78,8 @@ internal static class Program {
     }
   }
 
-  private static async Task SignChallengeAsync(string keygrip, AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task SignChallengeAsync(string keygrip, AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     const string VALUE_TO_SIGN = "Hello World";
@@ -127,8 +130,8 @@ internal static class Program {
     }
   }
 
-  private static async Task GetPassphraseAsync(AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task GetPassphraseAsync(AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     var cmd = new AssuanCommand("GET_PASSPHRASE") {
@@ -160,8 +163,8 @@ internal static class Program {
     }
   }
 
-  private static async Task GetPinentryConfirmationAsync(AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task GetPinentryConfirmationAsync(AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     var cmd = new AssuanCommand("GET_CONFIRMATION") {
@@ -186,8 +189,8 @@ internal static class Program {
     }
   }
 
-  private static async Task CheckKeyAvailabilityAsync(string keygrip, AssuanClientOptions options) {
-    await using var client = new AssuanClient(options);
+  private static async Task CheckKeyAvailabilityAsync(string keygrip, AssuanEndpointKind kind, AssuanClientOptions options) {
+    await using var client = new AssuanClient(kind, options);
     await client.ConnectAsync();
 
     var cmd = new AssuanCommand("HAVEKEY") { keygrip };

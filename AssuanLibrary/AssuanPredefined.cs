@@ -5,7 +5,7 @@ namespace AssuanLibrary;
 
 internal static class AssuanPredefined {
   public const int INITIAL_COLLECTION_SIZE = 4;
-  public const int DEFAULT_TIMEOUT_SECONDS = 30;
+  public const int TIMEOUT_IN_SECONDS = 30;
 
   public static class Characters {
     public const byte SPACE = 0x20;
@@ -31,13 +31,5 @@ internal static class AssuanPredefined {
 
     public const byte DIGIT_ZERO = 0x30;
     public const byte DIGIT_NINE = 0x39;
-  }
-
-  public static class Keywords {
-    public static readonly byte[] Bye = "BYE\n"u8.ToArray();
-    public static readonly byte[] Data = "D "u8.ToArray();
-    public static readonly byte[] End = "END\n"u8.ToArray();
-    public static readonly byte[] Cancel = "CAN\n"u8.ToArray();
-    public static readonly byte[] OptionPinentryModeLoopback = "OPTION pinentry-mode=loopback\n"u8.ToArray();
   }
 }

@@ -3,6 +3,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Exceptions;
+using AssuanLibrary.Protocol;
 
 namespace AssuanLibrary.Expressions;
 

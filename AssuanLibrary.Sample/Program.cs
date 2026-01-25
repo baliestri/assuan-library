@@ -139,7 +139,7 @@ internal static class Program {
       Guid.CreateVersion7().ToString(),
       "x", // NO ERROR MESSAGE
       "Passphrase:",
-      "Provide your passphrase for confirmation."
+      AssuanEncoder.AsString("Provide your passphrase for confirmation.", false, true) // Pre-encode spaces, so Assuan recognizes as 1 argument
     };
 
     var responseCollection = await client.InvokeAsync(cmd, async (ctx, ct) => {

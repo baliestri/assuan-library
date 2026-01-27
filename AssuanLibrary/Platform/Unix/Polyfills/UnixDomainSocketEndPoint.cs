@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace AssuanLibrary.Platform.Unix.Polyfills;
@@ -11,6 +12,8 @@ namespace AssuanLibrary.Platform.Unix.Polyfills;
 ///   Represents a Unix Domain Socket endpoint.
 /// </summary>
 /// <param name="path">The path to the Unix Domain Socket file.</param>
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macos")]
 public sealed class UnixDomainSocketEndPoint(string path) : EndPoint {
   private string _path = !string.IsNullOrWhiteSpace(path)
     ? path

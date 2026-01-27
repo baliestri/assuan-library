@@ -2,12 +2,15 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using AssuanLibrary.Endpoints;
 using AssuanLibrary.Endpoints.Abstractions;
 using AssuanLibrary.Exceptions;
 
 namespace AssuanLibrary.Platform.Unix.Endpoints;
 
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macos")]
 internal sealed class UnixDomainSocketEndpointResolver : IAssuanEndpointResolver {
   /// <inheritdoc />
   public IAssuanEndpoint Resolve(AssuanEndpointKind kind) {

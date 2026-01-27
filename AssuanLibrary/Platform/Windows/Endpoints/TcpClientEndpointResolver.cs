@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Runtime.Versioning;
 using AssuanLibrary.Endpoints;
 using AssuanLibrary.Endpoints.Abstractions;
 using AssuanLibrary.Exceptions;
@@ -11,6 +12,7 @@ using AssuanLibrary.Platform.Common.Endpoints;
 
 namespace AssuanLibrary.Platform.Windows.Endpoints;
 
+[SupportedOSPlatform("windows")]
 internal sealed class TcpClientEndpointResolver : IAssuanEndpointResolver {
   private const int NONCE_LENGTH = 16;
 

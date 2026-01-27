@@ -7,15 +7,15 @@ using AssuanLibrary.Client;
 using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
 using AssuanLibrary.Extensions;
-using AssuanLibrary.Platform.Windows.Endpoints;
-using AssuanLibrary.Platform.Windows.Extensions;
-using AssuanLibrary.Platform.Windows.Transport.IO;
+using AssuanLibrary.Platform.Common.Endpoints;
+using AssuanLibrary.Platform.Common.Extensions;
+using AssuanLibrary.Platform.Common.Transport.IO;
 using AssuanLibrary.Polyfills;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.IO;
 
-namespace AssuanLibrary.Platform.Windows.Transport;
+namespace AssuanLibrary.Platform.Common.Transport;
 
 internal sealed class TcpClientConnection : IAssuanConnection {
   private readonly TcpClientEndpoint _endpoint;

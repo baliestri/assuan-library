@@ -7,6 +7,7 @@ using System.Net;
 using AssuanLibrary.Endpoints;
 using AssuanLibrary.Endpoints.Abstractions;
 using AssuanLibrary.Exceptions;
+using AssuanLibrary.Platform.Common.Endpoints;
 
 namespace AssuanLibrary.Platform.Windows.Endpoints;
 

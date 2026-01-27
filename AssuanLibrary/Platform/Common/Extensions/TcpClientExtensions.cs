@@ -5,7 +5,7 @@ using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 
-namespace AssuanLibrary.Platform.Windows.Extensions;
+namespace AssuanLibrary.Platform.Common.Extensions;
 
 /// <summary>
 ///   Extension methods for <see cref="TcpClient" />.

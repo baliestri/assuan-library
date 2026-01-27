@@ -5,7 +5,7 @@ using System.Buffers;
 using System.Net.Sockets;
 using AssuanLibrary.Transport.IO;
 
-namespace AssuanLibrary.Platform.Windows.Transport.IO;
+namespace AssuanLibrary.Platform.Common.Transport.IO;
 
 /// <summary>
 ///   A reader that reads from a TCP client until the data stabilizes, indicating no more data is incoming.

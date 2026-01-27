@@ -3,10 +3,9 @@
 
 using AssuanLibrary.Client;
 using AssuanLibrary.Endpoints;
+using AssuanLibrary.Platform.Common.Endpoints;
 using AssuanLibrary.Platform.Unix.Endpoints;
 using AssuanLibrary.Platform.Unix.Transport;
-using AssuanLibrary.Platform.Windows.Endpoints;
-using AssuanLibrary.Platform.Windows.Transport;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Platform.Common.Transport;

@@ -4,7 +4,7 @@
 using System.Net;
 using AssuanLibrary.Endpoints;
 
-namespace AssuanLibrary.Platform.Windows.Endpoints;
+namespace AssuanLibrary.Platform.Common.Endpoints;
 
 /// <summary>
 ///   Defines a TCP client communication endpoint for Assuan protocol.

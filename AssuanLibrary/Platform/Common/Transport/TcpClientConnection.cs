@@ -7,8 +7,8 @@ using AssuanLibrary.Client;
 using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
 using AssuanLibrary.Extensions;
-using AssuanLibrary.Platform.Common.Endpoints;
 using AssuanLibrary.Platform.Common.Extensions;
+using AssuanLibrary.Platform.Common.Transport.Endpoints;
 using AssuanLibrary.Platform.Common.Transport.IO;
 using AssuanLibrary.Polyfills;
 using AssuanLibrary.Protocol;
@@ -32,6 +32,16 @@ internal sealed class TcpClientConnection : IAssuanConnection {
     _options.ConfigureStabilization?.Invoke(_stabilizationOptions);
   }
 
+  public TcpClientConnection(TcpClient tcpClient, TcpClientEndpoint endpoint, AssuanConnectionOptions options,
+  StabilizationOptions? stabilizationOptions = null) {
+    _endpoint = endpoint;
+    _options = options;
+    _stabilizationOptions = stabilizationOptions ?? StabilizationOptions.Default;
+    _options.ConfigureStabilization?.Invoke(_stabilizationOptions);
+    _tcpClient = tcpClient;
+    _networkStream = tcpClient.GetStream();
+  }
+
   /// <inheritdoc />
   [MemberNotNullWhen(true, nameof(_networkStream), nameof(_tcpClient))]
   public bool IsConnected => _tcpClient is { Connected: true };
@@ -39,6 +49,10 @@ internal sealed class TcpClientConnection : IAssuanConnection {
   /// <inheritdoc />
   public void Open() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
+
+    if (IsConnected) {
+      return;
+    }
 
     var (ipEndPoint, nonce) = _endpoint;
     var tcpClient = new TcpClient();
@@ -74,7 +88,7 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    using var reader = new StabilizedTcpClientReader(_tcpClient, _options.Timeout, _stabilizationOptions);
+    using var reader = new StabilizedTcpClientReader(_tcpClient, _options.TimeoutInMilliseconds, _stabilizationOptions);
     return reader.Read();
   }
 
@@ -120,7 +134,7 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
       var parameters = responseParts.Skip(1).ToArray();
 
-      var ctx = new InquireContext(this, keyword, parameters);
+      var ctx = new ClientInquireContext(this, keyword, parameters);
 
       try {
         inquireHandler(ctx);
@@ -151,15 +165,19 @@ internal sealed class TcpClientConnection : IAssuanConnection {
   public async Task OpenAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
 
+    if (IsConnected) {
+      return;
+    }
+
     var (ipEndPoint, nonce) = _endpoint;
     var tcpClient = new TcpClient();
 
-    await tcpClient.ConnectAsync(ipEndPoint, ct);
+    await tcpClient.ConnectAsync(ipEndPoint, ct).ConfigureAwait(false);
     var networkStream = tcpClient.GetStream();
 
-    await networkStream.WriteAsync(nonce, ct);
-    await networkStream.FlushAsync(ct);
-    await tcpClient.DiscardAvailableDataAsync(ct);
+    await networkStream.WriteAsync(nonce, ct).ConfigureAwait(false);
+    await networkStream.FlushAsync(ct).ConfigureAwait(false);
+    await tcpClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
 
     _tcpClient = tcpClient;
     _networkStream = networkStream;
@@ -173,8 +191,10 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    await _networkStream.WriteAsync(buffer, ct);
-    await _networkStream.FlushAsync(ct);
+    await _networkStream.WriteAsync(buffer, ct).ConfigureAwait(false);
+    await _networkStream.FlushAsync(ct).ConfigureAwait(false);
+
+    Console.WriteLine($"DEBUG: Written {buffer.Length} bytes asynchronously.");
   }
 
   /// <inheritdoc />
@@ -185,8 +205,8 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    using var reader = new StabilizedTcpClientReader(_tcpClient, _options.Timeout, _stabilizationOptions);
-    return await reader.ReadAsync(ct);
+    using var reader = new StabilizedTcpClientReader(_tcpClient, _options.TimeoutInMilliseconds, _stabilizationOptions);
+    return await reader.ReadAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -232,13 +252,13 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
       var parameters = responseParts.Skip(1).ToArray();
 
-      var ctx = new InquireContext(this, keyword, parameters);
+      var ctx = new ClientInquireContext(this, keyword, parameters);
 
       try {
         await inquireHandler(ctx, ct);
       }
       catch {
-        await ctx.CancelAsync(ct);
+        await ctx.CancelAsync(ct).ConfigureAwait(false);
         throw;
       }
     }
@@ -254,9 +274,9 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    await _networkStream.WriteAsync(Commands.Bye, ct);
-    await _networkStream.FlushAsync(ct);
-    await _tcpClient.DiscardAvailableDataAsync(ct);
+    await _networkStream.WriteAsync(Commands.Bye, ct).ConfigureAwait(false);
+    await _networkStream.FlushAsync(ct).ConfigureAwait(false);
+    await _tcpClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -283,7 +303,7 @@ internal sealed class TcpClientConnection : IAssuanConnection {
     }
 
     if (IsConnected) {
-      await CloseAsync();
+      await CloseAsync().ConfigureAwait(false);
     }
 
     if (_networkStream is not null) {
@@ -302,7 +322,7 @@ internal sealed class TcpClientConnection : IAssuanConnection {
 
     static async ValueTask CastAndDispose(IDisposable resource) {
       if (resource is IAsyncDisposable resourceAsyncDisposable) {
-        await resourceAsyncDisposable.DisposeAsync();
+        await resourceAsyncDisposable.DisposeAsync().ConfigureAwait(false);
         return;
       }
 

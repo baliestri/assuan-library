@@ -9,9 +9,9 @@ using AssuanLibrary.Client;
 using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
 using AssuanLibrary.Extensions;
-using AssuanLibrary.Platform.Unix.Endpoints;
 using AssuanLibrary.Platform.Unix.Extensions;
 using AssuanLibrary.Platform.Unix.Polyfills;
+using AssuanLibrary.Platform.Unix.Transport.Endpoints;
 using AssuanLibrary.Platform.Unix.Transport.IO;
 using AssuanLibrary.Polyfills;
 using AssuanLibrary.Protocol;
@@ -36,6 +36,15 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     _options.ConfigureStabilization?.Invoke(_stabilizationOptions);
   }
 
+  public UnixDomainSocketConnection(Socket socket, UnixDomainSocketEndpoint endpoint, AssuanConnectionOptions options,
+  StabilizationOptions? stabilizationOptions = null) {
+    _socket = socket;
+    _endpoint = endpoint;
+    _options = options;
+    _stabilizationOptions = stabilizationOptions ?? StabilizationOptions.Default;
+    options.ConfigureStabilization?.Invoke(_stabilizationOptions);
+  }
+
   /// <inheritdoc />
   [MemberNotNullWhen(true, nameof(_socket))]
   public bool IsConnected => _socket is { Connected: true };
@@ -44,10 +53,14 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   public void Open() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
+    if (IsConnected) {
+      return;
+    }
+
     var polyfillEndpoint = new UnixDomainSocketEndPoint(_endpoint.Path);
     var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified) {
-      ReceiveTimeout = (int)_options.Timeout.TotalMilliseconds,
-      SendTimeout = (int)_options.Timeout.TotalMilliseconds
+      ReceiveTimeout = _options.TimeoutInMilliseconds,
+      SendTimeout = _options.TimeoutInMilliseconds
     };
 
     socket.Connect(polyfillEndpoint);
@@ -75,7 +88,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    using var reader = new StabilizedSocketReader(_socket, _options.Timeout, _stabilizationOptions);
+    using var reader = new StabilizedSocketReader(_socket, _options.TimeoutInMilliseconds, _stabilizationOptions);
     return reader.Read();
   }
 
@@ -123,7 +136,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
       var parameters = responseParts.Skip(1).ToArray();
 
-      var ctx = new InquireContext(this, keyword, parameters);
+      var ctx = new ClientInquireContext(this, keyword, parameters);
 
       try {
         inquireHandler(ctx);
@@ -145,8 +158,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    var buffer = "BYE\n"u8.ToArray();
-    _socket.Send(buffer, SocketFlags.None);
+    _socket.Send(Commands.Bye, SocketFlags.None);
     _socket.DiscardAvailableData();
     _socket.Shutdown(SocketShutdown.Both);
   }
@@ -155,14 +167,18 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   public async Task OpenAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
+    if (IsConnected) {
+      return;
+    }
+
     var polyfillEndpoint = new UnixDomainSocketEndPoint(_endpoint.Path);
     var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified) {
-      ReceiveTimeout = (int)_options.Timeout.TotalMilliseconds,
-      SendTimeout = (int)_options.Timeout.TotalMilliseconds
+      ReceiveTimeout = _options.TimeoutInMilliseconds,
+      SendTimeout = _options.TimeoutInMilliseconds
     };
 
-    await socket.ConnectAsync(polyfillEndpoint);
-    await socket.DiscardAvailableDataAsync(ct);
+    await socket.ConnectAsync(polyfillEndpoint).ConfigureAwait(false);
+    await socket.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
 
     _socket = socket;
   }
@@ -179,7 +195,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       arraySegment = new ArraySegment<byte>(buffer.ToArray());
     }
 
-    await _socket.SendAsync(arraySegment, SocketFlags.None, ct);
+    await _socket.SendAsync(arraySegment, SocketFlags.None, ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -190,8 +206,8 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    using var reader = new StabilizedSocketReader(_socket, _options.Timeout, _stabilizationOptions);
-    return await reader.ReadAsync(ct);
+    using var reader = new StabilizedSocketReader(_socket, _options.TimeoutInMilliseconds, _stabilizationOptions);
+    return await reader.ReadAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -210,7 +226,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     var segment = new ArraySegment<byte>(b);
 
     while (true) {
-      var bytesRead = await _socket.ReceiveAsync(segment, SocketFlags.None, ct);
+      var bytesRead = await _socket.ReceiveAsync(segment, SocketFlags.None, ct).ConfigureAwait(false);
       if (bytesRead < 0) {
         break; // EOF
       }
@@ -240,13 +256,13 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
       var parameters = responseParts.Skip(1).ToArray();
 
-      var ctx = new InquireContext(this, keyword, parameters);
+      var ctx = new ClientInquireContext(this, keyword, parameters);
 
       try {
         await inquireHandler(ctx, ct);
       }
       catch {
-        await ctx.CancelAsync(ct);
+        await ctx.CancelAsync(ct).ConfigureAwait(false);
         throw;
       }
     }
@@ -262,10 +278,9 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    var buffer = "BYE\n"u8.ToArray();
-    var segment = new ArraySegment<byte>(buffer);
-    await _socket.SendAsync(segment, SocketFlags.None, ct);
-    await _socket.DiscardAvailableDataAsync(ct);
+    var segment = new ArraySegment<byte>(Commands.Bye);
+    await _socket.SendAsync(segment, SocketFlags.None, ct).ConfigureAwait(false);
+    await _socket.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
     _socket.Shutdown(SocketShutdown.Both);
   }
 
@@ -273,6 +288,10 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   public void Dispose() {
     if (_disposed) {
       return;
+    }
+
+    if (IsConnected) {
+      Close();
     }
 
     _socket?.Dispose();
@@ -286,6 +305,10 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       return;
     }
 
+    if (IsConnected) {
+      await CloseAsync().ConfigureAwait(false);
+    }
+
     if (_socket is not null) {
       await CastAndDispose(_socket);
     }
@@ -297,7 +320,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
 
     static async ValueTask CastAndDispose(IDisposable resource) {
       if (resource is IAsyncDisposable resourceAsyncDisposable) {
-        await resourceAsyncDisposable.DisposeAsync();
+        await resourceAsyncDisposable.DisposeAsync().ConfigureAwait(false);
         return;
       }
 

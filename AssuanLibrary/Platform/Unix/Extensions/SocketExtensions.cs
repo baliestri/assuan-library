@@ -37,7 +37,7 @@ internal static class SocketExtensions {
 
       var buffer = ArrayPool<byte>.Shared.Rent(socket.Available);
       var segment = new ArraySegment<byte>(buffer, 0, socket.Available);
-      _ = await socket.ReceiveAsync(segment, SocketFlags.None, ct);
+      _ = await socket.ReceiveAsync(segment, SocketFlags.None, ct).ConfigureAwait(false);
       ArrayPool<byte>.Shared.Return(buffer, true);
     }
   }

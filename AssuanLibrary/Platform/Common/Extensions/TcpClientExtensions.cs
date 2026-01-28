@@ -38,7 +38,7 @@ internal static class TcpClientExtensions {
 
       var networkStream = tcpClient.GetStream();
       var buffer = ArrayPool<byte>.Shared.Rent(tcpClient.Available);
-      _ = await networkStream.ReadAsync(buffer, 0, tcpClient.Available, ct);
+      _ = await networkStream.ReadAsync(buffer, 0, tcpClient.Available, ct).ConfigureAwait(false);
       ArrayPool<byte>.Shared.Return(buffer, true);
     }
   }

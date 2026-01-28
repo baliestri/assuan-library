@@ -94,5 +94,17 @@ public static class AssuanResponseTypeExtensions {
         var _ => throw new NotSupportedException($"The response type '{responseType}' is not supported.")
       };
     }
+
+    internal byte[] ToBytesRepresentation() {
+      return responseType switch {
+        AssuanResponseType.Ok => "OK"u8.ToArray(),
+        AssuanResponseType.Error => "ERR"u8.ToArray(),
+        AssuanResponseType.Status => "S"u8.ToArray(),
+        AssuanResponseType.Comment => "#"u8.ToArray(),
+        AssuanResponseType.Data => "D"u8.ToArray(),
+        AssuanResponseType.Inquire => "INQUIRE"u8.ToArray(),
+        var _ => throw new NotSupportedException($"The response type '{responseType}' is not supported.")
+      };
+    }
   }
 }

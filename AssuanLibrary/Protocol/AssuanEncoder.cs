@@ -1,7 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using AssuanLibrary.Buffers;
+using AssuanLibrary.Protocol.Buffers;
 
 namespace AssuanLibrary.Protocol;
 
@@ -20,6 +20,83 @@ public static class AssuanEncoder {
 
     table['%'] = false;
     return table;
+  }
+
+  /// <summary>
+  ///   Determines whether the given string is already encoded according to the Assuan protocol.
+  /// </summary>
+  /// <param name="value">The string to check.</param>
+  /// <param name="encodeSpace">Whether space characters should be considered as needing encoding.</param>
+  /// <returns><see langword="true" /> if the string is already encoded; otherwise, <see langword="false" />.</returns>
+  public static bool IsEncoded(string value, bool encodeSpace = false) {
+    if (string.IsNullOrEmpty(value)) {
+      return true;
+    }
+
+    for (var i = 0; i < value.Length; i++) {
+      var c = value[i];
+
+      if (c == '%') {
+        if ((i + 2) >= value.Length ||
+            !IsHexChar(value[i + 1]) ||
+            !IsHexChar(value[i + 2])) {
+          return false;
+        }
+
+        i += 2;
+        continue;
+      }
+
+      if (c >= 128 ||
+          !_isSafeChar[c]) {
+        return false;
+      }
+
+      if (encodeSpace && c == ' ') {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// <summary>
+  ///   Determines whether the given byte array is already encoded according to the Assuan protocol.
+  /// </summary>
+  /// <param name="value">The byte array to check.</param>
+  /// <param name="encodeSpace">Whether space characters should be considered as needing encoding.</param>
+  /// <returns><see langword="true" /> if the byte array is already encoded; otherwise, <see langword="false" />.</returns>
+  public static bool IsEncoded(ReadOnlySpan<byte> value, bool encodeSpace = false) {
+    if (value.Length == 0) {
+      return true;
+    }
+
+    for (var i = 0; i < value.Length; i++) {
+      var b = value[i];
+      var c = (char)b;
+
+      if (c == '%') {
+        if ((i + 2) >= value.Length ||
+            !IsHexChar((char)value[i + 1]) ||
+            !IsHexChar((char)value[i + 2])) {
+          return false;
+        }
+
+        i += 2;
+        continue;
+      }
+
+      if (b >= 128 ||
+          !_isSafeChar[b]) {
+        return false;
+      }
+
+      if (encodeSpace && c == ' ') {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /// <summary>
@@ -154,6 +231,50 @@ public static class AssuanEncoder {
     }
 
     return writer.ToReadOnlyMemory();
+  }
+
+  /// <summary>
+  ///   Encodes the given byte array according to the Assuan protocol.
+  /// </summary>
+  /// <param name="value">The byte array to encode.</param>
+  /// <param name="appendLineFeed">Whether to append a line feed character at the end.</param>
+  /// <returns>The encoded byte array.</returns>
+  public static byte[] AsBytes(byte[] value, bool appendLineFeed = true) {
+    if (value.Length == 0) {
+      return value;
+    }
+
+    using var writer = new PooledByteWriter((value.Length * 3) / 2);
+
+    for (var i = 0; i < value.Length; i++) {
+      var b = value[i];
+      if (b < 128 &&
+          _isSafeChar[b]) {
+        writer.Write(b);
+        continue;
+      }
+
+      if (b == '%' &&
+          (i + 2) < value.Length &&
+          IsHexChar((char)value[i + 1]) &&
+          IsHexChar((char)value[i + 2])) {
+        writer.Write(Characters.PERCENT);
+        writer.Write(value[i + 1]);
+        writer.Write(value[i + 2]);
+        i += 2;
+        continue;
+      }
+
+      writer.Write(Characters.PERCENT);
+      writer.Write((byte)_hexLookup[(b >> 4) & 0xF]);
+      writer.Write((byte)_hexLookup[b & 0xF]);
+    }
+
+    if (appendLineFeed) {
+      writer.Write(Characters.LINE_FEED);
+    }
+
+    return writer.ToArray();
   }
 
   /// <summary>

@@ -4,7 +4,7 @@
 using System.Buffers;
 using BytePool = System.Buffers.ArrayPool<byte>;
 
-namespace AssuanLibrary.Buffers;
+namespace AssuanLibrary.Protocol.Buffers;
 
 /// <summary>
 ///   A high-performance buffer writer for bytes that utilizes array pooling.
@@ -48,6 +48,19 @@ public struct PooledByteWriter(int initialCapacity) : IBufferWriter<byte>, IDisp
     EnsureCapacity(1);
 
     _buffer[_written++] = value;
+  }
+
+  /// <summary>
+  ///   Writes a byte array to the buffer.
+  /// </summary>
+  /// <param name="source">The byte array to write.</param>
+  public void Write(byte[] source) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(PooledByteWriter));
+    ArgumentNullException.ThrowIfNull(source);
+    EnsureCapacity(source.Length);
+
+    Array.Copy(source, 0, _buffer, _written, source.Length);
+    _written += source.Length;
   }
 
   /// <summary>

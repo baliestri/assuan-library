@@ -3,13 +3,14 @@
 
 using System.Globalization;
 using AssuanLibrary.Extensions;
+using AssuanLibrary.Protocol.Buffers;
 
 namespace AssuanLibrary.Protocol;
 
 /// <summary>
 ///   Represents a response from the Assuan protocol.
 /// </summary>
-public sealed class AssuanResponse : IEquatable<AssuanResponse>, IFormattable {
+public sealed partial class AssuanResponse : IEquatable<AssuanResponse>, IFormattable {
   private readonly byte[] _buffer;
 
   internal AssuanResponse(byte[] buffer) {
@@ -26,6 +27,22 @@ public sealed class AssuanResponse : IEquatable<AssuanResponse>, IFormattable {
 
     Type = type;
     Buffer = responseBuffer;
+  }
+
+  private AssuanResponse(AssuanResponseType type, byte[] buffer) {
+    Type = type;
+    Buffer = buffer;
+
+    using var writer = new PooledByteWriter(buffer.Length + 8);
+
+    writer.Write(type.ToBytesRepresentation());
+
+    if (Buffer.Length != 0) {
+      writer.Write(Characters.SPACE);
+      writer.Write(Buffer);
+    }
+
+    _buffer = writer.ToArray();
   }
 
   /// <summary>

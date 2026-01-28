@@ -3,6 +3,7 @@
 
 using System.Collections;
 using System.Collections.Immutable;
+using AssuanLibrary.Extensions;
 
 namespace AssuanLibrary.Protocol;
 
@@ -24,6 +25,25 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     _entries[0] = commandName.Trim();
 
     Count = 1;
+  }
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanCommand" /> class from a byte array.
+  /// </summary>
+  /// <param name="buffer">The byte array representing the command.</param>
+  /// <exception cref="ArgumentException">Thrown when <paramref name="buffer" /> does not contain a valid command.</exception>
+  public AssuanCommand(byte[] buffer) {
+    var commandString = AssuanDecoder.ToString(buffer.Take(Characters.LINE_FEED));
+    var parts = commandString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+    if (parts.Length == 0) {
+      throw new ArgumentException("The command buffer does not contain a valid command.", nameof(buffer));
+    }
+
+    _entries = new string[parts.Length];
+    Array.Copy(parts, _entries, parts.Length);
+
+    Count = parts.Length;
   }
 
   /// <summary>

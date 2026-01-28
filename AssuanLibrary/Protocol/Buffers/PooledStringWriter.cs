@@ -4,7 +4,7 @@
 using System.Buffers;
 using CharPool = System.Buffers.ArrayPool<char>;
 
-namespace AssuanLibrary.Buffers;
+namespace AssuanLibrary.Protocol.Buffers;
 
 /// <summary>
 ///   A high-performance buffer writer for characters that utilizes array pooling.

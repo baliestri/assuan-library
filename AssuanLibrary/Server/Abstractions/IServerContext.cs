@@ -61,4 +61,16 @@ public interface IServerContext {
   /// <returns>A task that represents the asynchronous send operation, containing the inquire response data.</returns>
   Task<ReadOnlyMemory<byte>> SendResponseAsync(string keyword, IReadOnlyCollection<string> parameters, AsyncInquireHandler inquireHandler,
   CancellationToken ct = default);
+
+  /// <summary>
+  ///   Closes the server context and releases any associated resources.
+  /// </summary>
+  void Close();
+
+  /// <summary>
+  ///   Closes the server context and releases any associated resources asynchronously.
+  /// </summary>
+  /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+  /// <returns>A task that represents the asynchronous close operation.</returns>
+  Task CloseAsync(CancellationToken ct = default);
 }

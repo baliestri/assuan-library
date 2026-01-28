@@ -58,4 +58,12 @@ public sealed class ServerContext(IAssuanConnection connection, IServerSession s
 
     return await inquireContext.WaitAsync(ct).ConfigureAwait(false);
   }
+
+  /// <inheritdoc />
+  public void Close()
+    => connection.Dispose();
+
+  /// <inheritdoc />
+  public async Task CloseAsync(CancellationToken ct = default)
+    => await connection.DisposeAsync().ConfigureAwait(false);
 }

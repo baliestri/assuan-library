@@ -3,7 +3,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-namespace AssuanLibrary.Endpoints;
+namespace AssuanLibrary.Transport.Endpoints;
 
 /// <summary>
 ///   Represents the kind of Assuan endpoint to connect to.

@@ -1,7 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-namespace AssuanLibrary.Endpoints.Abstractions;
+namespace AssuanLibrary.Transport.Endpoints;
 
 /// <summary>
 ///   Resolves an <see cref="IAssuanEndpoint" /> based on the specified <see cref="AssuanEndpointKind" />.

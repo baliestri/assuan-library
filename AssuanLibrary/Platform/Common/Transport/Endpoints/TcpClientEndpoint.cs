@@ -2,9 +2,9 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Net;
-using AssuanLibrary.Endpoints;
+using AssuanLibrary.Transport.Endpoints;
 
-namespace AssuanLibrary.Platform.Common.Endpoints;
+namespace AssuanLibrary.Platform.Common.Transport.Endpoints;
 
 /// <summary>
 ///   Defines a TCP client communication endpoint for Assuan protocol.

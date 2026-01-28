@@ -4,9 +4,9 @@
 namespace AssuanLibrary.Client.Abstractions;
 
 /// <summary>
-///   Represents the context of an inquire request.
+///   Represents the context of an inquire request on the client side.
 /// </summary>
-public interface IInquireContext {
+public interface IClientInquireContext {
   /// <summary>
   ///   The keyword of the inquire request.
   /// </summary>

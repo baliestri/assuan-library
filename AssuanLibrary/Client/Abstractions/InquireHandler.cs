@@ -4,6 +4,6 @@
 namespace AssuanLibrary.Client.Abstractions;
 
 /// <summary>
-///   Represents the method that will handle an inquire request.
+///   Represents the method that will handle an inquire request on client side.
 /// </summary>
-public delegate void InquireHandler(IInquireContext context);
+public delegate void InquireHandler(IClientInquireContext context);

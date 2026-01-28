@@ -4,6 +4,6 @@
 namespace AssuanLibrary.Client.Abstractions;
 
 /// <summary>
-///   Represents the asynchronous method that will handle an inquire request.
+///   Represents the asynchronous method that will handle an inquire request on client side.
 /// </summary>
-public delegate Task AsyncInquireHandler(IInquireContext context, CancellationToken ct = default);
+public delegate Task AsyncInquireHandler(IClientInquireContext context, CancellationToken ct = default);

@@ -7,7 +7,8 @@ using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Client;
 
-internal sealed class InquireContext(IAssuanConnection connection, string keyword, IReadOnlyCollection<string> parameters) : IInquireContext {
+internal sealed class ClientInquireContext(IAssuanConnection connection, string keyword, IReadOnlyCollection<string> parameters)
+  : IClientInquireContext {
   /// <inheritdoc />
   public string Keyword { get; } = keyword;
 
@@ -48,7 +49,7 @@ internal sealed class InquireContext(IAssuanConnection connection, string keywor
     Buffer.BlockCopy(Commands.Data, 0, buffer, 0, Commands.Data.Length);
     Buffer.BlockCopy(encoded, 0, buffer, Commands.Data.Length, encoded.Length);
 
-    await connection.WriteAsync(buffer, ct);
+    await connection.WriteAsync(buffer, ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -57,14 +58,14 @@ internal sealed class InquireContext(IAssuanConnection connection, string keywor
     Buffer.BlockCopy(Commands.Data, 0, dataBuffer, 0, Commands.Data.Length);
     Buffer.BlockCopy(buffer, 0, dataBuffer, Commands.Data.Length, buffer.Length);
 
-    await connection.WriteAsync(dataBuffer, ct);
+    await connection.WriteAsync(dataBuffer, ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
   public async ValueTask EndAsync(CancellationToken ct = default)
-    => await connection.WriteAsync(Commands.End, ct);
+    => await connection.WriteAsync(Commands.End, ct).ConfigureAwait(false);
 
   /// <inheritdoc />
   public async ValueTask CancelAsync(CancellationToken ct = default)
-    => await connection.WriteAsync(Commands.Cancel, ct);
+    => await connection.WriteAsync(Commands.Cancel, ct).ConfigureAwait(false);
 }

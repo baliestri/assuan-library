@@ -13,20 +13,14 @@ public sealed class AssuanConnectionOptions {
   ///   A read-only instance of <see cref="AssuanConnectionOptions" /> with default settings.
   /// </summary>
   public static readonly AssuanConnectionOptions Default = new() {
-    Timeout = TimeSpan.FromSeconds(TIMEOUT_IN_SECONDS),
-    ThrowIfNotConnected = true,
+    TimeoutInMilliseconds = 30_000,
     ConfigureStabilization = null
   };
 
   /// <summary>
-  ///   The timeout duration for receiving data.
+  ///   The timeout duration for receiving data in milliseconds.
   /// </summary>
-  public TimeSpan Timeout { get; set; }
-
-  /// <summary>
-  ///   Indicates whether to throw an exception if the client is not connected when attempting to send or receive data.
-  /// </summary>
-  public bool ThrowIfNotConnected { get; set; }
+  public int TimeoutInMilliseconds { get; set; }
 
   /// <summary>
   ///   Configures the stabilization options for the connection.

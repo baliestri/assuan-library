@@ -14,18 +14,23 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   /// </summary>
   public static readonly AssuanClientOptions Default = new() {
     EnablePinentryLoopback = true,
-    ConnectionOptions = AssuanConnectionOptions.Default
+    ConfigureConnection = null
   };
 
   /// <summary>
   ///   Indicates whether to use pinentry loopback mode.
   /// </summary>
-  public bool EnablePinentryLoopback { get; set; }
+  public bool EnablePinentryLoopback { get; set; } // TODO: replace with OnConnect event or similar
+
+  /// <summary>
+  ///   Indicates whether to throw an exception if the client is not connected when attempting to send or receive data.
+  /// </summary>
+  public bool ThrowIfNotConnected { get; set; }
 
   /// <summary>
   ///   Options for configuring the Assuan connection.
   /// </summary>
-  public required AssuanConnectionOptions ConnectionOptions { get; set; }
+  public Action<AssuanConnectionOptions>? ConfigureConnection { get; set; }
 
   /// <inheritdoc />
   public bool Equals(AssuanClientOptions? other) {
@@ -38,7 +43,8 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
     }
 
     return EnablePinentryLoopback == other.EnablePinentryLoopback &&
-           ConnectionOptions.Equals(other.ConnectionOptions);
+           ThrowIfNotConnected == other.ThrowIfNotConnected &&
+           ConfigureConnection == other.ConfigureConnection;
   }
 
   /// <inheritdoc />
@@ -48,8 +54,8 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   /// <inheritdoc />
   public override int GetHashCode()
     => GetEqualityComponents()
-      .Select(obj => obj.GetHashCode())
-      .Aggregate(17, (current, hash) => (current * 31) + hash);
+      .Select(obj => obj?.GetHashCode())
+      .Aggregate(17, (current, hash) => hash.HasValue ? (current * 31) + hash.Value : current);
 
   /// <summary>
   ///   Determines whether two <see cref="AssuanClientOptions" /> instances are equal.
@@ -69,8 +75,9 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   public static bool operator !=(AssuanClientOptions? left, AssuanClientOptions? right)
     => !Equals(left, right);
 
-  private IEnumerable<object> GetEqualityComponents() {
+  private IEnumerable<object?> GetEqualityComponents() {
     yield return EnablePinentryLoopback;
-    yield return ConnectionOptions;
+    yield return ThrowIfNotConnected;
+    yield return ConfigureConnection;
   }
 }

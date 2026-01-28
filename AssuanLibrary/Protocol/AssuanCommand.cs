@@ -4,13 +4,12 @@
 using System.Collections;
 using System.Collections.Immutable;
 using AssuanLibrary.Extensions;
+using AssuanLibrary.Protocol.Abstractions;
 
 namespace AssuanLibrary.Protocol;
 
-/// <summary>
-///   Represents an Assuan command with its name and arguments.
-/// </summary>
-public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanCommand> {
+/// <inheritdoc cref="IAssuanCommand" />
+public sealed class AssuanCommand : IAssuanCommand, IEquatable<AssuanCommand> {
   private string[] _entries;
 
   /// <summary>
@@ -46,12 +45,7 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     Count = parts.Length;
   }
 
-  /// <summary>
-  ///   Gets or sets the entry at the specified index.
-  /// </summary>
-  /// <param name="index">The index of the entry.</param>
-  /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="index" /> is out of range.</exception>
-  /// <remarks>The first entry (index 0) is the command name and cannot be removed.</remarks>
+  /// <inheritdoc cref="IAssuanCommand.this" />
   public string this[int index] {
     get {
       if (index < 0 ||
@@ -76,20 +70,13 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     }
   }
 
-  /// <summary>
-  ///   The name of the command.
-  /// </summary>
+  /// <inheritdoc />
   public string Name => _entries[0];
 
-  /// <summary>
-  ///   The arguments of the command, if applicable.
-  /// </summary>
+  /// <inheritdoc />
   public ImmutableArray<string> Arguments => [.._entries.AsSpan(1)];
 
-  /// <summary>
-  ///   The current count of entries in the command.
-  /// </summary>
-  /// <remarks>The count includes the command name and all arguments.</remarks>
+  /// <inheritdoc />
   public int Count { get; private set; }
 
   /// <inheritdoc />
@@ -104,31 +91,23 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     => GetEnumerator();
 
   /// <inheritdoc />
-  public bool Equals(AssuanCommand? other) {
+  public bool Equals(IReadOnlyAssuanCommand? other) {
     if (other is null ||
         Count != other.Count) {
       return false;
     }
 
-    return ReferenceEquals(this, other) ||
-           _entries.SequenceEqual(other._entries);
+    if (ReferenceEquals(this, other)) {
+      return true;
+    }
+
+    var otherCommand = other as AssuanCommand;
+
+    return otherCommand is not null &&
+           otherCommand._entries.SequenceEqual(_entries);
   }
 
   /// <inheritdoc />
-  public override bool Equals(object? obj)
-    => obj is AssuanCommand command && Equals(command);
-
-  /// <inheritdoc />
-  public override int GetHashCode()
-    => GetEntries()
-      .Select(value => value.GetHashCode())
-      .Aggregate(17, (current, hash) => (current * 31) + hash);
-
-  /// <summary>
-  ///   Adds an argument to the command.
-  /// </summary>
-  /// <param name="argument">The argument to add.</param>
-  /// <exception cref="ArgumentException">Thrown when <paramref name="argument" /> is <see langword="null" /> or whitespace.</exception>
   public void Add(string argument) {
     ArgumentException.ThrowIfNullOrWhiteSpace(argument);
 
@@ -141,11 +120,7 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     _entries[Count++] = trimmedArgument;
   }
 
-  /// <summary>
-  ///   Removes an argument from the command.
-  /// </summary>
-  /// <param name="argument">The argument to remove.</param>
-  /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="argument" /> was not found in the command.</exception>
+  /// <inheritdoc />
   public void Remove(string argument) {
     ArgumentException.ThrowIfNullOrWhiteSpace(argument);
 
@@ -153,12 +128,7 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
     RemoveAt(index);
   }
 
-  /// <summary>
-  ///   Removes the argument at the specified index.
-  /// </summary>
-  /// <param name="index">The index of the argument to remove.</param>
-  /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="index" /> is out of range.</exception>
-  /// <remarks>The first entry (index 0) is the command name and cannot be removed.</remarks>
+  /// <inheritdoc />
   public void RemoveAt(int index) {
     if (index < 1 ||
         index >= Count) {
@@ -173,22 +143,37 @@ public sealed class AssuanCommand : IEnumerable<string>, IEquatable<AssuanComman
   }
 
   /// <inheritdoc />
-  public override string ToString()
-    => AssuanEncoder.AsString(string.Join(' ', this));
-
-  /// <summary>
-  ///   Returns a byte array representation of the command.
-  /// </summary>
-  /// <returns>A byte array representing the command.</returns>
   public byte[] ToBytes()
     => AssuanEncoder.AsBytes(string.Join(' ', this));
 
-  /// <summary>
-  ///   Returns a read-only memory representation of the command.
-  /// </summary>
-  /// <returns>A read-only memory representing the command.</returns>
+  /// <inheritdoc />
   public ReadOnlyMemory<byte> ToReadOnlyMemory()
     => AssuanEncoder.AsReadOnlyMemory(string.Join(' ', this));
+
+  /// <inheritdoc />
+  public bool Equals(AssuanCommand? other) {
+    if (other is null ||
+        Count != other.Count) {
+      return false;
+    }
+
+    return ReferenceEquals(this, other) ||
+           other._entries.SequenceEqual(_entries);
+  }
+
+  /// <inheritdoc />
+  public override bool Equals(object? obj)
+    => obj is AssuanCommand command && Equals(command);
+
+  /// <inheritdoc />
+  public override int GetHashCode()
+    => GetEntries()
+      .Select(value => value.GetHashCode())
+      .Aggregate(17, (current, hash) => (current * 31) + hash);
+
+  /// <inheritdoc />
+  public override string ToString()
+    => AssuanEncoder.AsString(string.Join(' ', this));
 
   /// <summary>
   ///   Determines whether two <see cref="AssuanCommand" /> instances are equal.

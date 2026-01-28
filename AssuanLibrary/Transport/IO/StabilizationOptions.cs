@@ -11,23 +11,17 @@ public sealed class StabilizationOptions : IEquatable<StabilizationOptions> {
   ///   A read-only instance of <see cref="StabilizationOptions" /> with default settings.
   /// </summary>
   public static readonly StabilizationOptions Default = new(
-    TimeSpan.FromMilliseconds(150),
-    TimeSpan.FromMilliseconds(40),
-    TimeSpan.FromMilliseconds(40)
+    TimeSpan.FromMilliseconds(100),
+    TimeSpan.FromMilliseconds(50)
   );
 
-  private StabilizationOptions(TimeSpan delay, TimeSpan gracePeriod, TimeSpan pollInterval)
-    => (Delay, GracePeriod, PollInterval) = (delay, gracePeriod, pollInterval);
+  private StabilizationOptions(TimeSpan delay, TimeSpan pollInterval)
+    => (Delay, PollInterval) = (delay, pollInterval);
 
   /// <summary>
   ///   The delay duration to consider the stream stabilized after no data has been received.
   /// </summary>
   public TimeSpan Delay { get; set; }
-
-  /// <summary>
-  ///   The grace period to wait after receiving data before checking for more data.
-  /// </summary>
-  public TimeSpan GracePeriod { get; set; }
 
   /// <summary>
   ///   The interval at which to poll for new data.
@@ -45,7 +39,6 @@ public sealed class StabilizationOptions : IEquatable<StabilizationOptions> {
     }
 
     return Delay == other.Delay &&
-           GracePeriod == other.GracePeriod &&
            PollInterval == other.PollInterval;
   }
 
@@ -63,14 +56,12 @@ public sealed class StabilizationOptions : IEquatable<StabilizationOptions> {
   ///   Deconstructs the <see cref="StabilizationOptions" /> into its constituent properties.
   /// </summary>
   /// <param name="delay">The delay duration.</param>
-  /// <param name="gracePeriod">The grace period.</param>
   /// <param name="pollInterval">The poll interval.</param>
-  public void Deconstruct(out TimeSpan delay, out TimeSpan gracePeriod, out TimeSpan pollInterval)
-    => (delay, gracePeriod, pollInterval) = (Delay, GracePeriod, PollInterval);
+  public void Deconstruct(out TimeSpan delay, out TimeSpan pollInterval)
+    => (delay, pollInterval) = (Delay, PollInterval);
 
   private IEnumerable<object> GetEqualityComponents() {
     yield return Delay;
-    yield return GracePeriod;
     yield return PollInterval;
   }
 }

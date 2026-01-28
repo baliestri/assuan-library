@@ -5,21 +5,20 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using AssuanLibrary.Client.Abstractions;
-using AssuanLibrary.Endpoints;
-using AssuanLibrary.Endpoints.Abstractions;
 using AssuanLibrary.Exceptions;
 using AssuanLibrary.Platform.Common.Transport;
-using AssuanLibrary.Platform.Unix.Endpoints;
+using AssuanLibrary.Platform.Unix.Transport.Endpoints;
 using AssuanLibrary.Platform.Windows.Endpoints;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Transport;
+using AssuanLibrary.Transport.Endpoints;
 
 namespace AssuanLibrary.Client;
 
 /// <inheritdoc />
 public sealed class AssuanClient(
-  IAssuanEndpointResolver resolver,
-  IAssuanConnectionFactory factory,
+  IAssuanEndpointResolver endpointResolver,
+  IAssuanConnectionFactory connectionFactory,
   AssuanClientOptions options,
   IAssuanEndpoint? endpoint = null,
   AssuanEndpointKind? kind = null
@@ -71,7 +70,7 @@ public sealed class AssuanClient(
 
     try {
       var resolvedEndpoint = ResolveEndpoint();
-      _connection = factory.Create(resolvedEndpoint);
+      _connection = connectionFactory.CreateConnection(resolvedEndpoint);
 
       _connection.Open();
 
@@ -109,19 +108,19 @@ public sealed class AssuanClient(
 
     try {
       var resolvedEndpoint = ResolveEndpoint();
-      _connection = factory.Create(resolvedEndpoint);
+      _connection = connectionFactory.CreateConnection(resolvedEndpoint);
 
-      await _connection.OpenAsync(ct);
+      await _connection.OpenAsync(ct).ConfigureAwait(false);
 
       if (!options.EnablePinentryLoopback) {
         return;
       }
 
-      await _connection.WriteAsync(Commands.Options.PinentryModeLoopback, ct);
-      _ = await _connection.ReadAsync(ct);
+      await _connection.WriteAsync(Commands.Options.PinentryModeLoopback, ct).ConfigureAwait(false);
+      _ = await _connection.ReadAsync(ct).ConfigureAwait(false);
     }
     catch (Exception ex) {
-      await DisposeAsync();
+      await DisposeAsync().ConfigureAwait(false);
       throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
     }
   }
@@ -134,7 +133,7 @@ public sealed class AssuanClient(
       return;
     }
 
-    await _connection.CloseAsync(ct);
+    await _connection.CloseAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -142,7 +141,7 @@ public sealed class AssuanClient(
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (!IsConnected) {
-      return options.ConnectionOptions.ThrowIfNotConnected
+      return options.ThrowIfNotConnected
         ? throw new AssuanClientException("The client is not connected to the server.")
         : new AssuanResponseCollection();
     }
@@ -159,7 +158,7 @@ public sealed class AssuanClient(
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (!IsConnected) {
-      return options.ConnectionOptions.ThrowIfNotConnected
+      return options.ThrowIfNotConnected
         ? throw new AssuanClientException("The client is not connected to the server.")
         : new AssuanResponseCollection();
     }
@@ -176,15 +175,15 @@ public sealed class AssuanClient(
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (!IsConnected) {
-      return options.ConnectionOptions.ThrowIfNotConnected
+      return options.ThrowIfNotConnected
         ? throw new AssuanClientException("The client is not connected to the server.")
         : new AssuanResponseCollection();
     }
 
     var writtenBuffer = command.ToReadOnlyMemory();
-    await _connection.WriteAsync(writtenBuffer, ct);
+    await _connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
 
-    var readBuffer = await _connection.ReadAsync(ct);
+    var readBuffer = await _connection.ReadAsync(ct).ConfigureAwait(false);
     return new AssuanResponseCollection(readBuffer);
   }
 
@@ -194,15 +193,15 @@ public sealed class AssuanClient(
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (!IsConnected) {
-      return options.ConnectionOptions.ThrowIfNotConnected
+      return options.ThrowIfNotConnected
         ? throw new AssuanClientException("The client is not connected to the server.")
         : new AssuanResponseCollection();
     }
 
     var writtenBuffer = command.ToReadOnlyMemory();
-    await _connection.WriteAsync(writtenBuffer, ct);
+    await _connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
 
-    var readBuffer = await _connection.ReadAsync(inquireHandler, ct);
+    var readBuffer = await _connection.ReadAsync(inquireHandler, ct).ConfigureAwait(false);
     return new AssuanResponseCollection(readBuffer);
   }
 
@@ -224,7 +223,7 @@ public sealed class AssuanClient(
     }
 
     if (_connection is not null) {
-      await _connection.DisposeAsync();
+      await _connection.DisposeAsync().ConfigureAwait(false);
     }
 
     _connection = null;
@@ -253,7 +252,7 @@ public sealed class AssuanClient(
     }
 
     if (kind is not null) {
-      return resolver.Resolve(kind);
+      return endpointResolver.Resolve(kind);
     }
 
     throw new AssuanClientException("Either an endpoint or an endpoint kind must be provided to resolve the connection endpoint.");

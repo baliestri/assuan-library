@@ -3,6 +3,7 @@
 
 using System.Collections;
 using AssuanLibrary.Extensions;
+using AssuanLibrary.Protocol.Buffers;
 
 namespace AssuanLibrary.Protocol;
 
@@ -60,7 +61,33 @@ public sealed class AssuanResponseCollection : IReadOnlyList<AssuanResponse> {
   IEnumerator IEnumerable.GetEnumerator()
     => GetEnumerator();
 
+  /// <summary>
+  ///   Gets the original buffer representing the entire response collection.
+  /// </summary>
+  /// <returns>The original byte array buffer.</returns>
+  public byte[] GetOriginalBuffer()
+    => _buffer;
+
   /// <inheritdoc />
   public override string ToString()
     => AssuanDecoder.ToString(_buffer);
+
+  public static AssuanResponseCollection Create(params AssuanResponse[] responses) {
+    if (responses.Length == 0) {
+      return new AssuanResponseCollection();
+    }
+
+    using var writer = new PooledByteWriter(responses.Sum(ar => ar.Length) + responses.Length);
+
+    foreach (var response in responses) {
+      var originalBuffer = response.GetOriginalBuffer();
+      writer.Write(originalBuffer);
+
+      if (!originalBuffer.EndsWith(Characters.LINE_FEED)) {
+        writer.Write(Characters.LINE_FEED);
+      }
+    }
+
+    return new AssuanResponseCollection(writer.ToArray());
+  }
 }

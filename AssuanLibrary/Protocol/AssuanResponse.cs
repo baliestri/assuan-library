@@ -60,6 +60,11 @@ public sealed partial class AssuanResponse : IEquatable<AssuanResponse>, IFormat
   /// </summary>
   public byte[] DecodedBuffer => AssuanDecoder.ToBytes(Buffer);
 
+  /// <summary>
+  ///   Gets the length of the original response buffer.
+  /// </summary>
+  public int Length => _buffer.Length;
+
   /// <inheritdoc />
   public bool Equals(AssuanResponse? other) {
     if (other is null) {

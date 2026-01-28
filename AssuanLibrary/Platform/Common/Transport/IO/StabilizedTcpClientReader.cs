@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Buffers;
+using System.Diagnostics;
 using System.Net.Sockets;
 using AssuanLibrary.Transport.IO;
 
@@ -11,62 +12,75 @@ namespace AssuanLibrary.Platform.Common.Transport.IO;
 ///   A reader that reads from a TCP client until the data stabilizes, indicating no more data is incoming.
 /// </summary>
 /// <param name="tcpClient">The TCP client to read from.</param>
-/// <param name="timeout">The maximum duration to wait for the stream to stabilize before timing out.</param>
+/// <param name="timeoutInMilliseconds">The maximum duration to wait for the stream to stabilize before timing out.</param>
 /// <param name="options">The stabilization options to use.</param>
-public struct StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout, StabilizationOptions options) : IStabilizedReader {
+public struct StabilizedTcpClientReader(TcpClient tcpClient, int timeoutInMilliseconds, StabilizationOptions options) : IStabilizedReader {
   private const int INITIAL_BUFFER_CAPACITY = 4096;
   private const int DEFAULT_RENT_BUFFER_EXTRA = 32;
   private readonly MemoryStream _memoryStream = new(INITIAL_BUFFER_CAPACITY);
   private readonly NetworkStream _networkStream = tcpClient.GetStream();
-  private int _written;
+  private readonly TimeSpan _timeout = TimeSpan.FromMilliseconds(timeoutInMilliseconds);
   private bool _disposed;
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="StabilizedTcpClientReader" /> struct with default stabilization options.
   /// </summary>
   /// <param name="tcpClient">The TCP client to read from.</param>
-  /// <param name="timeout">The maximum duration to wait for the stream to stabilize before timing out.</param>
-  public StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout) : this(tcpClient, timeout, StabilizationOptions.Default) { }
+  /// <param name="timeoutInMilliseconds">The maximum duration to wait for the stream to stabilize before timing out.</param>
+  public StabilizedTcpClientReader(TcpClient tcpClient, int timeoutInMilliseconds)
+    : this(tcpClient, timeoutInMilliseconds, StabilizationOptions.Default) { }
 
   /// <inheritdoc />
   public byte[] Read() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(StabilizedTcpClientReader));
 
-    var deadline = DateTime.UtcNow + timeout;
-    var consecutiveZeros = 0;
-    var zeroStartedAt = default(DateTime);
+    var sw = Stopwatch.StartNew();
+    var lastTick = sw.Elapsed;
 
-    while (DateTime.UtcNow <= deadline) {
-      var available = tcpClient.Available;
+    var idleElapsed = TimeSpan.Zero;
+    var idleCycles = 0;
+    var hasReceivedAnyData = false;
 
-      if (available > 0) {
-        ReadChunk(available);
-        _written += available;
-        consecutiveZeros = 0;
-        zeroStartedAt = default;
-        Thread.Sleep(options.GracePeriod);
-        continue;
-      }
-
-      StabilizationIdleDetector.UpdateZeroState(available, ref consecutiveZeros, ref zeroStartedAt);
-
-      if (StabilizationIdleDetector.IsStableIdle(consecutiveZeros, zeroStartedAt, options.Delay)) {
+    while (true) {
+      if (!tcpClient.Connected) {
         break;
       }
 
-      Thread.Sleep(options.PollInterval);
+      var now = sw.Elapsed;
+      var elapsed = now - lastTick;
+      lastTick = now;
+
+      var remaining = _timeout - now;
+      if (remaining <= TimeSpan.Zero) {
+        throw new TimeoutException("Reading from the stream timed out.");
+      }
+
+      var available = tcpClient.Available;
+      var hadData = false;
+
+      if (hadData) {
+        var read = ReadChunk(available);
+        hadData = read > 0;
+
+        if (hadData) {
+          hasReceivedAnyData = true;
+        }
+      }
+
+      StabilizationIdleDetector.Update(hadData, elapsed, ref idleElapsed, ref idleCycles);
+
+      if (hasReceivedAnyData && StabilizationIdleDetector.IsStable(idleElapsed, options.Delay)) {
+        break;
+      }
+
+      var poll = (int)Math.Min(options.PollInterval.TotalMilliseconds, remaining.TotalMilliseconds);
+      Thread.Sleep(poll);
     }
 
-    if (DateTime.UtcNow > deadline) {
-      throw new TimeoutException("Reading from the stream timed out.");
-    }
-
-    var output = new byte[_written];
+    var output = _memoryStream.ToArray();
 
     _memoryStream.Seek(0, SeekOrigin.Begin);
-    _ = _memoryStream.Read(output, 0, _written);
     _memoryStream.SetLength(0);
-    _written = 0;
 
     return output;
   }
@@ -75,42 +89,53 @@ public struct StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout, S
   public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(StabilizedTcpClientReader));
 
-    var deadline = DateTime.UtcNow + timeout;
-    var consecutiveZeros = 0;
-    var zeroStartedAt = default(DateTime);
+    var sw = Stopwatch.StartNew();
+    var lastTick = sw.Elapsed;
 
-    while (DateTime.UtcNow <= deadline &&
-           !ct.IsCancellationRequested) {
-      var available = tcpClient.Available;
+    var idleElapsed = TimeSpan.Zero;
+    var idleCycles = 0;
+    var hasReceivedAnyData = false;
 
-      if (available > 0) {
-        await ReadChunkAsync(available, ct);
-        _written += available;
-        consecutiveZeros = 0;
-        zeroStartedAt = default;
-        await Task.Delay(options.GracePeriod, ct);
-        continue;
-      }
-
-      StabilizationIdleDetector.UpdateZeroState(available, ref consecutiveZeros, ref zeroStartedAt);
-
-      if (StabilizationIdleDetector.IsStableIdle(consecutiveZeros, zeroStartedAt, options.Delay)) {
+    while (!ct.IsCancellationRequested) {
+      if (!tcpClient.Connected) {
         break;
       }
 
-      await Task.Delay(options.PollInterval, ct);
+      var now = sw.Elapsed;
+      var elapsed = now - lastTick;
+      lastTick = now;
+
+      var remaining = _timeout - now;
+      if (remaining <= TimeSpan.Zero) {
+        throw new TimeoutException("Reading from the stream timed out.");
+      }
+
+      var available = tcpClient.Available;
+      var hadData = false;
+
+      if (available > 0) {
+        var read = await ReadChunkAsync(available, ct).ConfigureAwait(false);
+        hadData = read > 0;
+
+        if (hadData) {
+          hasReceivedAnyData = true;
+        }
+      }
+
+      StabilizationIdleDetector.Update(hadData, elapsed, ref idleElapsed, ref idleCycles);
+
+      if (hasReceivedAnyData && StabilizationIdleDetector.IsStable(idleElapsed, options.Delay)) {
+        break;
+      }
+
+      var poll = (int)Math.Min(options.PollInterval.TotalMilliseconds, remaining.TotalMilliseconds);
+      await Task.Delay(poll, ct);
     }
 
-    if (DateTime.UtcNow > deadline) {
-      throw new TimeoutException("Reading from the stream timed out.");
-    }
-
-    var output = new byte[_written];
+    var output = _memoryStream.ToArray();
 
     _memoryStream.Seek(0, SeekOrigin.Begin);
-    _ = await _memoryStream.ReadAsync(output, 0, _written, ct);
     _memoryStream.SetLength(0);
-    _written = 0;
 
     return output;
   }
@@ -125,25 +150,27 @@ public struct StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout, S
     _disposed = true;
   }
 
-  private async ValueTask ReadChunkAsync(int bytesAvailable, CancellationToken ct) {
+  private async ValueTask<int> ReadChunkAsync(int bytesAvailable, CancellationToken ct) {
     var rentSize = bytesAvailable + DEFAULT_RENT_BUFFER_EXTRA;
     var buffer = ArrayPool<byte>.Shared.Rent(rentSize);
 
     try {
-      var read = await _networkStream.ReadAsync(buffer, 0, bytesAvailable, ct);
+      var read = await _networkStream.ReadAsync(buffer, 0, bytesAvailable, ct).ConfigureAwait(false);
 
       if (read == 0) {
-        return;
+        return 0;
       }
 
       _memoryStream.Write(buffer, 0, read);
+
+      return read;
     }
     finally {
       ArrayPool<byte>.Shared.Return(buffer, true);
     }
   }
 
-  private void ReadChunk(int bytesAvailable) {
+  private int ReadChunk(int bytesAvailable) {
     var rentSize = bytesAvailable + DEFAULT_RENT_BUFFER_EXTRA;
     var buffer = ArrayPool<byte>.Shared.Rent(rentSize);
 
@@ -151,10 +178,12 @@ public struct StabilizedTcpClientReader(TcpClient tcpClient, TimeSpan timeout, S
       var read = _networkStream.Read(buffer, 0, bytesAvailable);
 
       if (read == 0) {
-        return;
+        return 0;
       }
 
       _memoryStream.Write(buffer, 0, read);
+
+      return read;
     }
     finally {
       ArrayPool<byte>.Shared.Return(buffer, true);

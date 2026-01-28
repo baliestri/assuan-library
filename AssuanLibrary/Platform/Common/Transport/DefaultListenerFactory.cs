@@ -1,0 +1,28 @@
+// Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
+// See the LICENSE file in the repository root for full license text.
+
+using AssuanLibrary.Platform.Common.Transport.Endpoints;
+using AssuanLibrary.Platform.Unix.Transport;
+using AssuanLibrary.Platform.Unix.Transport.Endpoints;
+using AssuanLibrary.Platform.Windows.Transport;
+using AssuanLibrary.Platform.Windows.Transport.Endpoints;
+using AssuanLibrary.Server;
+using AssuanLibrary.Transport;
+using AssuanLibrary.Transport.Endpoints;
+
+namespace AssuanLibrary.Platform.Common.Transport;
+
+internal sealed class DefaultListenerFactory(AssuanServerOptions options) : IAssuanListenerFactory {
+  /// <inheritdoc />
+  public IAssuanListener CreateListener(IAssuanEndpoint endpoint) {
+    var listenerOptions = AssuanListenerOptions.Default;
+    options.ConfigureListener?.Invoke(listenerOptions);
+
+    return endpoint switch {
+      NamedPipeEndpoint namedPipe => new NamedPipeListener(namedPipe, listenerOptions),
+      TcpClientEndpoint tcp => new TcpClientListener(tcp, listenerOptions),
+      UnixDomainSocketEndpoint unix => new UnixDomainSocketListener(unix, listenerOptions),
+      var _ => throw new NotSupportedException($"The endpoint type '{endpoint.GetType().FullName}' is not supported by the default listener factory.")
+    };
+  }
+}

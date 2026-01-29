@@ -40,6 +40,16 @@ public enum AssuanResponseType {
   Inquire,
 
   /// <summary>
+  ///   The response indicates the end of a data stream.
+  /// </summary>
+  End,
+
+  /// <summary>
+  ///   The response indicates that an operation can be performed.
+  /// </summary>
+  Cancel,
+
+  /// <summary>
   ///   The response type is unknown.
   /// </summary>
   /// <remarks>
@@ -79,6 +89,8 @@ public static class AssuanResponseTypeExtensions {
         var _ when prefix.SequenceEqual("#"u8) => AssuanResponseType.Comment,
         var _ when prefix.SequenceEqual("D"u8) => AssuanResponseType.Data,
         var _ when prefix.SequenceEqual("INQUIRE"u8) => AssuanResponseType.Inquire,
+        var _ when prefix.SequenceEqual("END"u8) => AssuanResponseType.End,
+        var _ when prefix.SequenceEqual("CANCEL"u8) => AssuanResponseType.Cancel,
         var _ => throw new NotSupportedException($"Unknown response type starting with: '{Encoding.UTF8.GetString(prefix)}'")
       };
     }
@@ -91,6 +103,8 @@ public static class AssuanResponseTypeExtensions {
         AssuanResponseType.Comment => "#",
         AssuanResponseType.Data => "D",
         AssuanResponseType.Inquire => "INQUIRE",
+        AssuanResponseType.End => "END",
+        AssuanResponseType.Cancel => "CANCEL",
         var _ => throw new NotSupportedException($"The response type '{responseType}' is not supported.")
       };
     }
@@ -103,6 +117,8 @@ public static class AssuanResponseTypeExtensions {
         AssuanResponseType.Comment => "#"u8.ToArray(),
         AssuanResponseType.Data => "D"u8.ToArray(),
         AssuanResponseType.Inquire => "INQUIRE"u8.ToArray(),
+        AssuanResponseType.End => "END"u8.ToArray(),
+        AssuanResponseType.Cancel => "CANCEL"u8.ToArray(),
         var _ => throw new NotSupportedException($"The response type '{responseType}' is not supported.")
       };
     }

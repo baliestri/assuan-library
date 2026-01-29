@@ -136,6 +136,11 @@ public sealed class AssuanServer(
       await options.OnAuthenticateSessionAsync(context).ConfigureAwait(false);
     }
 
+    if (options.SendBanner) {
+      var bannerResponse = AssuanResponse.Ok(options.Banner);
+      await context.SendResponseAsync(bannerResponse, ct);
+    }
+
     while (connection.IsConnected &&
            !ct.IsCancellationRequested) {
       var buffer = await connection.ReadAsync(ct).ConfigureAwait(false);
@@ -156,6 +161,11 @@ public sealed class AssuanServer(
     var context = new ServerContext(connection, session);
 
     options.OnAuthenticateSessionAsync?.Invoke(context).GetAwaiter().GetResult();
+
+    if (options.SendBanner) {
+      var bannerResponse = AssuanResponse.Ok(options.Banner);
+      context.SendResponse(bannerResponse);
+    }
 
     while (connection.IsConnected &&
            !ct.IsCancellationRequested) {

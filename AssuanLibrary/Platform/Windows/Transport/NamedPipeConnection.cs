@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
 using System.Runtime.Versioning;
@@ -140,6 +141,34 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
+  public byte[] InternalRead() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("The named pipe connection is not open.");
+    }
+
+    using var ms = new MemoryStream();
+    Span<byte> buffer = stackalloc byte[256];
+
+    while (true) {
+      var read = _pipeStream.Read(buffer);
+
+      if (read == 0) {
+        break; // EOF
+      }
+
+      ms.Write(buffer[..read].ToArray());
+
+      if (buffer[read - 1] == Characters.LINE_FEED) {
+        break;
+      }
+    }
+
+    return ms.ToArray();
+  }
+
+  /// <inheritdoc />
   public void DiscardPendingInput() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
@@ -251,6 +280,37 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     }
 
     return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
+  public async ValueTask<ReadOnlyMemory<byte>> InternalReadAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("The named pipe connection is not open.");
+    }
+
+    using var ms = new MemoryStream();
+    using var memoryOwner = MemoryPool<byte>.Shared.Rent(256);
+    var memory = memoryOwner.Memory;
+
+    while (true) {
+      ct.ThrowIfCancellationRequested();
+
+      var read = await _pipeStream.ReadAsync(memory, ct).ConfigureAwait(false);
+
+      if (read == 0) {
+        break; // EOF
+      }
+
+      ms.Write(memory[..read]);
+
+      if (memoryOwner.Memory.Span[read - 1] == Characters.LINE_FEED) {
+        break;
+      }
+    }
+
+    return ms.ToArray();
   }
 
   /// <inheritdoc />

@@ -149,6 +149,34 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
+  public byte[] InternalRead() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("Socket is not connected.");
+    }
+
+    using var ms = new MemoryStream();
+    var buffer = new byte[256];
+
+    while (true) {
+      var read = _socket.Receive(buffer, SocketFlags.None);
+
+      if (read == 0) {
+        break; // EOF
+      }
+
+      ms.Write(buffer.AsSpan(0, read).ToArray());
+
+      if (buffer[read - 1] == Characters.LINE_FEED) {
+        break;
+      }
+    }
+
+    return ms.ToArray();
+  }
+
+  /// <inheritdoc />
   public void DiscardPendingInput() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
@@ -273,6 +301,37 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     }
 
     return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
+  public async ValueTask<ReadOnlyMemory<byte>> InternalReadAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("Socket is not connected.");
+    }
+
+    using var ms = new MemoryStream();
+    var buffer = new byte[256];
+    var arraySegment = new ArraySegment<byte>(buffer);
+
+    while (true) {
+      ct.ThrowIfCancellationRequested();
+
+      var read = await _socket.ReceiveAsync(arraySegment, SocketFlags.None, ct).ConfigureAwait(false);
+
+      if (read == 0) {
+        break; // EOF
+      }
+
+      ms.Write(buffer.AsSpan(0, read).ToArray());
+
+      if (buffer[read - 1] == Characters.LINE_FEED) {
+        break;
+      }
+    }
+
+    return ms.ToArray();
   }
 
   /// <inheritdoc />

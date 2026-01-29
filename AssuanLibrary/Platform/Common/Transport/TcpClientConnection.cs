@@ -1,8 +1,10 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
+using System.Text;
 using AssuanLibrary.Client;
 using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
@@ -144,6 +146,34 @@ internal sealed class TcpClientConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
+  public byte[] InternalRead() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    using var ms = new MemoryStream();
+    Span<byte> buffer = stackalloc byte[256];
+
+    while (true) {
+      var read = _networkStream.Read(buffer);
+
+      if (read == 0) {
+        break; // EOF
+      }
+
+      ms.Write(buffer[..read].ToArray());
+
+      if (buffer[read - 1] == Characters.LINE_FEED) {
+        break;
+      }
+    }
+
+    return ms.ToArray();
+  }
+
+  /// <inheritdoc />
   public void DiscardPendingInput() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
 
@@ -193,6 +223,9 @@ internal sealed class TcpClientConnection : IAssuanConnection {
 
     await _networkStream.WriteAsync(buffer, ct).ConfigureAwait(false);
     await _networkStream.FlushAsync(ct).ConfigureAwait(false);
+
+    Console.WriteLine($"DEBUG: Written {buffer.Length} bytes to TCP stream.");
+    Console.WriteLine($"DEBUG: {Encoding.UTF8.GetString(buffer.ToArray())}");
   }
 
   /// <inheritdoc />
@@ -262,6 +295,37 @@ internal sealed class TcpClientConnection : IAssuanConnection {
     }
 
     return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
+  public async ValueTask<ReadOnlyMemory<byte>> InternalReadAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    using var ms = new MemoryStream();
+    using var memoryOwner = MemoryPool<byte>.Shared.Rent(256);
+    var memory = memoryOwner.Memory;
+
+    while (true) {
+      ct.ThrowIfCancellationRequested();
+
+      var read = await _networkStream.ReadAsync(memory, ct).ConfigureAwait(false);
+
+      if (read == 0) {
+        break; // EOF
+      }
+
+      ms.Write(memory[..read]);
+
+      if (memoryOwner.Memory.Span[read - 1] == Characters.LINE_FEED) {
+        break;
+      }
+    }
+
+    return ms.ToArray();
   }
 
   /// <inheritdoc />

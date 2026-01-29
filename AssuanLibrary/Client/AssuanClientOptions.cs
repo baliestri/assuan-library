@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Client;
@@ -13,14 +14,12 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   ///   A read-only instance of <see cref="AssuanClientOptions" /> with default values.
   /// </summary>
   public static readonly AssuanClientOptions Default = new() {
-    EnablePinentryLoopback = true,
-    ConfigureConnection = null
+    ThrowIfNotConnected = true,
+    ConfigureConnection = null,
+    OnSessionAuthenticatingAsync = null,
+    OnSessionStartedAsync = null,
+    OnSessionEndingAsync = null
   };
-
-  /// <summary>
-  ///   Indicates whether to use pinentry loopback mode.
-  /// </summary>
-  public bool EnablePinentryLoopback { get; set; } // TODO: replace with OnConnect event or similar
 
   /// <summary>
   ///   Indicates whether to throw an exception if the client is not connected when attempting to send or receive data.
@@ -32,6 +31,21 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   /// </summary>
   public Action<AssuanConnectionOptions>? ConfigureConnection { get; set; }
 
+  /// <summary>
+  ///   A callback that is invoked when a session is authenticating.
+  /// </summary>
+  public AsyncClientHook<IReadOnlyDictionary<string, object>>? OnSessionAuthenticatingAsync { get; set; }
+
+  /// <summary>
+  ///   A callback that is invoked when a session is started.
+  /// </summary>
+  public AsyncClientHook? OnSessionStartedAsync { get; set; }
+
+  /// <summary>
+  ///   A callback that is invoked when a session is ending.
+  /// </summary>
+  public AsyncClientHook? OnSessionEndingAsync { get; set; }
+
   /// <inheritdoc />
   public bool Equals(AssuanClientOptions? other) {
     if (other is null) {
@@ -42,9 +56,11 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
       return true;
     }
 
-    return EnablePinentryLoopback == other.EnablePinentryLoopback &&
-           ThrowIfNotConnected == other.ThrowIfNotConnected &&
-           ConfigureConnection == other.ConfigureConnection;
+    return ThrowIfNotConnected == other.ThrowIfNotConnected &&
+           ConfigureConnection == other.ConfigureConnection &&
+           OnSessionAuthenticatingAsync == other.OnSessionAuthenticatingAsync &&
+           OnSessionStartedAsync == other.OnSessionStartedAsync &&
+           OnSessionEndingAsync == other.OnSessionEndingAsync;
   }
 
   /// <inheritdoc />
@@ -76,8 +92,10 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
     => !Equals(left, right);
 
   private IEnumerable<object?> GetEqualityComponents() {
-    yield return EnablePinentryLoopback;
     yield return ThrowIfNotConnected;
     yield return ConfigureConnection;
+    yield return OnSessionAuthenticatingAsync;
+    yield return OnSessionStartedAsync;
+    yield return OnSessionEndingAsync;
   }
 }

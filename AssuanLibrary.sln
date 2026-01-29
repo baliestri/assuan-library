@@ -19,7 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssuanLibrary.Tests", "Assu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssuanLibrary.Sample.Server", "AssuanLibrary.Sample.Server\AssuanLibrary.Sample.Server.csproj", "{9E13EA31-61FE-4EA7-ACDF-53116010D2BA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssuanLibrary.DependencyInjection", "AssuanLibrary.DependencyInjection\AssuanLibrary.DependencyInjection.csproj", "{E02411D5-E9E8-4726-9078-B85ACF421720}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssuanLibrary.Extensions.DependencyInjection", "AssuanLibrary.Extensions.DependencyInjection\AssuanLibrary.Extensions.DependencyInjection.csproj", "{E02411D5-E9E8-4726-9078-B85ACF421720}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

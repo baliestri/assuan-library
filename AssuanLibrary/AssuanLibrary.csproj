@@ -30,7 +30,7 @@
 
   <ItemGroup>
     <Using Include="AssuanLibrary.AssuanPredefined" Static="true" />
-    <InternalsVisibleTo Include="AssuanLibrary.DependencyInjection" />
+    <InternalsVisibleTo Include="AssuanLibrary.Extensions.DependencyInjection" />
     <InternalsVisibleTo Include="AssuanLibrary.Tests" />
   </ItemGroup>
 

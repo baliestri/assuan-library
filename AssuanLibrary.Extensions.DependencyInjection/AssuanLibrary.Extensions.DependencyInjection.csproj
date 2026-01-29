@@ -12,7 +12,7 @@
     <Authors>Bruno Sales</Authors>
     <Description>A .NET library for interacting with the Assuan protocol.</Description>
     <Copyright>Copyright (c) $([System.DateTime]::Now.Year) Bruno Sales &lt;me@baliestri.dev&gt;</Copyright>
-    <PackageId>AssuanLibrary.DependencyInjection</PackageId>
+    <PackageId>AssuanLibrary.Extensions.DependencyInjection</PackageId>
     <PackageProjectUrl>https://github.com/baliestri/assuan-library</PackageProjectUrl>
     <PackageTags>assuan; gpg; gpgme; gnupg; dependency-injection; di; extensions; microsoft-di</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

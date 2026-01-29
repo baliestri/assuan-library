@@ -7,7 +7,7 @@ using AssuanLibrary.Server.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace AssuanLibrary.DependencyInjection;
+namespace AssuanLibrary.Extensions.DependencyInjection;
 
 /// <summary>
 ///   Extensions for registering Assuan server services in an <see cref="IServiceCollection" />.

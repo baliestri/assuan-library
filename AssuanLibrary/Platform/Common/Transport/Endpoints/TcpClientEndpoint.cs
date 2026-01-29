@@ -12,6 +12,13 @@ namespace AssuanLibrary.Platform.Common.Transport.Endpoints;
 /// <param name="EndPoint">The IP endpoint of the TCP client.</param>
 public readonly record struct TcpClientEndpoint(IPEndPoint EndPoint) : IAssuanEndpoint {
   /// <summary>
+  ///   Initializes a new instance of the <see cref="TcpClientEndpoint" /> class with the specified IP address and port.
+  /// </summary>
+  /// <param name="ipAddress">The IP address of the TCP client.</param>
+  /// <param name="port">The port number of the TCP client.</param>
+  public TcpClientEndpoint(IPAddress ipAddress, ushort port) : this(new IPEndPoint(ipAddress, port)) { }
+
+  /// <summary>
   ///   Implicitly converts a <see cref="TcpClientEndpoint" /> to an <see cref="IPEndPoint" />.
   /// </summary>
   /// <param name="endpoint">The TCP client endpoint to convert.</param>

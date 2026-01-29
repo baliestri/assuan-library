@@ -69,17 +69,12 @@ public sealed class AssuanClient(
     }
 
     try {
-      var resolvedEndpoint = ResolveEndpoint();
+      var (resolvedEndpoint, metadata) = ResolveEndpoint();
       _connection = connectionFactory.CreateConnection(resolvedEndpoint);
-
       _connection.Open();
 
-      if (!options.EnablePinentryLoopback) {
-        return;
-      }
-
-      _connection.Write(Commands.Options.PinentryModeLoopback);
-      _ = _connection.Read();
+      options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata, CancellationToken.None).GetAwaiter().GetResult();
+      options.OnSessionStartedAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
     }
     catch (SocketException ex) {
       Dispose();
@@ -95,6 +90,8 @@ public sealed class AssuanClient(
       return;
     }
 
+    options.OnSessionEndingAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
+
     _connection.Close();
   }
 
@@ -107,17 +104,17 @@ public sealed class AssuanClient(
     }
 
     try {
-      var resolvedEndpoint = ResolveEndpoint();
+      var (resolvedEndpoint, metadata) = ResolveEndpoint();
       _connection = connectionFactory.CreateConnection(resolvedEndpoint);
-
       await _connection.OpenAsync(ct).ConfigureAwait(false);
 
-      if (!options.EnablePinentryLoopback) {
-        return;
+      if (options.OnSessionAuthenticatingAsync is not null) {
+        await options.OnSessionAuthenticatingAsync(_connection, metadata, ct).ConfigureAwait(false);
       }
 
-      await _connection.WriteAsync(Commands.Options.PinentryModeLoopback, ct).ConfigureAwait(false);
-      _ = await _connection.ReadAsync(ct).ConfigureAwait(false);
+      if (options.OnSessionStartedAsync is not null) {
+        await options.OnSessionStartedAsync(_connection, ct).ConfigureAwait(false);
+      }
     }
     catch (Exception ex) {
       await DisposeAsync().ConfigureAwait(false);
@@ -131,6 +128,10 @@ public sealed class AssuanClient(
 
     if (!IsConnected) {
       return;
+    }
+
+    if (options.OnSessionEndingAsync is not null) {
+      await options.OnSessionEndingAsync(_connection, ct).ConfigureAwait(false);
     }
 
     await _connection.CloseAsync(ct).ConfigureAwait(false);
@@ -246,15 +247,13 @@ public sealed class AssuanClient(
     throw new PlatformNotSupportedException();
   }
 
-  private IAssuanEndpoint ResolveEndpoint() {
+  private AssuanEndpointResolution ResolveEndpoint() {
     if (endpoint is not null) {
-      return endpoint;
+      return new AssuanEndpointResolution(endpoint, new Dictionary<string, object>());
     }
 
-    if (kind is not null) {
-      return endpointResolver.Resolve(kind);
-    }
-
-    throw new AssuanClientException("Either an endpoint or an endpoint kind must be provided to resolve the connection endpoint.");
+    return kind is not null
+      ? endpointResolver.Resolve(kind)
+      : throw new AssuanClientException("Either an endpoint or an endpoint kind must be provided to resolve the connection endpoint.");
   }
 }

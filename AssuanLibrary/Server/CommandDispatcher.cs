@@ -26,7 +26,7 @@ internal sealed class CommandDispatcher(HashSet<CommandHandler> commandHandlers)
   /// <inheritdoc />
   public void Dispatch(IReadOnlyAssuanCommand command, IServerContext context) {
     if (!_commandHandlers.TryGetValue(command.Name, out var commandHandler)) {
-      context.SendResponse(AssuanResponse.Error(67109139, "Unknown command"));
+      context.SendResponse(AssuanResponse.Error(175, "Unknown command"));
       return;
     }
 
@@ -36,7 +36,7 @@ internal sealed class CommandDispatcher(HashSet<CommandHandler> commandHandlers)
   /// <inheritdoc />
   public async Task DispatchAsync(IReadOnlyAssuanCommand command, IServerContext context) {
     if (!_commandHandlers.TryGetValue(command.Name, out var commandHandler)) {
-      await context.SendResponseAsync(AssuanResponse.Error(67109139, "Unknown command"), context.Session.CancellationToken).ConfigureAwait(false);
+      await context.SendResponseAsync(AssuanResponse.Error(175, "Unknown command"), context.Session.CancellationToken).ConfigureAwait(false);
       return;
     }
 

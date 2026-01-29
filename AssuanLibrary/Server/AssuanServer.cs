@@ -10,46 +10,53 @@ using AssuanLibrary.Transport.Endpoints;
 namespace AssuanLibrary.Server;
 
 /// <inheritdoc />
-public sealed class AssuanServer(
-  IAssuanListenerFactory listenerFactory,
-  IAssuanEndpoint endpoint,
-  ICommandDispatcher commandDispatcher,
-  AssuanServerOptions options
-) : IAssuanServer {
+public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, ICommandDispatcher commandDispatcher, AssuanServerOptions options)
+  : IAssuanServer {
   /// <summary>
-  ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint.
+  ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint factory.
   /// </summary>
-  /// <param name="endpoint">The endpoint to use for the server.</param>
-  public AssuanServer(IAssuanEndpoint endpoint)
-    : this(CreateDefaultFactory(AssuanServerOptions.Default), endpoint, new CommandDispatcher(), AssuanServerOptions.Default) { }
+  /// <param name="listenerFactory">The listener factory to create listeners for incoming connections.</param>
+  public AssuanServer(IAssuanListenerFactory listenerFactory)
+    : this(listenerFactory, new CommandDispatcher(), AssuanServerOptions.Default) { }
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint factory and options.
+  /// </summary>
+  /// <param name="listenerFactory">The listener factory to create listeners for incoming connections.</param>
+  /// <param name="options">The configuration options for the server.</param>
+  public AssuanServer(IAssuanListenerFactory listenerFactory, AssuanServerOptions options)
+    : this(listenerFactory, new CommandDispatcher(), options) { }
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint and command dispatcher.
   /// </summary>
-  /// <param name="endpoint">The endpoint to use for the server.</param>
   /// <param name="commandDispatcher">The command dispatcher to use for handling commands.</param>
-  public AssuanServer(IAssuanEndpoint endpoint, ICommandDispatcher commandDispatcher)
-    : this(CreateDefaultFactory(AssuanServerOptions.Default), endpoint, commandDispatcher, AssuanServerOptions.Default) { }
-
-  /// <summary>
-  ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint and options.
-  /// </summary>
-  /// <param name="endpoint">The endpoint to use for the server.</param>
-  /// <param name="options">The configuration options for the server.</param>
-  public AssuanServer(IAssuanEndpoint endpoint, AssuanServerOptions options)
-    : this(CreateDefaultFactory(options), endpoint, new CommandDispatcher(), options) { }
+  public AssuanServer(ICommandDispatcher commandDispatcher)
+    : this(CreateDefaultFactory(AssuanServerOptions.Default), commandDispatcher, AssuanServerOptions.Default) { }
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint, command dispatcher, and options.
   /// </summary>
-  /// <param name="endpoint">The endpoint to use for the server.</param>
   /// <param name="commandDispatcher">The command dispatcher to use for handling commands.</param>
   /// <param name="options">The configuration options for the server.</param>
-  public AssuanServer(IAssuanEndpoint endpoint, ICommandDispatcher commandDispatcher, AssuanServerOptions options)
-    : this(CreateDefaultFactory(options), endpoint, commandDispatcher, options) { }
+  public AssuanServer(ICommandDispatcher commandDispatcher, AssuanServerOptions options)
+    : this(CreateDefaultFactory(options), commandDispatcher, options) { }
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint and options.
+  /// </summary>
+  /// <param name="options">The configuration options for the server.</param>
+  public AssuanServer(AssuanServerOptions options)
+    : this(CreateDefaultFactory(options), new CommandDispatcher(), options) { }
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanServer" /> class with default settings.
+  /// </summary>
+  public AssuanServer()
+    : this(CreateDefaultFactory(AssuanServerOptions.Default), new CommandDispatcher(), AssuanServerOptions.Default) { }
 
   /// <inheritdoc />
-  public void Run() {
+  public void Run(IAssuanEndpoint endpoint) {
     var listener = listenerFactory.CreateListener(endpoint);
 
     do {
@@ -60,7 +67,7 @@ public sealed class AssuanServer(
   }
 
   /// <inheritdoc />
-  public async Task RunAsync(CancellationToken ct = default) {
+  public async Task RunAsync(IAssuanEndpoint endpoint, CancellationToken ct = default) {
     var listener = listenerFactory.CreateListener(endpoint);
 
     do {

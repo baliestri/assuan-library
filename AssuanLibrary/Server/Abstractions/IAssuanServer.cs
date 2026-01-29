@@ -1,6 +1,8 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Transport.Endpoints;
+
 namespace AssuanLibrary.Server.Abstractions;
 
 /// <summary>
@@ -10,14 +12,16 @@ public interface IAssuanServer {
   /// <summary>
   ///   Starts the Assuan server to listen for incoming connections.
   /// </summary>
-  void Run();
+  /// <param name="endpoint">The endpoint to listen on.</param>
+  void Run(IAssuanEndpoint endpoint);
 
   /// <summary>
   ///   Starts the Assuan server to listen for incoming connections asynchronously.
   /// </summary>
+  /// <param name="endpoint">The endpoint to listen on.</param>
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A task that represents the asynchronous operation.</returns>
-  Task RunAsync(CancellationToken ct = default);
+  Task RunAsync(IAssuanEndpoint endpoint, CancellationToken ct = default);
 
   /// <summary>
   ///   Registers a new command handler in the server command dispatcher.

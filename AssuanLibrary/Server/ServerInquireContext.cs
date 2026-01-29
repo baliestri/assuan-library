@@ -6,14 +6,19 @@ using AssuanLibrary.Server.Abstractions;
 namespace AssuanLibrary.Server;
 
 internal sealed class ServerInquireContext : IServerInquireContext {
+  private readonly MemoryStream _memoryStream;
+  private readonly CancellationToken _sessionToken;
   private readonly TaskCompletionSource<ReadOnlyMemory<byte>> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+  private bool _completed;
   private CancellationTokenRegistration _ctr;
   private bool _disposed;
 
   public ServerInquireContext(string keyword, IReadOnlyCollection<string> parameters, CancellationToken ct = default) {
     Keyword = keyword;
     Parameters = parameters;
+    _sessionToken = ct;
     _ctr = ct.Register(() => _tcs.TrySetCanceled(ct));
+    _memoryStream = new MemoryStream();
   }
 
   /// <inheritdoc />
@@ -21,6 +26,40 @@ internal sealed class ServerInquireContext : IServerInquireContext {
 
   /// <inheritdoc />
   public IReadOnlyCollection<string> Parameters { get; }
+
+  /// <inheritdoc />
+  public void Receive(ReadOnlySpan<byte> buffer) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
+
+    if (_completed) {
+      throw new InvalidOperationException("Cannot receive data after the inquire context has been completed.");
+    }
+
+    _memoryStream.Write(buffer.ToArray(), 0, buffer.Length);
+  }
+
+  /// <inheritdoc />
+  public void Complete() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
+
+    if (_completed) {
+      return;
+    }
+
+    _completed = true;
+    _tcs.TrySetResult(_memoryStream.ToArray());
+  }
+
+  /// <inheritdoc />
+  public void Cancel() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
+
+    if (_completed) {
+      return;
+    }
+
+    _tcs.TrySetCanceled();
+  }
 
   /// <inheritdoc />
   public byte[] Wait() {
@@ -33,7 +72,7 @@ internal sealed class ServerInquireContext : IServerInquireContext {
   public async ValueTask<ReadOnlyMemory<byte>> WaitAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
 
-    using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+    using var linked = CancellationTokenSource.CreateLinkedTokenSource(_sessionToken, ct);
     return await _tcs.Task.WaitAsync(linked.Token).ConfigureAwait(false);
   }
 
@@ -43,36 +82,8 @@ internal sealed class ServerInquireContext : IServerInquireContext {
       return;
     }
 
-    _disposed = true;
     _ctr.Dispose();
-  }
-
-  /// <summary>
-  ///   Completes the inquire request with the specified data.
-  /// </summary>
-  /// <param name="data">The data to complete the inquire request with.</param>
-  public void Complete(ReadOnlyMemory<byte> data) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
-
-    _tcs.TrySetResult(data);
-  }
-
-  /// <summary>
-  ///   Faults the inquire request with the specified exception.
-  /// </summary>
-  /// <param name="ex">The exception to fault the inquire request with.</param>
-  public void Fault(Exception ex) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
-
-    _tcs.TrySetException(ex);
-  }
-
-  /// <summary>
-  ///   Cancels the inquire request.
-  /// </summary>
-  public void Cancel() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(ServerInquireContext));
-
-    _tcs.TrySetCanceled();
+    _memoryStream.Dispose();
+    _disposed = true;
   }
 }

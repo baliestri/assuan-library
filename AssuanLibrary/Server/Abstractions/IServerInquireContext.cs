@@ -18,6 +18,22 @@ public interface IServerInquireContext : IDisposable {
   IReadOnlyCollection<string> Parameters { get; }
 
   /// <summary>
+  ///   Receives data for the inquire request.
+  /// </summary>
+  /// <param name="buffer">The buffer containing the data to receive.</param>
+  void Receive(ReadOnlySpan<byte> buffer);
+
+  /// <summary>
+  ///   Completes the inquire request.
+  /// </summary>
+  void Complete();
+
+  /// <summary>
+  ///   Cancels the inquire request.
+  /// </summary>
+  void Cancel();
+
+  /// <summary>
   ///   Waits for data to be written to the inquire request.
   /// </summary>
   /// <returns>The data written to the inquire request.</returns>

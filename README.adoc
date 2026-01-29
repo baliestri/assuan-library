@@ -1,126 +1,210 @@
 = Assuan Library (.NET)
 
-A small, high-performance .NET library for interacting with the Assuan protocol (used by GnuPG components such as gpg-agent and pinentry).
+AssuanLibrary is a modern, transport-agnostic .NET implementation of the Assuan protocol, designed to build clients and servers that speak Assuan over multiple transports such as *TCP*, *Named Pipes (Windows)*, *Unix Domain Sockets (Linux)*, and any other custom transport you implement.
 
-This repository contains the implementation and a sample program that demonstrates communicating with an Assuan-compatible agent over a socket.
+The library focuses on:
 
-== Highlights
+* correctness of the Assuan protocol lifecycle
+* clean separation between protocol, transport, and application logic
+* explicit, hook-based session control
+* minimal assumptions about authentication and policy
 
-* Lightweight, allocation-friendly encoder/decoder helpers: `AssuanEncoder`, `AssuanDecoder`.
-* Structured command representation: `AssuanCommand`.
-* Typed responses: `AssuanResponse`, `AssuanResponseCollection`, `AssuanResponseType`.
-* Async, disposable client wrapper in `AssuanClient` with an "inquire" callback model for interactive requests.
-* Small helper types and parsers for symbolic expressions used by some Assuan data responses.
+== Features
 
-== Compatibility
+* [x] Assuan protocol encoder/decoder
+* [x] Client and server implementations
+* [x] Multi-transport support:
+* TCP
+* Named Pipes (Windows)
+* Unix Domain Sockets (Linux)
+* [x] Custom command handlers
+* [x] INQUIRE support (sync and async)
+* [x] Explicit session lifecycle hooks
+* [x] No implicit protocol behavior
+* [x] Suitable for embedding or standalone servers
 
-* [x] Windows
-* [x] Linux
-* [ ] macOS (untested — contributions welcome)
+== Design Principles
+
+AssuanLibrary follows a few strict principles:
+
+* Transport is not protocol
+* Connections know how to read/write bytes, not how to speak Assuan.
+* Protocol is explicit
+* Nothing is sent automatically unless explicitly configured.
+* Lifecycle is deterministic
+* Authentication, banner handling, command dispatch, and shutdown all have a defined order.
+* Hooks over magic
+* Custom behavior is implemented via explicit hooks, not hidden logic.
+
+== Supported Transports
+
+|===
+|Transport |Platform
+
+|TCP |Cross-platform
+|Named Pipes |Windows
+|Unix Domain Sockets |Linux / macOS¹
+|===
+
+Transport selection is done via endpoints if not provided, not by hardcoding logic into the client or server.
+
+____
+
+PS¹: Unix Domain Sockets are supported on Linux. macOS has not been tested but should work similarly.
+
+____
 
 == Installation
 
-Install the NuGet package:
-
-[source,shell]
+[source,bash]
 ----
 dotnet add package AssuanLibrary
 ----
 
-Or add a project/package reference directly in your `.csproj`:
+Optional dependency injection helpers (recommended but not required):
 
-[source,xml]
+[source,bash]
 ----
-<ItemGroup>
-  <PackageReference Include="AssuanLibrary" Version="1.0.0" />
-</ItemGroup>
+dotnet add package AssuanLibrary.Extensions.DependencyInjection
 ----
 
-== Quickstart
+== Usage
 
-The following examples show the most common operations: creating commands, encoding/decoding, and invoking commands using the client.
-
-=== Encode / Decode helpers
-
-The library exposes convenience methods for encoding user input into the Assuan wire format and decoding percent-encoded responses.
+GnuPG agent client example:
 
 [source,csharp]
 ----
-using AssuanLibrary;
-
-var encoded = AssuanEncoder.AsString("GETINFO version");
-var bytes = AssuanEncoder.AsBytes("SOME DATA");
-
-var decoded = AssuanDecoder.ToString(encoded);
-var decodedBytes = AssuanDecoder.ToBytes(bytes);
-----
-
-=== Building commands
-
-Use `AssuanCommand` to construct or inspect commands sent to the agent.
-Arguments are added with `Add` or via collection initializers.
-
-[source,csharp]
-----
-using AssuanLibrary;
-
-var cmd = new AssuanCommand("GETINFO") { "version" };
-Console.WriteLine(cmd.ToString()); // Encoded command string
-----
-
-=== Invoking commands with `AssuanClient`
-
-`AssuanClient` is an async, disposable client that connects to an Assuan socket and performs command invocation.
-The sample program demonstrates common usage and interactive inquire handling.
-
-Below is a compact example that connects, requests the agent version, and prints the responses:
-
-[source,csharp]
-----
-using AssuanLibrary;
-using AssuanLibrary.Network;
-
-// Create options pointing to the agent socket (use SocketDescriptor.AgentSocket for default agent socket).
-var options = new AssuanClientOptions(SocketDescriptor.AgentSocket);
+// ----- REQUIRED ONLY FOR TCP CLIENT ON WINDOWS THAT USES GNUPG AGENT -----
+var options = new AssuanClientOptions
+{
+  OnSessionAuthenticatingAsync = async (connection, ctx, ct) =>
+  {
+    if (ctx.TryGetValue("nonce", out var nonceObj) && nonceObj is byte[] nonce)
+    {
+      await connection.WriteAsync(nonce, ct); // Flushes automatically after writing
+    }
+  }
+};
+// ---------------------------------------------------
 
 await using var client = new AssuanClient(options);
-await client.ConnectAsync();
+await client.ConnectAsync(AssuanEndpointKind.AGENT, ct); // Resolves automatically into the correct transport if not provided on AssuanClient
 
-var versionCmd = new AssuanCommand("GETINFO") { "version" };
-var responses = await client.InvokeAsync(versionCmd);
+var command = new AssuanCommand("GETINFO") { "version" };
+var responseCollection = await client.InvokeAsync(command, ct);
 
-foreach (var r in responses) {
-  Console.WriteLine($"{r.Type}: {r}");
+foreach (var response in responseCollection)
+{
+    Console.WriteLine(response);
+}
+
+// ------------------ IF YOU ALREADY KNOWS THE ENDPOINT AND THE NONCE ON WINDOWS ------------------
+var tcpEndpoint = new TcpClientEndpoint(IPAddress.Loopback, 12345);
+var metadata = new Dictionary<string, object>
+{
+  ["nonce"] = System.Text.Encoding.UTF8.GetBytes("my-secret-nonce") // Replace with the actual nonce value
+};
+await using var client = new AssuanClient();
+await client.ConnectAsync(tcpEndpoint, metadata, ct);
+
+var command = new AssuanCommand("GETINFO") { "version" };
+var responseCollection = await client.InvokeAsync(command, ct);
+
+foreach (var response in responseCollection)
+{
+    Console.WriteLine(response);
+}
+// -------------------------------------------------------------------------------------
+
+// Expected output:
+// D 2.2.27
+// OK
+----
+
+Custom-Server client example:
+
+[source,csharp]
+----
+var options = new AssuanClientOptions // Those options are not required, we are just adding them for demonstration
+{
+  OnSessionStartedAsync = async (connection, ctx, ct) =>
+  {
+    if (ctx.TryGetValue("banner", out var bannerObj) && bannerObj is byte[] banner)
+    {
+      Console.WriteLine($"Server Banner: {System.Text.Encoding.UTF8.GetString(banner)}");
+    }
+  }
+};
+
+var serverEndpoint = new TcpClientEndpoint(IPAddress.Loopback, 23456);
+await using var client = new AssuanClient(options);
+await client.ConnectAsync(serverEndpoint, new Dictionary<string, object>(), ct);
+
+var command = new AssuanCommand("SOME_COMMAND") { "some_argument" };
+var responseCollection = await client.InvokeAsync(command, ct);
+
+foreach (var response in responseCollection)
+{
+    Console.WriteLine(response);
 }
 ----
 
-Some commands (like `GET_PASSPHRASE`, `GET_CONFIRMATION`) require the client to handle "inquire" callbacks.
-The sample demonstrates handling the `IInquireContext` callback where you can respond to keywords (e.g., `PASSPHRASE`, `QUALITY`, `CONFIRM`).
+Custom Server example:
 
-== Building and running the sample
-
-This repository contains a small sample program demonstrating typical usage.
-From the repository root, build and run with dotnet:
-
-[source,shell]
+[source,csharp]
 ----
-dotnet build
-dotnet run --project AssuanLibrary.Sample/AssuanLibrary.Sample.csproj
-----
+public sealed class GetInfoCommandHandler : CommandHandler
+{
+  /// <inheritdoc />
+  public override string Name => "GETINFO";
 
-Note: replace any placeholder keygrips or values in the sample before running real signing operations.
+  /// <inheritdoc />
+  public override async Task HandleAsync(IReadOnlyAssuanCommand command, IServerContext serverContext) {
+    foreach (var arg in command.Arguments) {
+      switch (arg) {
+        case "version": {
+          var responseCollection = AssuanResponseCollection.Create(
+            AssuanResponse.Data(typeof(GetInfoCommandHandler).Assembly.GetName().Version?.ToString() ?? "unknown"),
+            AssuanResponse.Ok()
+          );
+          await serverContext.SendResponseAsync(responseCollection, serverContext.Session.CancellationToken);
+          break;
+        }
+        case "pid": {
+          var responseCollection = AssuanResponseCollection.Create(
+            AssuanResponse.Data(Environment.ProcessId.ToString()),
+            AssuanResponse.Ok()
+          );
+          await serverContext.SendResponseAsync(responseCollection, serverContext.Session.CancellationToken);
+          break;
+        }
+        default:
+          await serverContext.SendResponseAsync(AssuanResponse.Error(45, "Invalid argument"),
+            serverContext.Session.CancellationToken);
+          break;
+      }
+    }
+  }
+}
+
+var serverOptions = new AssuanServerOptions
+{
+  Banner = "My Custom Assuan Server"
+};
+
+var server = new AssuanServer(serverOptions);
+server.RegisterCommandHandler(new GetInfoCommandHandler());
+// server.RegisterCommandHandler<GetInfoCommandHandler>();
+var tcpEndpoint = new TcpServerEndpoint(IPAddress.Loopback, 23456);
+await server.RunAsync(tcpEndpoint, ct);
+----
 
 == Contributing
 
-Contributions are welcome.
-A good starting point is:
-
-* Open an issue to discuss changes or bug reports.
-* Fork the repository, implement your change, and send a pull request.
-* Keep changes small and focused, add tests for new behavior, and run the existing test suite.
-
-Please follow the existing code style and naming conventions used in the project.
+Contributions are welcome!
+Please open issues or pull requests on the https://github.com/baliestri/assuan-library[GitHub repository].
 
 == License
 
-This project is licensed under the MIT License — see the `LICENSE.md` file for details.
+This project is licensed under the MIT License.
+See the link:LICENSE.md[LICENSE] file for details.

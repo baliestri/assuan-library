@@ -54,15 +54,10 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       return;
     }
 
-    var (ipEndPoint, nonce) = _endpoint;
     var tcpClient = new TcpClient();
 
-    tcpClient.Connect(ipEndPoint);
+    tcpClient.Connect(_endpoint);
     var networkStream = tcpClient.GetStream();
-
-    networkStream.Write(nonce);
-    networkStream.Flush();
-    tcpClient.DiscardAvailableData();
 
     _tcpClient = tcpClient;
     _networkStream = networkStream;
@@ -149,6 +144,17 @@ internal sealed class TcpClientConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
+  public void DiscardPendingInput() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    _tcpClient.DiscardAvailableData();
+  }
+
+  /// <inheritdoc />
   public void Close() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
 
@@ -168,15 +174,10 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       return;
     }
 
-    var (ipEndPoint, nonce) = _endpoint;
     var tcpClient = new TcpClient();
 
-    await tcpClient.ConnectAsync(ipEndPoint, ct).ConfigureAwait(false);
+    await tcpClient.ConnectAsync(_endpoint, ct).ConfigureAwait(false);
     var networkStream = tcpClient.GetStream();
-
-    await networkStream.WriteAsync(nonce, ct).ConfigureAwait(false);
-    await networkStream.FlushAsync(ct).ConfigureAwait(false);
-    await tcpClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
 
     _tcpClient = tcpClient;
     _networkStream = networkStream;
@@ -261,6 +262,17 @@ internal sealed class TcpClientConnection : IAssuanConnection {
     }
 
     return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
+  public async ValueTask DiscardPendingInputAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("TCP client is not connected.");
+    }
+
+    await _tcpClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />

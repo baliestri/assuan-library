@@ -51,13 +51,10 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   public void Open() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
-    var pipeClient = new NamedPipeClientStream(".", _endpoint.Name, PipeDirection.InOut, PipeOptions.None);
+    var pipeClient = new NamedPipeClientStream(_endpoint.Server, _endpoint.Name, PipeDirection.InOut, PipeOptions.None);
 
     pipeClient.Connect(_options.TimeoutInMilliseconds);
-
     pipeClient.ReadMode = PipeTransmissionMode.Message;
-
-    pipeClient.DiscardAvailableData();
 
     _pipeStream = pipeClient;
   }
@@ -143,6 +140,17 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
+  public void DiscardPendingInput() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("The named pipe connection is not open.");
+    }
+
+    _pipeStream.DiscardAvailableData();
+  }
+
+  /// <inheritdoc />
   public void Close() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
@@ -160,10 +168,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     var pipeClient = new NamedPipeClientStream(".", _endpoint.Name, PipeDirection.InOut, PipeOptions.Asynchronous);
 
     await pipeClient.ConnectAsync(_options.TimeoutInMilliseconds, ct).ConfigureAwait(false);
-
     pipeClient.ReadMode = PipeTransmissionMode.Message;
-
-    await pipeClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
 
     _pipeStream = pipeClient;
   }
@@ -246,6 +251,17 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     }
 
     return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
+  public async ValueTask DiscardPendingInputAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("The named pipe connection is not open.");
+    }
+
+    await _pipeStream.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />

@@ -57,14 +57,12 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       return;
     }
 
-    var polyfillEndpoint = new UnixDomainSocketEndPoint(_endpoint.Path);
     var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified) {
       ReceiveTimeout = _options.TimeoutInMilliseconds,
       SendTimeout = _options.TimeoutInMilliseconds
     };
 
-    socket.Connect(polyfillEndpoint);
-    socket.DiscardAvailableData();
+    socket.Connect(_endpoint);
 
     _socket = socket;
   }
@@ -151,6 +149,17 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
+  public void DiscardPendingInput() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("Socket is not connected.");
+    }
+
+    _socket.DiscardAvailableData();
+  }
+
+  /// <inheritdoc />
   public void Close() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
@@ -169,14 +178,12 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       return;
     }
 
-    var polyfillEndpoint = new UnixDomainSocketEndPoint(_endpoint.Path);
     var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified) {
       ReceiveTimeout = _options.TimeoutInMilliseconds,
       SendTimeout = _options.TimeoutInMilliseconds
     };
 
-    await socket.ConnectAsync(polyfillEndpoint).ConfigureAwait(false);
-    await socket.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
+    await socket.ConnectAsync(_endpoint).ConfigureAwait(false);
 
     _socket = socket;
   }
@@ -266,6 +273,17 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     }
 
     return finalMemoryStream.ToArray();
+  }
+
+  /// <inheritdoc />
+  public async ValueTask DiscardPendingInputAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
+
+    if (!IsConnected) {
+      throw new AssuanClientException("Socket is not connected.");
+    }
+
+    await _socket.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />

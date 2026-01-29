@@ -9,6 +9,13 @@ namespace AssuanLibrary.Platform.Windows.Transport.Endpoints;
 /// <summary>
 ///   Defines a Named Pipe communication endpoint for Assuan protocol.
 /// </summary>
+/// <param name="Server">The server hosting the Named Pipe.</param>
 /// <param name="Name">The name of the Named Pipe.</param>
 [SupportedOSPlatform("windows")]
-public readonly record struct NamedPipeEndpoint(string Name) : IAssuanEndpoint;
+public readonly record struct NamedPipeEndpoint(string Server, string Name) : IAssuanEndpoint {
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="NamedPipeEndpoint" /> class with the specified pipe name on the local machine.
+  /// </summary>
+  /// <param name="Name">The name of the Named Pipe.</param>
+  public NamedPipeEndpoint(string Name) : this(".", Name) { }
+}

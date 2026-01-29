@@ -4,7 +4,6 @@
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
-using System.Text;
 using AssuanLibrary.Client;
 using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
@@ -223,9 +222,6 @@ internal sealed class TcpClientConnection : IAssuanConnection {
 
     await _networkStream.WriteAsync(buffer, ct).ConfigureAwait(false);
     await _networkStream.FlushAsync(ct).ConfigureAwait(false);
-
-    Console.WriteLine($"DEBUG: Written {buffer.Length} bytes to TCP stream.");
-    Console.WriteLine($"DEBUG: {Encoding.UTF8.GetString(buffer.ToArray())}");
   }
 
   /// <inheritdoc />

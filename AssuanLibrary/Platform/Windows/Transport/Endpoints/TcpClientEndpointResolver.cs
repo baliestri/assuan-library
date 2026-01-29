@@ -16,7 +16,7 @@ internal sealed class TcpClientEndpointResolver : IAssuanEndpointResolver {
   private const int NONCE_LENGTH = 16;
 
   /// <inheritdoc />
-  public IAssuanEndpoint Resolve(AssuanEndpointKind kind) {
+  public AssuanEndpointResolution Resolve(AssuanEndpointKind kind) {
     var content = ReadSocketFileContent(kind);
 
     return content.StartsWith("!<socket >"u8)
@@ -24,7 +24,7 @@ internal sealed class TcpClientEndpointResolver : IAssuanEndpointResolver {
       : ParseClassicStyleSocket(content);
   }
 
-  private static TcpClientEndpoint ParseClassicStyleSocket(ReadOnlySpan<byte> content) {
+  private static AssuanEndpointResolution ParseClassicStyleSocket(ReadOnlySpan<byte> content) {
     if (content.Length < (NONCE_LENGTH + 1)) {
       throw new FormatException("Socket file is too short to contain port + nonce.");
     }
@@ -38,10 +38,13 @@ internal sealed class TcpClientEndpointResolver : IAssuanEndpointResolver {
     }
 
     var endPoint = new IPEndPoint(IPAddress.Loopback, port);
-    return new TcpClientEndpoint(endPoint, nonceSpan.ToArray());
+    var tcpClientEndpoint = new TcpClientEndpoint(endPoint);
+    var metadata = new Dictionary<string, object> { ["nonce"] = nonceSpan.ToArray() };
+
+    return new AssuanEndpointResolution(tcpClientEndpoint, metadata);
   }
 
-  private static TcpClientEndpoint ParseCygwinStyleSocket(ReadOnlySpan<byte> content) {
+  private static AssuanEndpointResolution ParseCygwinStyleSocket(ReadOnlySpan<byte> content) {
     if (content.Length < 10) {
       throw new AssuanEndpointFormatException("Cygwin socket content too short.");
     }
@@ -86,7 +89,10 @@ internal sealed class TcpClientEndpointResolver : IAssuanEndpointResolver {
     }
 
     var endPoint = new IPEndPoint(IPAddress.Loopback, port);
-    return new TcpClientEndpoint(endPoint, nonce);
+    var tcpClientEndpoint = new TcpClientEndpoint(endPoint);
+    var metadata = new Dictionary<string, object> { ["nonce"] = nonce };
+
+    return new AssuanEndpointResolution(tcpClientEndpoint, metadata);
   }
 
   private static ReadOnlySpan<byte> ReadSocketFileContent(AssuanEndpointKind kind) {

@@ -10,5 +10,4 @@ namespace AssuanLibrary.Platform.Common.Transport.Endpoints;
 ///   Defines a TCP client communication endpoint for Assuan protocol.
 /// </summary>
 /// <param name="EndPoint">The IP endpoint of the TCP client.</param>
-/// <param name="Nonce">The nonce used for authentication.</param>
-public readonly record struct TcpClientEndpoint(IPEndPoint EndPoint, ReadOnlyMemory<byte> Nonce) : IAssuanEndpoint;
+public readonly record struct TcpClientEndpoint(IPEndPoint EndPoint) : IAssuanEndpoint;

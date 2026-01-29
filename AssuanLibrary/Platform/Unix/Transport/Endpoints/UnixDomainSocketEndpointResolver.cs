@@ -12,7 +12,7 @@ namespace AssuanLibrary.Platform.Unix.Transport.Endpoints;
 [SupportedOSPlatform("macos")]
 internal sealed class UnixDomainSocketEndpointResolver : IAssuanEndpointResolver {
   /// <inheritdoc />
-  public IAssuanEndpoint Resolve(AssuanEndpointKind kind) {
+  public AssuanEndpointResolution Resolve(AssuanEndpointKind kind) {
     var socketPath = GetSocketPath(kind);
 
     if (!File.Exists(socketPath)) {
@@ -21,7 +21,7 @@ internal sealed class UnixDomainSocketEndpointResolver : IAssuanEndpointResolver
 
     var normalizedPath = socketPath.Replace('\\', '/');
 
-    return new UnixDomainSocketEndpoint(normalizedPath);
+    return new AssuanEndpointResolution(new UnixDomainSocketEndpoint(normalizedPath), new Dictionary<string, object>());
   }
 
   private static string GetSocketPath(string kindKey) {

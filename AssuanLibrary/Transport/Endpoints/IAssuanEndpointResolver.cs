@@ -4,13 +4,13 @@
 namespace AssuanLibrary.Transport.Endpoints;
 
 /// <summary>
-///   Resolves an <see cref="IAssuanEndpoint" /> based on the specified <see cref="AssuanEndpointKind" />.
+///   Defines a resolver for Assuan endpoints.
 /// </summary>
 public interface IAssuanEndpointResolver {
   /// <summary>
-  ///   Resolves an <see cref="IAssuanEndpoint" /> based on the specified <see cref="AssuanEndpointKind" />.
+  ///   Resolves an endpoint of the specified kind.
   /// </summary>
-  /// <param name="kind">The kind of Assuan endpoint to resolve.</param>
-  /// <returns>The resolved <see cref="IAssuanEndpoint" />.</returns>
-  IAssuanEndpoint Resolve(AssuanEndpointKind kind);
+  /// <param name="kind">The kind of endpoint to resolve.</param>
+  /// <returns>The resolution of the endpoint.</returns>
+  AssuanEndpointResolution Resolve(AssuanEndpointKind kind);
 }

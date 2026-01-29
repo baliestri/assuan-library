@@ -43,6 +43,11 @@ public interface IAssuanConnection : IAsyncDisposable, IDisposable {
   byte[] Read(InquireHandler inquireHandler);
 
   /// <summary>
+  ///   Discards any pending input from the remote connection.
+  /// </summary>
+  void DiscardPendingInput();
+
+  /// <summary>
   ///   Closes the remote connection.
   /// </summary>
   /// <exception cref="AssuanClientException">Thrown when the remote connection is not connected.</exception>
@@ -77,6 +82,13 @@ public interface IAssuanConnection : IAsyncDisposable, IDisposable {
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A task that represents the asynchronous read operation, containing the data read.</returns>
   ValueTask<ReadOnlyMemory<byte>> ReadAsync(AsyncInquireHandler inquireHandler, CancellationToken ct = default);
+
+  /// <summary>
+  ///   Discards any pending input from the remote connection asynchronously.
+  /// </summary>
+  /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+  /// <returns>A task that represents the asynchronous discard operation.</returns>
+  ValueTask DiscardPendingInputAsync(CancellationToken ct = default);
 
   /// <summary>
   ///   Closes the remote connection asynchronously.

@@ -72,6 +72,11 @@ public sealed class AssuanResponseCollection : IReadOnlyList<AssuanResponse> {
   public override string ToString()
     => AssuanDecoder.ToString(_buffer);
 
+  /// <summary>
+  ///   Creates an <see cref="AssuanResponseCollection" /> from the provided responses.
+  /// </summary>
+  /// <param name="responses">The responses to include in the collection.</param>
+  /// <returns>The created <see cref="AssuanResponseCollection" />.</returns>
   public static AssuanResponseCollection Create(params AssuanResponse[] responses) {
     if (responses.Length == 0) {
       return new AssuanResponseCollection();

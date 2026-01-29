@@ -2,7 +2,6 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Net.Sockets;
-using AssuanLibrary.Platform.Unix.Polyfills;
 using AssuanLibrary.Platform.Unix.Transport.Endpoints;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Endpoints;
@@ -29,7 +28,7 @@ internal sealed class UnixDomainSocketListener(UnixDomainSocketEndpoint endpoint
     }
 
     _socket ??= new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-    _socket.Bind(new UnixDomainSocketEndPoint(endpoint.Path));
+    _socket.Bind(endpoint);
     _socket.Listen(1);
     var socket = _socket.Accept();
 
@@ -50,7 +49,7 @@ internal sealed class UnixDomainSocketListener(UnixDomainSocketEndpoint endpoint
     }
 
     _socket ??= new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-    _socket.Bind(new UnixDomainSocketEndPoint(endpoint.Path));
+    _socket.Bind(endpoint);
     _socket.Listen(1);
     var socket = await _socket.AcceptAsync().ConfigureAwait(false);
 

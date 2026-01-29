@@ -5,6 +5,8 @@ using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Platform.Common.Transport;
 using AssuanLibrary.Platform.Unix.Transport;
 using AssuanLibrary.Platform.Windows.Transport;
+using AssuanLibrary.Server;
+using AssuanLibrary.Server.Abstractions;
 using AssuanLibrary.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -16,6 +18,26 @@ namespace AssuanLibrary.Extensions.DependencyInjection;
 /// </summary>
 [ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions {
+  /// <summary>
+  ///   Registers a command dispatcher with the provided command handlers in the provided <see cref="IServiceCollection" />.
+  /// </summary>
+  /// <param name="serviceCollection">The service collection to register the services in.</param>
+  /// <param name="commandHandlers">The command handlers to register in the dispatcher.</param>
+  /// <returns>The service collection itself.</returns>
+  public static IServiceCollection AddCommandDispatcher(this IServiceCollection serviceCollection, params CommandHandler[] commandHandlers) {
+    serviceCollection.TryAddSingleton<ICommandDispatcher>(_ => {
+      var commandDispatcher = new CommandDispatcher();
+
+      foreach (var handler in commandHandlers) {
+        commandDispatcher.TryAdd(handler);
+      }
+
+      return commandDispatcher;
+    });
+
+    return serviceCollection;
+  }
+
   /// <summary>
   ///   Registers TCP client factories in the provided <see cref="IServiceCollection" />.
   /// </summary>

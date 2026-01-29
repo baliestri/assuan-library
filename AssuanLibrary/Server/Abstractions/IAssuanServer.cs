@@ -6,12 +6,7 @@ namespace AssuanLibrary.Server.Abstractions;
 /// <summary>
 ///   A server that listens for Assuan protocol connections and handles commands.
 /// </summary>
-public interface IAssuanServer : IAsyncDisposable, IDisposable {
-  /// <summary>
-  ///   Indicates whether the server is currently running.
-  /// </summary>
-  bool IsRunning { get; }
-
+public interface IAssuanServer {
   /// <summary>
   ///   Starts the Assuan server to listen for incoming connections.
   /// </summary>

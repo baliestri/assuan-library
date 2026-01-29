@@ -8,12 +8,7 @@ namespace AssuanLibrary.Transport;
 /// <summary>
 ///   Represents a listener that accepts incoming Assuan connections.
 /// </summary>
-public interface IAssuanListener : IAsyncDisposable, IDisposable {
-  /// <summary>
-  ///   Indicates whether the listener is currently active and listening for incoming connections.
-  /// </summary>
-  bool IsListening { get; }
-
+public interface IAssuanListener {
   /// <summary>
   ///   Gets the endpoint this listener is bound to.
   /// </summary>

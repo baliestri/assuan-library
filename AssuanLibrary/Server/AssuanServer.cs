@@ -16,9 +16,6 @@ public sealed class AssuanServer(
   ICommandDispatcher commandDispatcher,
   AssuanServerOptions options
 ) : IAssuanServer {
-  private bool _disposed;
-  private IAssuanListener? _listener;
-
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint.
   /// </summary>
@@ -52,38 +49,29 @@ public sealed class AssuanServer(
     : this(CreateDefaultFactory(options), endpoint, commandDispatcher, options) { }
 
   /// <inheritdoc />
-  public bool IsRunning => _listener is { IsListening: true };
-
-  /// <inheritdoc />
   public void Run() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanServer));
-
-    _listener = listenerFactory.CreateListener(endpoint);
+    var listener = listenerFactory.CreateListener(endpoint);
 
     do {
-      var connection = _listener.Accept();
+      var connection = listener.Accept();
       HandleSession(connection);
     }
-    while (IsRunning);
+    while (true);
   }
 
   /// <inheritdoc />
   public async Task RunAsync(CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanServer));
-
-    _listener = listenerFactory.CreateListener(endpoint);
+    var listener = listenerFactory.CreateListener(endpoint);
 
     do {
-      var connection = await _listener.AcceptAsync(ct).ConfigureAwait(false);
+      var connection = await listener.AcceptAsync(ct).ConfigureAwait(false);
       await HandleSessionAsync(connection, ct).ConfigureAwait(false);
     }
-    while (IsRunning && !ct.IsCancellationRequested);
+    while (!ct.IsCancellationRequested);
   }
 
   /// <inheritdoc />
   public void RegisterCommandHandler(CommandHandler commandHandler) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanServer));
-
     if (!commandDispatcher.TryAdd(commandHandler)) {
       throw new InvalidOperationException($"A handler for the command '{commandHandler.Name}' is already registered.");
     }
@@ -91,8 +79,6 @@ public sealed class AssuanServer(
 
   /// <inheritdoc />
   public void RegisterCommandHandler<TCommandHandler>() where TCommandHandler : CommandHandler, new() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanServer));
-
     var handler = new TCommandHandler();
 
     if (!commandDispatcher.TryAdd(handler)) {
@@ -100,36 +86,11 @@ public sealed class AssuanServer(
     }
   }
 
-  /// <inheritdoc />
-  public void Dispose() {
-    if (_disposed) {
-      return;
-    }
-
-    _listener?.Dispose();
-    _listener = null;
-    _disposed = true;
-  }
-
-  /// <inheritdoc />
-  public async ValueTask DisposeAsync() {
-    if (_disposed) {
-      return;
-    }
-
-    if (_listener is not null) {
-      await _listener.DisposeAsync().ConfigureAwait(false);
-    }
-
-    _listener = null;
-    _disposed = true;
-  }
-
   private static IAssuanListenerFactory CreateDefaultFactory(AssuanServerOptions options)
     => new DefaultListenerFactory(options);
 
   private async Task HandleSessionAsync(IAssuanConnection connection, CancellationToken ct = default) {
-    using var session = new ServerSession(ct);
+    var session = new ServerSession(ct);
     var context = new ServerContext(connection, session);
 
     if (options.OnAuthenticateSessionAsync is not null) {
@@ -154,10 +115,13 @@ public sealed class AssuanServer(
       var command = new AssuanCommand(buffer.ToArray());
       await commandDispatcher.DispatchAsync(command, context).ConfigureAwait(false);
     }
+
+    session.Dispose();
+    await connection.DisposeAsync();
   }
 
   private void HandleSession(IAssuanConnection connection, CancellationToken ct = default) {
-    using var session = new ServerSession(ct);
+    var session = new ServerSession(ct);
     var context = new ServerContext(connection, session);
 
     options.OnAuthenticateSessionAsync?.Invoke(context).GetAwaiter().GetResult();
@@ -180,5 +144,8 @@ public sealed class AssuanServer(
       var command = new AssuanCommand(buffer.ToArray());
       commandDispatcher.Dispatch(command, context);
     }
+
+    session.Dispose();
+    connection.Dispose();
   }
 }

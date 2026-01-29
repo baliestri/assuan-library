@@ -16,7 +16,6 @@ public sealed class AssuanServer(
   ICommandDispatcher commandDispatcher,
   AssuanServerOptions options
 ) : IAssuanServer {
-  private readonly AssuanServerOptions _options = options;
   private bool _disposed;
   private IAssuanListener? _listener;
 
@@ -133,6 +132,10 @@ public sealed class AssuanServer(
     using var session = new ServerSession(ct);
     var context = new ServerContext(connection, session);
 
+    if (options.OnAuthenticateSessionAsync is not null) {
+      await options.OnAuthenticateSessionAsync(context).ConfigureAwait(false);
+    }
+
     while (connection.IsConnected &&
            !ct.IsCancellationRequested) {
       var buffer = await connection.ReadAsync(ct).ConfigureAwait(false);
@@ -151,6 +154,8 @@ public sealed class AssuanServer(
   private void HandleSession(IAssuanConnection connection, CancellationToken ct = default) {
     using var session = new ServerSession(ct);
     var context = new ServerContext(connection, session);
+
+    options.OnAuthenticateSessionAsync?.Invoke(context).GetAwaiter().GetResult();
 
     while (connection.IsConnected &&
            !ct.IsCancellationRequested) {

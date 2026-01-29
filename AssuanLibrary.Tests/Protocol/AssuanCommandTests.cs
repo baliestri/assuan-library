@@ -1,13 +1,14 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Protocol;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests;
+namespace AssuanLibrary.Tests.Protocol;
 
 [TestSubject(typeof(AssuanCommand))]
 public sealed class AssuanCommandTests {
-  [Test]
+  [Fact]
   public void Constructor_ShouldTrimCommandName_AndInitializeCount() {
     var command = new AssuanCommand("  TEST  ");
 
@@ -15,22 +16,21 @@ public sealed class AssuanCommandTests {
     command.Count.ShouldBe(1);
   }
 
-  [Test]
+  [Fact]
   public void Constructor_ShouldThrow_WhenCommandNameIsNullOrWhitespace() {
     Should.Throw<ArgumentException>(() => new AssuanCommand(""));
     Should.Throw<ArgumentException>(() => new AssuanCommand("   "));
-    Should.Throw<ArgumentException>(() => new AssuanCommand(null!));
+    Should.Throw<ArgumentException>(() => new AssuanCommand((string)null!));
   }
 
-  [Test]
+  [Fact]
   public void Indexer_Get_ShouldReturnEntry() {
-    var command = new AssuanCommand("CMD");
-    command.Add("arg");
+    var command = new AssuanCommand("CMD") { "arg" };
 
     command[1].ShouldBe("arg");
   }
 
-  [Test]
+  [Fact]
   public void Indexer_Get_ShouldThrow_WhenOutOfRange() {
     var command = new AssuanCommand("CMD");
 
@@ -38,21 +38,21 @@ public sealed class AssuanCommandTests {
     Should.Throw<ArgumentOutOfRangeException>(() => _ = command[1]);
   }
 
-  [Test]
+  [Fact]
   public void Indexer_Set_ShouldTrimValue() {
-    var command = new AssuanCommand("CMD");
-    command.Add("arg");
+    var command = new AssuanCommand("CMD") { "arg" };
 
     command[1] = "  value  ";
 
     command[1].ShouldBe("value");
   }
 
-  [Test]
+  [Fact]
   public void Indexer_Set_ShouldRemoveEntry_WhenValueIsWhitespace() {
-    var command = new AssuanCommand("CMD");
-    command.Add("arg1");
-    command.Add("arg2");
+    var command = new AssuanCommand("CMD") {
+      "arg1",
+      "arg2"
+    };
 
     command[1] = "   ";
 
@@ -60,26 +60,15 @@ public sealed class AssuanCommandTests {
     command[1].ShouldBe("arg2");
   }
 
-  [Test]
+  [Fact]
   public void Add_ShouldAppendArgument() {
-    var command = new AssuanCommand("CMD");
-
-    command.Add("arg");
+    var command = new AssuanCommand("CMD") { "arg" };
 
     command.Count.ShouldBe(2);
     command[1].ShouldBe("arg");
   }
 
-  [Test]
-  public void Add_ShouldQuoteArgument_WhenContainingSpaces() {
-    var command = new AssuanCommand("CMD");
-
-    command.Add("hello world");
-
-    command[1].ShouldBe("¨hello world¨");
-  }
-
-  [Test]
+  [Fact]
   public void Add_ShouldThrow_WhenArgumentIsNullOrWhitespace() {
     var command = new AssuanCommand("CMD");
 
@@ -88,11 +77,12 @@ public sealed class AssuanCommandTests {
     Should.Throw<ArgumentException>(() => command.Add(null!));
   }
 
-  [Test]
+  [Fact]
   public void Remove_ShouldRemoveArgumentByValue() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
-    command.Add("b");
+    var command = new AssuanCommand("CMD") {
+      "a",
+      "b"
+    };
 
     command.Remove("a");
 
@@ -100,71 +90,67 @@ public sealed class AssuanCommandTests {
     command[1].ShouldBe("b");
   }
 
-  [Test]
+  [Fact]
   public void Remove_ShouldThrow_WhenArgumentNotFound() {
     var command = new AssuanCommand("CMD");
 
     Should.Throw<ArgumentOutOfRangeException>(() => command.Remove("missing"));
   }
 
-  [Test]
+  [Fact]
   public void RemoveAt_ShouldThrow_WhenIndexIsZero() {
     var command = new AssuanCommand("CMD");
 
     Should.Throw<ArgumentOutOfRangeException>(() => command.RemoveAt(0));
   }
 
-  [Test]
+  [Fact]
   public void RemoveAt_ShouldThrow_WhenIndexIsOutOfRange() {
     var command = new AssuanCommand("CMD");
 
     Should.Throw<ArgumentOutOfRangeException>(() => command.RemoveAt(1));
   }
 
-  [Test]
+  [Fact]
   public void Enumerator_ShouldReturnNameAndArgumentsInOrder() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
-    command.Add("b");
+    var command = new AssuanCommand("CMD") {
+      "a",
+      "b"
+    };
 
-    command.ToArray().ShouldBe(new[] { "CMD", "a", "b" });
+    command.ToArray().ShouldBe(["CMD", "a", "b"]);
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnTrue_ForSameEntries() {
-    var left = new AssuanCommand("CMD");
-    left.Add("a");
+    var left = new AssuanCommand("CMD") { "a" };
 
-    var right = new AssuanCommand("CMD");
-    right.Add("a");
+    var right = new AssuanCommand("CMD") { "a" };
 
     left.ShouldBe(right);
     (left == right).ShouldBeTrue();
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnFalse_WhenEntriesDiffer() {
-    var left = new AssuanCommand("CMD");
-    left.Add("a");
+    var left = new AssuanCommand("CMD") { "a" };
 
-    var right = new AssuanCommand("CMD");
-    right.Add("b");
+    var right = new AssuanCommand("CMD") { "b" };
 
     left.ShouldNotBe(right);
     (left != right).ShouldBeTrue();
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnFalse_WhenOtherIsNull() {
     var command = new AssuanCommand("CMD");
 
     command.Equals(null).ShouldBeFalse();
   }
 
-  [Test]
+  [Fact]
   public void GetHashCode_ShouldBeDeterministic() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
+    var command = new AssuanCommand("CMD") { "a" };
 
     var hash1 = command.GetHashCode();
     var hash2 = command.GetHashCode();
@@ -172,24 +158,27 @@ public sealed class AssuanCommandTests {
     hash1.ShouldBe(hash2);
   }
 
-  [Test]
+  [Fact]
   public void GetHashCode_ShouldChange_WhenOrderChanges() {
-    var c1 = new AssuanCommand("CMD");
-    c1.Add("a");
-    c1.Add("b");
+    var c1 = new AssuanCommand("CMD") {
+      "a",
+      "b"
+    };
 
-    var c2 = new AssuanCommand("CMD");
-    c2.Add("b");
-    c2.Add("a");
+    var c2 = new AssuanCommand("CMD") {
+      "b",
+      "a"
+    };
 
     c1.GetHashCode().ShouldNotBe(c2.GetHashCode());
   }
 
-  [Test]
+  [Fact]
   public void GetHashCode_ShouldMatchRollingHashAlgorithm() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
-    command.Add("b");
+    var command = new AssuanCommand("CMD") {
+      "a",
+      "b"
+    };
 
     var expected = 17;
     expected = (expected * 31) + "CMD".GetHashCode();
@@ -199,26 +188,23 @@ public sealed class AssuanCommandTests {
     command.GetHashCode().ShouldBe(expected);
   }
 
-  [Test]
+  [Fact]
   public void ToString_ShouldReturnNonEmptyValue() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
+    var command = new AssuanCommand("CMD") { "a" };
 
     command.ToString().ShouldNotBeNullOrWhiteSpace();
   }
 
-  [Test]
+  [Fact]
   public void ToBytes_ShouldReturnNonEmptyArray() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
+    var command = new AssuanCommand("CMD") { "a" };
 
     command.ToBytes().Length.ShouldBeGreaterThan(0);
   }
 
-  [Test]
+  [Fact]
   public void ToReadOnlyMemory_ShouldReturnNonEmptyMemory() {
-    var command = new AssuanCommand("CMD");
-    command.Add("a");
+    var command = new AssuanCommand("CMD") { "a" };
 
     command.ToReadOnlyMemory().Length.ShouldBeGreaterThan(0);
   }

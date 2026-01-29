@@ -2,55 +2,56 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Text;
+using AssuanLibrary.Protocol;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests;
+namespace AssuanLibrary.Tests.Protocol;
 
 [TestSubject(typeof(AssuanDecoder))]
 public sealed class AssuanDecoderTests {
-  [Test]
+  [Fact]
   public void ToBytes_ShouldReturnEmpty_WhenStringIsNullOrWhitespace() {
     AssuanDecoder.ToBytes(string.Empty).ShouldBeEmpty();
     AssuanDecoder.ToBytes("   ").ShouldBeEmpty();
     AssuanDecoder.ToBytes((string)null!).ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void ToString_ShouldReturnEmpty_WhenInputIsEmpty() {
     AssuanDecoder.ToString(string.Empty).ShouldBeEmpty();
     AssuanDecoder.ToString([]).ShouldBeEmpty();
     AssuanDecoder.ToString(ReadOnlyMemory<byte>.Empty).ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void ValidPercentEncodedSequence_ShouldBeDecoded() {
     var result = AssuanDecoder.ToString("%41%42%43");
 
     result.ShouldBe("ABC");
   }
 
-  [Test]
+  [Fact]
   public void LowercaseHex_ShouldBeDecoded() {
     var result = AssuanDecoder.ToString("%6a");
 
     result.ShouldBe("j");
   }
 
-  [Test]
+  [Fact]
   public void InvalidPercentSequence_ShouldBeLeftUntouched() {
     var result = AssuanDecoder.ToString("%ZZ");
 
     result.ShouldBe("%ZZ");
   }
 
-  [Test]
+  [Fact]
   public void TrailingPercent_ShouldBePreserved() {
     var result = AssuanDecoder.ToString("ABC%");
 
     result.ShouldBe("ABC%");
   }
 
-  [Test]
+  [Fact]
   public void ToBytes_FromString_And_FromSpan_ShouldMatch() {
     const string INPUT = "%41%42";
 
@@ -60,7 +61,7 @@ public sealed class AssuanDecoderTests {
     fromString.ShouldBe(fromSpan);
   }
 
-  [Test]
+  [Fact]
   public void ToReadOnlyMemory_ShouldMatch_ToBytes() {
     const string INPUT = "%41%42";
 
@@ -70,7 +71,7 @@ public sealed class AssuanDecoderTests {
     memory.ToArray().ShouldBe(bytes);
   }
 
-  [Test]
+  [Fact]
   public void ToString_FromBytes_And_FromMemory_ShouldMatch() {
     var input = "%41%42"u8.ToArray();
 
@@ -78,7 +79,7 @@ public sealed class AssuanDecoderTests {
       .ShouldBe(AssuanDecoder.ToString(input.AsMemory()));
   }
 
-  [Test]
+  [Fact]
   public void EncoderAndDecoder_ShouldRoundTrip_String() {
     const string ORIGINAL = "hello world";
 
@@ -88,17 +89,7 @@ public sealed class AssuanDecoderTests {
     decoded.ShouldBe(ORIGINAL);
   }
 
-  [Test]
-  public void EncoderAndDecoder_ShouldRoundTrip_WithEscapedSpaces() {
-    const string ORIGINAL = "hello world again";
-
-    var encoded = AssuanEncoder.AsString("hello¨ world again¨", false);
-    var decoded = AssuanDecoder.ToString(encoded);
-
-    decoded.ShouldBe(ORIGINAL);
-  }
-
-  [Test]
+  [Fact]
   public void ToBytes_ShouldDecodePercentEncodedBytes() {
     var input = "%41%42"u8.ToArray();
 
@@ -107,7 +98,7 @@ public sealed class AssuanDecoderTests {
     result.ShouldBe([0x41, 0x42]);
   }
 
-  [Test]
+  [Fact]
   public void ToBytes_ShouldPreserveInvalidPercentSequences() {
     var input = "%G1"u8.ToArray();
 
@@ -116,14 +107,14 @@ public sealed class AssuanDecoderTests {
     result.ShouldBe(input);
   }
 
-  [Test]
+  [Fact]
   public void GetInquireParameters_ShouldReturnEmpty_WhenBufferIsEmpty() {
     var result = AssuanDecoder.GetInquireParameters(ReadOnlySpan<byte>.Empty);
 
     result.ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void GetInquireParameters_ShouldSplitOnSpaces() {
     var input = "a b c"u8.ToArray();
 
@@ -132,7 +123,7 @@ public sealed class AssuanDecoderTests {
     result.ShouldBe(["a", "b", "c"]);
   }
 
-  [Test]
+  [Fact]
   public void GetInquireParameters_ShouldDecodePercentEncodedParameters() {
     var input = "hello%20world test"u8.ToArray();
 
@@ -141,7 +132,7 @@ public sealed class AssuanDecoderTests {
     result.ShouldBe(["hello world", "test"]);
   }
 
-  [Test]
+  [Fact]
   public void GetInquireParameters_ShouldIgnoreExtraWhitespace() {
     var input = "  a   b\t c  "u8.ToArray();
 

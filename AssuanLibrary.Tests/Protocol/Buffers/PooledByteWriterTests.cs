@@ -2,14 +2,14 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Buffers;
-using AssuanLibrary.Buffers;
+using AssuanLibrary.Protocol.Buffers;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests.Buffers;
+namespace AssuanLibrary.Tests.Protocol.Buffers;
 
 [TestSubject(typeof(PooledByteWriter))]
 public sealed class PooledByteWriterTests {
-  [Test]
+  [Fact]
   public void Should_Write_CorrectlySingleByte() {
     using var writer = new PooledByteWriter(16);
 
@@ -19,7 +19,7 @@ public sealed class PooledByteWriterTests {
     result.ShouldBeEquivalentTo(new byte[] { 42 });
   }
 
-  [Test]
+  [Fact]
   public void Should_Advance_IncreaseWrittenCount() {
     using var writer = new PooledByteWriter(32);
 
@@ -29,7 +29,7 @@ public sealed class PooledByteWriterTests {
     writer.ToArray().Length.ShouldBe(8);
   }
 
-  [Test]
+  [Fact]
   public void Should_GetSpan_AllowDirectWriting() {
     using var writer = new PooledByteWriter(64);
 
@@ -43,7 +43,7 @@ public sealed class PooledByteWriterTests {
     writer.ToArray().ShouldBeEquivalentTo(new byte[] { 10, 20, 30 });
   }
 
-  [Test]
+  [Fact]
   public void Should_Grow_BufferWhenNeeded() {
     using var writer = new PooledByteWriter(4);
 
@@ -57,7 +57,7 @@ public sealed class PooledByteWriterTests {
     result.ShouldBeEquivalentTo(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 });
   }
 
-  [Test]
+  [Fact]
   public void Should_SizeHint_BeRespectedWhenPossible() {
     using var writer = new PooledByteWriter(8);
 
@@ -65,7 +65,7 @@ public sealed class PooledByteWriterTests {
     memory.Length.ShouldBeGreaterThanOrEqualTo(32);
   }
 
-  [Test]
+  [Fact]
   public void Should_SizeHint_ZeroGiveAtLeastOneByte() {
     using var writer = new PooledByteWriter(4);
 
@@ -73,7 +73,7 @@ public sealed class PooledByteWriterTests {
     span.Length.ShouldBeGreaterThan(0);
   }
 
-  [Test]
+  [Fact]
   public void Should_GetSpan_MultipleCallsWorkCorrectly() {
     using var writer = new PooledByteWriter(16);
 
@@ -87,7 +87,7 @@ public sealed class PooledByteWriterTests {
       new byte[] { 0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB });
   }
 
-  [Test]
+  [Fact]
   public void Should_ToReadOnlyMemory_ReturnsCorrectData() {
     using var writer = new PooledByteWriter(32);
 
@@ -102,7 +102,7 @@ public sealed class PooledByteWriterTests {
     rom.Span.ToArray().ShouldBeEquivalentTo(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF });
   }
 
-  [Test]
+  [Fact]
   public void Should_NotReturn_SameBufferAfterDispose() {
     byte[] originalBuffer;
 
@@ -116,7 +116,7 @@ public sealed class PooledByteWriterTests {
     newBuffer.ShouldNotBeSameAs(originalBuffer);
   }
 
-  [Test]
+  [Fact]
   public void Should_Throw_ObjectDisposedException_AfterDispose() {
     var writer = new PooledByteWriter(16);
     writer.Dispose();
@@ -127,7 +127,7 @@ public sealed class PooledByteWriterTests {
     Should.Throw<ObjectDisposedException>(() => writer.ToArray());
   }
 
-  [Test]
+  [Fact]
   public void Should_Throw_ArgumentOutOfRangeException_ForNegativeSizes() {
     var writer = new PooledByteWriter(16);
 

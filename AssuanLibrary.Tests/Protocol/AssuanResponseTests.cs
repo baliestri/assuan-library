@@ -2,13 +2,14 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Globalization;
+using AssuanLibrary.Protocol;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests;
+namespace AssuanLibrary.Tests.Protocol;
 
 [TestSubject(typeof(AssuanResponse))]
 public sealed class AssuanResponseTests {
-  [Test]
+  [Fact]
   public void Constructor_ShouldSetUnknownType_WhenBufferIsEmpty() {
     var response = new AssuanResponse(Array.Empty<byte>());
 
@@ -16,7 +17,7 @@ public sealed class AssuanResponseTests {
     response.Buffer.ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void Constructor_ShouldParseType_AndBufferSeparatedBySpace() {
     var buffer = "OK value"u8.ToArray();
 
@@ -26,7 +27,7 @@ public sealed class AssuanResponseTests {
     response.Buffer.ShouldBe("value"u8.ToArray());
   }
 
-  [Test]
+  [Fact]
   public void Constructor_ShouldHandleTypeWithoutPayload() {
     var buffer = "ERR"u8.ToArray();
 
@@ -36,7 +37,7 @@ public sealed class AssuanResponseTests {
     response.Buffer.ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void DecodedBuffer_ShouldReturnDecodedBytes() {
     var buffer = "D %41%42"u8.ToArray();
 
@@ -45,7 +46,7 @@ public sealed class AssuanResponseTests {
     response.DecodedBuffer.ShouldBe("AB"u8.ToArray());
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnTrue_ForSameTypeAndBuffer() {
     var buffer = "OK test"u8.ToArray();
 
@@ -56,7 +57,7 @@ public sealed class AssuanResponseTests {
     r1.ShouldBe(r2);
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnFalse_WhenTypesDiffer() {
     var r1 = new AssuanResponse("OK test"u8.ToArray());
     var r2 = new AssuanResponse("ERR test"u8.ToArray());
@@ -64,7 +65,7 @@ public sealed class AssuanResponseTests {
     r1.ShouldNotBe(r2);
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnFalse_WhenBuffersDiffer() {
     var r1 = new AssuanResponse("OK a"u8.ToArray());
     var r2 = new AssuanResponse("OK b"u8.ToArray());
@@ -72,14 +73,14 @@ public sealed class AssuanResponseTests {
     r1.ShouldNotBe(r2);
   }
 
-  [Test]
+  [Fact]
   public void Equals_ShouldReturnFalse_WhenOtherIsNull() {
     var response = new AssuanResponse("OK"u8.ToArray());
 
     response.Equals(null).ShouldBeFalse();
   }
 
-  [Test]
+  [Fact]
   public void GetHashCode_ShouldBeEqual_ForEqualResponses() {
     var r1 = new AssuanResponse("OK test"u8.ToArray());
     var r2 = new AssuanResponse("OK test"u8.ToArray());
@@ -87,7 +88,7 @@ public sealed class AssuanResponseTests {
     r1.GetHashCode().ShouldBe(r2.GetHashCode());
   }
 
-  [Test]
+  [Fact]
   public void GetHashCode_ShouldDiffer_WhenResponsesDiffer() {
     var r1 = new AssuanResponse("OK a"u8.ToArray());
     var r2 = new AssuanResponse("OK b"u8.ToArray());
@@ -95,21 +96,21 @@ public sealed class AssuanResponseTests {
     r1.GetHashCode().ShouldNotBe(r2.GetHashCode());
   }
 
-  [Test]
+  [Fact]
   public void ToString_ShouldDefaultToDecodedString_ForNonDataResponses() {
     var response = new AssuanResponse("OK hello"u8.ToArray());
 
     response.ToString().ShouldBe("hello");
   }
 
-  [Test]
+  [Fact]
   public void ToString_ShouldDefaultToHex_ForDataResponses() {
     var response = new AssuanResponse("D %41%42"u8.ToArray());
 
     response.ToString().ShouldBe("4142");
   }
 
-  [Test]
+  [Fact]
   public void ToString_WithTSpecifier_ShouldIncludeType() {
     var response = new AssuanResponse("OK hello"u8.ToArray());
 
@@ -117,7 +118,7 @@ public sealed class AssuanResponseTests {
       .ShouldBe("OK hello");
   }
 
-  [Test]
+  [Fact]
   public void ToString_WithHSpecifier_ShouldReturnHexOfDecodedBuffer() {
     var response = new AssuanResponse("OK %41"u8.ToArray());
 
@@ -125,7 +126,7 @@ public sealed class AssuanResponseTests {
       .ShouldBe("41");
   }
 
-  [Test]
+  [Fact]
   public void ToString_WithUnknownFormat_ShouldReturnEmptyString() {
     var response = new AssuanResponse("OK test"u8.ToArray());
 
@@ -133,7 +134,7 @@ public sealed class AssuanResponseTests {
       .ShouldBe(string.Empty);
   }
 
-  [Test]
+  [Fact]
   public void GetOriginalBuffer_ShouldReturnCopyOfOriginalBuffer() {
     var original = "OK test"u8.ToArray();
     var response = new AssuanResponse(original);

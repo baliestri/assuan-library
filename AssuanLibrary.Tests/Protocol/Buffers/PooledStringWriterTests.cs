@@ -1,14 +1,14 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
-using AssuanLibrary.Buffers;
+using AssuanLibrary.Protocol.Buffers;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests.Buffers;
+namespace AssuanLibrary.Tests.Protocol.Buffers;
 
 [TestSubject(typeof(PooledStringWriter))]
 public sealed class PooledStringWriterTests {
-  [Test]
+  [Fact]
   public void Should_Write_CorrectlySingleChar() {
     using var writer = new PooledStringWriter(16);
 
@@ -19,7 +19,7 @@ public sealed class PooledStringWriterTests {
     writer.ToString().ShouldBe("xY🚀");
   }
 
-  [Test]
+  [Fact]
   public void Should_Write_CorrectlyString() {
     using var writer = new PooledStringWriter(32);
 
@@ -30,7 +30,7 @@ public sealed class PooledStringWriterTests {
     writer.ToString().ShouldBe("Hello 世界");
   }
 
-  [Test]
+  [Fact]
   public void Should_Write_NullOrEmptyStringDoesNothing() {
     using var writer = new PooledStringWriter(16);
 
@@ -40,7 +40,7 @@ public sealed class PooledStringWriterTests {
     writer.ToString().ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void Should_Write_CorrectlyReadOnlySpan() {
     using var writer = new PooledStringWriter(64);
 
@@ -51,7 +51,7 @@ public sealed class PooledStringWriterTests {
     writer.ToString().ShouldBe("Start → End");
   }
 
-  [Test]
+  [Fact]
   public void Should_Grow_BufferWhenNeeded() {
     using var writer = new PooledStringWriter(4);
 
@@ -65,7 +65,7 @@ public sealed class PooledStringWriterTests {
     result.Length.ShouldBe(LONG_TEXT.Length);
   }
 
-  [Test]
+  [Fact]
   public void Should_Intermix_WritesCorrectly() {
     using var writer = new PooledStringWriter(8);
 
@@ -78,7 +78,7 @@ public sealed class PooledStringWriterTests {
     writer.ToString().ShouldBe("ABCDEFG → 🔥");
   }
 
-  [Test]
+  [Fact]
   public void Should_GetSpan_AllowDirectWriting() {
     using var writer = new PooledStringWriter(32);
 
@@ -93,7 +93,7 @@ public sealed class PooledStringWriterTests {
     writer.ToString().ShouldBe("HelloWorld!");
   }
 
-  [Test]
+  [Fact]
   public void Should_ToString_DisposeAfterwards() {
     var writer = new PooledStringWriter(16);
     writer.Write("Important");
@@ -105,7 +105,7 @@ public sealed class PooledStringWriterTests {
     Should.Throw<ObjectDisposedException>(() => writer.Write('x'));
   }
 
-  [Test]
+  [Fact]
   public void Should_ToString_WithMaxLength_TruncateCorrectlyAndDispose() {
     using var writer = new PooledStringWriter(64);
 
@@ -119,7 +119,7 @@ public sealed class PooledStringWriterTests {
     Should.Throw<ObjectDisposedException>(() => writer.Write('x'));
   }
 
-  [Test]
+  [Fact]
   public void Should_Dispose_BeIdempotent() {
     var writer = new PooledStringWriter(32);
     writer.Write("test");
@@ -130,7 +130,7 @@ public sealed class PooledStringWriterTests {
     Should.Throw<ObjectDisposedException>(() => writer.Write('x'));
   }
 
-  [Test]
+  [Fact]
   public void Should_Throw_ObjectDisposedException_AfterDispose() {
     var writer = new PooledStringWriter(16);
     writer.Dispose();
@@ -144,7 +144,7 @@ public sealed class PooledStringWriterTests {
     Should.Throw<ObjectDisposedException>(() => writer.ToString());
   }
 
-  [Test]
+  [Fact]
   public void Should_Throw_ArgumentOutOfRangeException_ForNegativeSizes() {
     using var writer = new PooledStringWriter(16);
 

@@ -1,13 +1,14 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Protocol;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests;
+namespace AssuanLibrary.Tests.Protocol;
 
 [TestSubject(typeof(AssuanResponseCollection))]
 public sealed class AssuanResponseCollectionTests {
-  [Test]
+  [Fact]
   public void Constructor_ShouldCreateEmptyCollection_WhenBufferIsEmpty() {
     var collection = new AssuanResponseCollection([]);
 
@@ -15,7 +16,7 @@ public sealed class AssuanResponseCollectionTests {
     collection.ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void Constructor_ShouldSplitResponses_OnLineFeed() {
     var buffer = "OK first\nERR second\nD %41%42\n"u8.ToArray();
 
@@ -27,7 +28,7 @@ public sealed class AssuanResponseCollectionTests {
     collection[2].Type.ShouldBe(AssuanResponseType.Data);
   }
 
-  [Test]
+  [Fact]
   public void Indexer_ShouldReturnResponseAtIndex() {
     var buffer = "OK a\nOK b\n"u8.ToArray();
 
@@ -36,7 +37,7 @@ public sealed class AssuanResponseCollectionTests {
     collection[1].ToString().ShouldBe("b");
   }
 
-  [Test]
+  [Fact]
   public void Enumerator_ShouldEnumerateAllResponsesInOrder() {
     var buffer = "OK a\nERR b\n"u8.ToArray();
 
@@ -50,7 +51,7 @@ public sealed class AssuanResponseCollectionTests {
     ]);
   }
 
-  [Test]
+  [Fact]
   public void ToString_ShouldDecodeEntireOriginalBuffer() {
     var buffer = "OK %41\nERR %42\n"u8.ToArray();
 
@@ -59,7 +60,7 @@ public sealed class AssuanResponseCollectionTests {
     collection.ToString().ShouldBe("OK A\nERR B\n");
   }
 
-  [Test]
+  [Fact]
   public void Constructor_ShouldHandleTrailingLineFeed() {
     var buffer = "OK a\n"u8.ToArray();
 
@@ -70,7 +71,7 @@ public sealed class AssuanResponseCollectionTests {
     collection[0].ToString().ShouldBe("a");
   }
 
-  [Test]
+  [Fact]
   public void Constructor_ShouldCreateResponse_ForEmptyLine() {
     var buffer = "\n"u8.ToArray();
 

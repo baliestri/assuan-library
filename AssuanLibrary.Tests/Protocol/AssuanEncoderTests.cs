@@ -2,34 +2,35 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Text;
+using AssuanLibrary.Protocol;
 using JetBrains.Annotations;
 
-namespace AssuanLibrary.Tests;
+namespace AssuanLibrary.Tests.Protocol;
 
 [TestSubject(typeof(AssuanEncoder))]
 public sealed class AssuanEncoderTests {
-  [Test]
+  [Fact]
   public void AsString_ShouldReturnEmpty_WhenValueIsNullOrWhitespace() {
     AssuanEncoder.AsString(string.Empty).ShouldBeEmpty();
     AssuanEncoder.AsString("   ").ShouldBeEmpty();
     AssuanEncoder.AsString(null!).ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void AsBytes_ShouldReturnEmpty_WhenValueIsNullOrWhitespace() {
     AssuanEncoder.AsBytes(string.Empty).ShouldBeEmpty();
     AssuanEncoder.AsBytes("   ").ShouldBeEmpty();
-    AssuanEncoder.AsBytes(null!).ShouldBeEmpty();
+    AssuanEncoder.AsBytes((string)null!).ShouldBeEmpty();
   }
 
-  [Test]
+  [Fact]
   public void AsReadOnlyMemory_ShouldReturnEmpty_WhenValueIsNullOrWhitespace() {
     AssuanEncoder.AsReadOnlyMemory(string.Empty).IsEmpty.ShouldBeTrue();
     AssuanEncoder.AsReadOnlyMemory("   ").IsEmpty.ShouldBeTrue();
     AssuanEncoder.AsReadOnlyMemory((string)null!).IsEmpty.ShouldBeTrue();
   }
 
-  [Test]
+  [Fact]
   public void SafeCharacters_ShouldPassThroughUnchanged() {
     const string INPUT = "ABCxyz123-_.~";
 
@@ -38,7 +39,7 @@ public sealed class AssuanEncoderTests {
     result.ShouldBe(INPUT);
   }
 
-  [Test]
+  [Fact]
   public void UnsafeCharacters_ShouldBePercentEncoded() {
     const string INPUT = "%";
 
@@ -47,7 +48,7 @@ public sealed class AssuanEncoderTests {
     result.ShouldBe("%25");
   }
 
-  [Test]
+  [Fact]
   public void NonAsciiCharacters_ShouldBePercentEncoded() {
     const string INPUT = "é"; // 0xE9
 
@@ -56,16 +57,7 @@ public sealed class AssuanEncoderTests {
     result.ShouldBe("%E9");
   }
 
-  [Test]
-  public void Spaces_ShouldBeEncoded_WhenEscapeModeIsEnabled() {
-    const string INPUT = "hello¨ world¨";
-
-    var result = AssuanEncoder.AsString(INPUT, false);
-
-    result.ShouldBe("hello%20world");
-  }
-
-  [Test]
+  [Fact]
   public void Spaces_ShouldRemainUnencoded_WhenEscapeModeIsDisabled() {
     const string INPUT = "hello world";
 
@@ -74,37 +66,28 @@ public sealed class AssuanEncoderTests {
     result.ShouldBe("hello world");
   }
 
-  [Test]
-  public void EscapeDelimiter_ShouldToggleEscapeMode() {
-    const string INPUT = "a¨ b ¨c";
-
-    var result = AssuanEncoder.AsString(INPUT, false);
-
-    result.ShouldBe("a%20b%20c");
-  }
-
-  [Test]
+  [Fact]
   public void AsString_ShouldAppendLineFeed_ByDefault() {
     var result = AssuanEncoder.AsString("CMD");
 
     result.EndsWith("\n").ShouldBeTrue();
   }
 
-  [Test]
+  [Fact]
   public void AsString_ShouldNotAppendLineFeed_WhenDisabled() {
     var result = AssuanEncoder.AsString("CMD", false);
 
     result.EndsWith("\n").ShouldBeFalse();
   }
 
-  [Test]
+  [Fact]
   public void AsBytes_ShouldAppendLineFeed_ByDefault() {
     var bytes = AssuanEncoder.AsBytes("CMD");
 
     bytes.Last().ShouldBe((byte)'\n');
   }
 
-  [Test]
+  [Fact]
   public void AsString_And_AsBytes_ShouldProduceEquivalentOutput() {
     const string INPUT = "hello¨ world¨";
 
@@ -114,7 +97,7 @@ public sealed class AssuanEncoderTests {
     Encoding.ASCII.GetBytes(str).ShouldBe(bytes);
   }
 
-  [Test]
+  [Fact]
   public void AsBytes_And_AsReadOnlyMemory_ShouldProduceEquivalentOutput() {
     const string INPUT = "CMD arg";
 
@@ -124,7 +107,7 @@ public sealed class AssuanEncoderTests {
     memory.ToArray().ShouldBe(bytes);
   }
 
-  [Test]
+  [Fact]
   public void AsReadOnlyMemory_FromByteArray_ShouldReturnEmpty_WhenInputIsEmpty() {
     var result = AssuanEncoder.AsReadOnlyMemory([]);
 

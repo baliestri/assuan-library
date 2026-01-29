@@ -6,16 +6,15 @@
     <IsPackable>true</IsPackable>
 
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
-    <PolyArgumentExceptions>true</PolyArgumentExceptions>
   </PropertyGroup>
 
   <PropertyGroup>
     <Authors>Bruno Sales</Authors>
     <Description>A .NET library for interacting with the Assuan protocol.</Description>
     <Copyright>Copyright (c) $([System.DateTime]::Now.Year) Bruno Sales &lt;me@baliestri.dev&gt;</Copyright>
-    <PackageId>AssuanLibrary</PackageId>
+    <PackageId>AssuanLibrary.DependencyInjection</PackageId>
     <PackageProjectUrl>https://github.com/baliestri/assuan-library</PackageProjectUrl>
-    <PackageTags>assuan; gpg; gpgme; gnupg</PackageTags>
+    <PackageTags>assuan; gpg; gpgme; gnupg; dependency-injection; di; extensions; microsoft-di</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <RepositoryUrl>https://github.com/baliestri/assuan-library</RepositoryUrl>
@@ -29,18 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="AssuanLibrary.AssuanPredefined" Static="true" />
-    <InternalsVisibleTo Include="AssuanLibrary.DependencyInjection" />
-    <InternalsVisibleTo Include="AssuanLibrary.Tests" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
-    <PackageReference Include="Polyfill">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="System.Collections.Immutable" />
+    <ProjectReference Include="..\AssuanLibrary\AssuanLibrary.csproj" />
   </ItemGroup>
 
 </Project>

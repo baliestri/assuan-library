@@ -24,7 +24,8 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   private readonly AssuanConnectionOptions _options;
   private readonly StabilizationOptions _stabilizationOptions;
   private bool _disposed;
-  private NamedPipeClientStream? _pipeClient;
+
+  private PipeStream? _pipeStream;
 
   public NamedPipeConnection(NamedPipeEndpoint endpoint, AssuanConnectionOptions options, StabilizationOptions? stabilizationOptions = null) {
     _endpoint = endpoint;
@@ -33,9 +34,18 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     _options.ConfigureStabilization?.Invoke(_stabilizationOptions);
   }
 
+  public NamedPipeConnection(NamedPipeServerStream pipeServer, NamedPipeEndpoint endpoint, AssuanConnectionOptions options,
+  StabilizationOptions? stabilizationOptions = null) {
+    _endpoint = endpoint;
+    _options = options;
+    _stabilizationOptions = stabilizationOptions ?? StabilizationOptions.Default;
+    _options.ConfigureStabilization?.Invoke(_stabilizationOptions);
+    _pipeStream = pipeServer;
+  }
+
   /// <inheritdoc />
-  [MemberNotNullWhen(true, nameof(_pipeClient))]
-  public bool IsConnected => _pipeClient is { IsConnected: true };
+  [MemberNotNullWhen(true, nameof(_pipeStream))]
+  public bool IsConnected => _pipeStream is { IsConnected: true };
 
   /// <inheritdoc />
   public void Open() {
@@ -44,9 +54,12 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     var pipeClient = new NamedPipeClientStream(".", _endpoint.Name, PipeDirection.InOut, PipeOptions.None);
 
     pipeClient.Connect(_options.TimeoutInMilliseconds);
+
+    pipeClient.ReadMode = PipeTransmissionMode.Message;
+
     pipeClient.DiscardAvailableData();
 
-    _pipeClient = pipeClient;
+    _pipeStream = pipeClient;
   }
 
   /// <inheritdoc />
@@ -57,8 +70,8 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    _pipeClient.Write(buffer);
-    _pipeClient.Flush();
+    _pipeStream.Write(buffer);
+    _pipeStream.Flush();
   }
 
   /// <inheritdoc />
@@ -69,7 +82,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    using var reader = new StabilizedNamedPipeClientReader(_pipeClient, _options.TimeoutInMilliseconds, _stabilizationOptions);
+    using var reader = new StabilizedNamedPipeReader(_pipeStream, _options.TimeoutInMilliseconds, _stabilizationOptions);
     return reader.Read();
   }
 
@@ -85,7 +98,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     using var memoryStream = new MemoryStream();
 
     while (true) {
-      var b = _pipeClient.ReadByte();
+      var b = _pipeStream.ReadByte();
       if (b < 0) {
         break; // EOF
       }
@@ -137,9 +150,9 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       return;
     }
 
-    _pipeClient.Write(Commands.Bye, 0, Commands.Bye.Length);
-    _pipeClient.Flush();
-    _pipeClient.DiscardAvailableData();
+    _pipeStream.Write(Commands.Bye, 0, Commands.Bye.Length);
+    _pipeStream.Flush();
+    _pipeStream.DiscardAvailableData();
   }
 
   /// <inheritdoc />
@@ -149,9 +162,14 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     var pipeClient = new NamedPipeClientStream(".", _endpoint.Name, PipeDirection.InOut, PipeOptions.Asynchronous);
 
     await pipeClient.ConnectAsync(_options.TimeoutInMilliseconds, ct).ConfigureAwait(false);
+
+    pipeClient.ReadMode = PipeTransmissionMode.Message;
+
     await pipeClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
 
-    _pipeClient = pipeClient;
+    Console.WriteLine($"DEBUG: Connected to named pipe '{_endpoint.Name}'.");
+
+    _pipeStream = pipeClient;
   }
 
   /// <inheritdoc />
@@ -162,19 +180,25 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    await _pipeClient.WriteAsync(buffer, ct).ConfigureAwait(false);
-    await _pipeClient.FlushAsync(ct).ConfigureAwait(false);
+    Console.WriteLine($"DEBUG: Writing {buffer.Length} bytes to named pipe '{_endpoint.Name}'.");
+
+    await _pipeStream.WriteAsync(buffer, ct).ConfigureAwait(false);
+    await _pipeStream.FlushAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
   public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken ct = default) {
+    Console.WriteLine("DEBUG: NamedPipeConnection.ReadAsync called.");
+
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    using var reader = new StabilizedNamedPipeClientReader(_pipeClient, _options.TimeoutInMilliseconds, _stabilizationOptions);
+    Console.WriteLine("DEBUG: Starting async read from named pipe.");
+
+    using var reader = new StabilizedNamedPipeReader(_pipeStream, _options.TimeoutInMilliseconds, _stabilizationOptions);
     return await reader.ReadAsync(ct).ConfigureAwait(false);
   }
 
@@ -190,7 +214,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     using var memoryStream = new MemoryStream();
 
     while (!ct.IsCancellationRequested) {
-      var b = _pipeClient.ReadByte();
+      var b = _pipeStream.ReadByte();
       if (b < 0) {
         break; // EOF
       }
@@ -242,9 +266,9 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       return;
     }
 
-    await _pipeClient.WriteAsync(Commands.Bye, ct).ConfigureAwait(false);
-    await _pipeClient.FlushAsync(ct).ConfigureAwait(false);
-    await _pipeClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
+    await _pipeStream.WriteAsync(Commands.Bye, ct).ConfigureAwait(false);
+    await _pipeStream.FlushAsync(ct).ConfigureAwait(false);
+    await _pipeStream.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -257,8 +281,8 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       Close();
     }
 
-    _pipeClient?.Dispose();
-    _pipeClient = null;
+    _pipeStream?.Dispose();
+    _pipeStream = null;
     _disposed = true;
   }
 
@@ -272,11 +296,11 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       await CloseAsync().ConfigureAwait(false);
     }
 
-    if (_pipeClient is not null) {
-      await _pipeClient.DisposeAsync().ConfigureAwait(false);
+    if (_pipeStream is not null) {
+      await _pipeStream.DisposeAsync().ConfigureAwait(false);
     }
 
-    _pipeClient = null;
+    _pipeStream = null;
     _disposed = true;
   }
 }

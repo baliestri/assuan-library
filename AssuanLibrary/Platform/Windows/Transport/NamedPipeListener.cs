@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
 using System.Runtime.Versioning;
 using AssuanLibrary.Platform.Windows.Transport.Endpoints;
@@ -16,6 +17,7 @@ internal sealed class NamedPipeListener(NamedPipeEndpoint endpoint, AssuanListen
   private NamedPipeServerStream? _serverStream;
 
   /// <inheritdoc />
+  [MemberNotNullWhen(true, nameof(_serverStream))]
   public bool IsListening { get; private set; }
 
   /// <inheritdoc />
@@ -26,10 +28,10 @@ internal sealed class NamedPipeListener(NamedPipeEndpoint endpoint, AssuanListen
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeListener));
 
     if (IsListening) {
-      return new NamedPipeConnection(endpoint, AssuanConnectionOptions.Default);
+      return new NamedPipeConnection(_serverStream, endpoint, AssuanConnectionOptions.Default);
     }
 
-    _serverStream = new NamedPipeServerStream(endpoint.Name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.None);
+    _serverStream = new NamedPipeServerStream(endpoint.Name, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None);
     _serverStream.WaitForConnection();
 
     IsListening = true;
@@ -37,7 +39,9 @@ internal sealed class NamedPipeListener(NamedPipeEndpoint endpoint, AssuanListen
     var stabilizationOptions = StabilizationOptions.Default;
     options.ConfigureStabilization?.Invoke(stabilizationOptions);
 
-    return new NamedPipeConnection(endpoint, AssuanConnectionOptions.Default, stabilizationOptions);
+    var connection = new NamedPipeConnection(_serverStream, endpoint, AssuanConnectionOptions.Default, stabilizationOptions);
+
+    return connection;
   }
 
   /// <inheritdoc />
@@ -45,18 +49,24 @@ internal sealed class NamedPipeListener(NamedPipeEndpoint endpoint, AssuanListen
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeListener));
 
     if (IsListening) {
-      return new NamedPipeConnection(endpoint, AssuanConnectionOptions.Default);
+      return new NamedPipeConnection(_serverStream, endpoint, AssuanConnectionOptions.Default);
     }
 
-    _serverStream = new NamedPipeServerStream(endpoint.Name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+    _serverStream = new NamedPipeServerStream(endpoint.Name, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
     await _serverStream.WaitForConnectionAsync(ct).ConfigureAwait(false);
+
+    Console.WriteLine("Client connected to named pipe.");
 
     IsListening = true;
 
     var stabilizationOptions = StabilizationOptions.Default;
     options.ConfigureStabilization?.Invoke(stabilizationOptions);
 
-    return new NamedPipeConnection(endpoint, AssuanConnectionOptions.Default, stabilizationOptions);
+    var connection = new NamedPipeConnection(_serverStream, endpoint, AssuanConnectionOptions.Default, stabilizationOptions);
+
+    Console.WriteLine($"DEBUG: Opened connection of type {connection.GetType()}");
+
+    return connection;
   }
 
   /// <inheritdoc />

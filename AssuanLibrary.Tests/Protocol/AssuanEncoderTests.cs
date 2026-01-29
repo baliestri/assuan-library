@@ -113,4 +113,51 @@ public sealed class AssuanEncoderTests {
 
     result.IsEmpty.ShouldBeTrue();
   }
+
+  [Fact]
+  public void AsString_ShouldEncodeSpaces_WhenEncodeSpaceIsTrue() {
+    AssuanEncoder.AsString("a b", false, true)
+      .ShouldBe("a%20b");
+  }
+
+  [Fact]
+  public void AsString_ShouldNotDoubleEncode_ExistingPercentTriplets() {
+    AssuanEncoder.AsString("%41", false).ShouldBe("%41");
+    AssuanEncoder.AsString("%41", false, true).ShouldBe("%41");
+  }
+
+  [Fact]
+  public void IsEncoded_ShouldReturnTrue_ForEmptyValues() {
+    AssuanEncoder.IsEncoded(string.Empty).ShouldBeTrue();
+    AssuanEncoder.IsEncoded(ReadOnlySpan<byte>.Empty).ShouldBeTrue();
+  }
+
+  [Theory]
+  [InlineData("%41")]
+  [InlineData("a%20b")]
+  [InlineData("%6a")]
+  public void IsEncoded_ShouldReturnTrue_ForValidPercentTriplets(string input) => AssuanEncoder.IsEncoded(input).ShouldBeTrue();
+
+  [Theory]
+  [InlineData("%")]
+  [InlineData("ABC%")]
+  [InlineData("%4")]
+  [InlineData("%G1")]
+  [InlineData("%1G")]
+  public void IsEncoded_ShouldReturnFalse_ForInvalidPercentTriplets(string input) => AssuanEncoder.IsEncoded(input).ShouldBeFalse();
+
+  [Fact]
+  public void IsEncoded_ShouldReturnFalse_ForNonAsciiCharacters() => AssuanEncoder.IsEncoded("olé").ShouldBeFalse();
+
+  [Fact]
+  public void IsEncoded_ShouldRespectEncodeSpaceFlag() {
+    AssuanEncoder.IsEncoded("a b", true).ShouldBeFalse();
+    AssuanEncoder.IsEncoded("a%20b", true).ShouldBeTrue();
+  }
+
+  [Fact]
+  public void IsEncoded_BytesOverload_ShouldReturnFalse_ForNonAsciiBytes() {
+    ReadOnlySpan<byte> value = [0x80];
+    AssuanEncoder.IsEncoded(value).ShouldBeFalse();
+  }
 }

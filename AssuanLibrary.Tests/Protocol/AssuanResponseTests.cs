@@ -144,4 +144,25 @@ public sealed class AssuanResponseTests {
     copy.ShouldBe(original);
     ReferenceEquals(copy, original).ShouldBeFalse();
   }
+
+  [Fact]
+  public void ToString_WithTSpecifierOnly_ShouldReturnTypeValue() {
+    var response = new AssuanResponse("OK hello"u8.ToArray());
+
+    response.ToString("T", CultureInfo.InvariantCulture).ShouldBe("OK");
+  }
+
+  [Fact]
+  public void ToString_WithTD_OnDataResponse_ShouldReturnHex() {
+    var response = new AssuanResponse("D %41%42"u8.ToArray());
+
+    response.ToString("D", CultureInfo.InvariantCulture).ShouldBe("4142");
+  }
+
+  [Fact]
+  public void ToString_WithFormatLengthGreaterThan2_ShouldFallbackToDefault() {
+    var response = new AssuanResponse("OK hello"u8.ToArray());
+
+    response.ToString("TGX", CultureInfo.InvariantCulture).ShouldBe("hello");
+  }
 }

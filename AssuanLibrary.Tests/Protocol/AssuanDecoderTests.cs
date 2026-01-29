@@ -140,4 +140,21 @@ public sealed class AssuanDecoderTests {
 
     result.ShouldBe(["a", "b", "c"]);
   }
+
+  [Fact]
+  public void ToString_ShouldPreserveMixedValidAndInvalidPercentSequences()
+    => AssuanDecoder.ToString("%41%ZZ%42").ShouldBe("A%ZZB");
+
+  [Fact]
+  public void ToString_ShouldDecodeDoublePercentSequencePredictably() {
+    // First '%' is not followed by 2 hex chars, so it is preserved.
+    // Second '%41' should decode to 'A'.
+    AssuanDecoder.ToString("%%41").ShouldBe("%A");
+  }
+
+  [Fact]
+  public void ToBytes_ShouldDecodeNullByte() {
+    var bytes = AssuanDecoder.ToBytes("%00");
+    bytes.ShouldBe([0x00]);
+  }
 }

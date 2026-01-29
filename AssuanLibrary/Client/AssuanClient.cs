@@ -8,7 +8,7 @@ using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
 using AssuanLibrary.Platform.Common.Transport;
 using AssuanLibrary.Platform.Unix.Transport.Endpoints;
-using AssuanLibrary.Platform.Windows.Endpoints;
+using AssuanLibrary.Platform.Windows.Transport.Endpoints;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Endpoints;

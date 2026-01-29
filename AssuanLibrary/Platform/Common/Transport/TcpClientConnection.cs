@@ -156,9 +156,8 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    _networkStream.Write(Commands.Bye);
-    _networkStream.Flush();
-    _tcpClient.DiscardAvailableData();
+    _networkStream.Close();
+    _tcpClient.Close();
   }
 
   /// <inheritdoc />
@@ -272,9 +271,10 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    await _networkStream.WriteAsync(Commands.Bye, ct).ConfigureAwait(false);
-    await _networkStream.FlushAsync(ct).ConfigureAwait(false);
-    await _tcpClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
+    await Task.Run(() => {
+      _networkStream.Close();
+      _tcpClient.Close();
+    }, ct);
   }
 
   /// <inheritdoc />
@@ -283,15 +283,15 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       return;
     }
 
-    if (IsConnected) {
-      Close();
+    try {
+      _networkStream?.Dispose();
+      _tcpClient?.Dispose();
     }
-
-    _networkStream?.Dispose();
-    _tcpClient?.Dispose();
-    _networkStream = null;
-    _tcpClient = null;
-    _disposed = true;
+    finally {
+      _networkStream = null;
+      _tcpClient = null;
+      _disposed = true;
+    }
   }
 
   /// <inheritdoc />
@@ -300,21 +300,20 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       return;
     }
 
-    if (IsConnected) {
-      await CloseAsync().ConfigureAwait(false);
-    }
+    try {
+      if (_networkStream is not null) {
+        await CastAndDispose(_networkStream);
+      }
 
-    if (_networkStream is not null) {
-      await CastAndDispose(_networkStream);
+      if (_tcpClient is not null) {
+        await CastAndDispose(_tcpClient);
+      }
     }
-
-    if (_tcpClient is not null) {
-      await CastAndDispose(_tcpClient);
+    finally {
+      _networkStream = null;
+      _tcpClient = null;
+      _disposed = true;
     }
-
-    _networkStream = null;
-    _tcpClient = null;
-    _disposed = true;
 
     return;
 

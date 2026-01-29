@@ -158,8 +158,6 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    _socket.Send(Commands.Bye, SocketFlags.None);
-    _socket.DiscardAvailableData();
     _socket.Shutdown(SocketShutdown.Both);
   }
 
@@ -278,10 +276,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    var segment = new ArraySegment<byte>(Commands.Bye);
-    await _socket.SendAsync(segment, SocketFlags.None, ct).ConfigureAwait(false);
-    await _socket.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
-    _socket.Shutdown(SocketShutdown.Both);
+    await Task.Run(() => _socket.Shutdown(SocketShutdown.Both), ct);
   }
 
   /// <inheritdoc />
@@ -290,13 +285,13 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       return;
     }
 
-    if (IsConnected) {
-      Close();
+    try {
+      _socket?.Dispose();
     }
-
-    _socket?.Dispose();
-    _socket = null;
-    _disposed = true;
+    finally {
+      _socket = null;
+      _disposed = true;
+    }
   }
 
   /// <inheritdoc />
@@ -305,16 +300,15 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       return;
     }
 
-    if (IsConnected) {
-      await CloseAsync().ConfigureAwait(false);
+    try {
+      if (_socket is not null) {
+        await CastAndDispose(_socket);
+      }
     }
-
-    if (_socket is not null) {
-      await CastAndDispose(_socket);
+    finally {
+      _socket = null;
+      _disposed = true;
     }
-
-    _socket = null;
-    _disposed = true;
 
     return;
 

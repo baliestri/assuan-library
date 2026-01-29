@@ -150,9 +150,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       return;
     }
 
-    _pipeStream.Write(Commands.Bye, 0, Commands.Bye.Length);
-    _pipeStream.Flush();
-    _pipeStream.DiscardAvailableData();
+    _pipeStream.Close();
   }
 
   /// <inheritdoc />
@@ -258,9 +256,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       return;
     }
 
-    await _pipeStream.WriteAsync(Commands.Bye, ct).ConfigureAwait(false);
-    await _pipeStream.FlushAsync(ct).ConfigureAwait(false);
-    await _pipeStream.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
+    await Task.Run(() => _pipeStream.Close(), ct);
   }
 
   /// <inheritdoc />
@@ -269,13 +265,13 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       return;
     }
 
-    if (IsConnected) {
-      Close();
+    try {
+      _pipeStream?.Dispose();
     }
-
-    _pipeStream?.Dispose();
-    _pipeStream = null;
-    _disposed = true;
+    finally {
+      _pipeStream = null;
+      _disposed = true;
+    }
   }
 
   /// <inheritdoc />
@@ -284,15 +280,14 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       return;
     }
 
-    if (IsConnected) {
-      await CloseAsync().ConfigureAwait(false);
+    try {
+      if (_pipeStream is not null) {
+        await _pipeStream.DisposeAsync().ConfigureAwait(false);
+      }
     }
-
-    if (_pipeStream is not null) {
-      await _pipeStream.DisposeAsync().ConfigureAwait(false);
+    finally {
+      _pipeStream = null;
+      _disposed = true;
     }
-
-    _pipeStream = null;
-    _disposed = true;
   }
 }

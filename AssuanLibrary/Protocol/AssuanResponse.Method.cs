@@ -218,7 +218,16 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    return new AssuanResponse(AssuanResponseType.Data, referenceBuffer);
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Inquire, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
+    return new AssuanResponse(AssuanResponseType.Inquire, referenceBuffer);
   }
 
   /// <summary>
@@ -235,6 +244,6 @@ public sealed partial class AssuanResponse {
       builder.Append(param);
     }
 
-    return Inquire(AssuanEncoder.AsBytes(builder.ToString()));
+    return Inquire(Encoding.UTF8.GetBytes(builder.ToString()));
   }
 }

@@ -113,8 +113,6 @@ public struct StabilizedNamedPipeReader(PipeStream pipeStream, int timeoutInMill
 
     var buffer = ArrayPool<byte>.Shared.Rent(INITIAL_BUFFER_CAPACITY);
 
-    Console.WriteLine($"DEBUG: Starting stabilized read with timeout {_timeout.TotalMilliseconds} ms.");
-
     try {
       while (!ct.IsCancellationRequested) {
         if (!pipeStream.IsConnected) {
@@ -132,15 +130,11 @@ public struct StabilizedNamedPipeReader(PipeStream pipeStream, int timeoutInMill
 
         var hadData = false;
 
-        Console.WriteLine($"DEBUG: CanRead = {pipeStream.CanRead}, InBufferSize = {pipeStream.InBufferSize}");
-
         if (pipeStream.CanRead) {
           var read = await pipeStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
           hadData = read > 0;
 
           if (hadData) {
-            Console.WriteLine($"DEBUG: Read {read} bytes from the named pipe.");
-
             hasReceivedAnyData = true;
             _memoryStream.Write(buffer, 0, read);
             Array.Clear(buffer, 0, read);
@@ -154,7 +148,6 @@ public struct StabilizedNamedPipeReader(PipeStream pipeStream, int timeoutInMill
         StabilizationIdleDetector.Update(hadData, elapsed, ref idleElapsed, ref idleCycles);
 
         if (hasReceivedAnyData && StabilizationIdleDetector.IsStable(idleElapsed, options.Delay)) {
-          Console.WriteLine($"DEBUG -- Data has stabilized after {sw.Elapsed.TotalMilliseconds} ms.");
           break;
         }
 

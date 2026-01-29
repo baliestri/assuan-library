@@ -193,8 +193,6 @@ internal sealed class TcpClientConnection : IAssuanConnection {
 
     await _networkStream.WriteAsync(buffer, ct).ConfigureAwait(false);
     await _networkStream.FlushAsync(ct).ConfigureAwait(false);
-
-    Console.WriteLine($"DEBUG: Written {buffer.Length} bytes asynchronously.");
   }
 
   /// <inheritdoc />

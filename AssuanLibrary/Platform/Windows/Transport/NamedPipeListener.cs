@@ -55,16 +55,12 @@ internal sealed class NamedPipeListener(NamedPipeEndpoint endpoint, AssuanListen
     _serverStream = new NamedPipeServerStream(endpoint.Name, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
     await _serverStream.WaitForConnectionAsync(ct).ConfigureAwait(false);
 
-    Console.WriteLine("Client connected to named pipe.");
-
     IsListening = true;
 
     var stabilizationOptions = StabilizationOptions.Default;
     options.ConfigureStabilization?.Invoke(stabilizationOptions);
 
     var connection = new NamedPipeConnection(_serverStream, endpoint, AssuanConnectionOptions.Default, stabilizationOptions);
-
-    Console.WriteLine($"DEBUG: Opened connection of type {connection.GetType()}");
 
     return connection;
   }

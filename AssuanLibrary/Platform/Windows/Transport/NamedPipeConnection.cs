@@ -167,8 +167,6 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
 
     await pipeClient.DiscardAvailableDataAsync(ct).ConfigureAwait(false);
 
-    Console.WriteLine($"DEBUG: Connected to named pipe '{_endpoint.Name}'.");
-
     _pipeStream = pipeClient;
   }
 
@@ -180,23 +178,17 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    Console.WriteLine($"DEBUG: Writing {buffer.Length} bytes to named pipe '{_endpoint.Name}'.");
-
     await _pipeStream.WriteAsync(buffer, ct).ConfigureAwait(false);
     await _pipeStream.FlushAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
   public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken ct = default) {
-    Console.WriteLine("DEBUG: NamedPipeConnection.ReadAsync called.");
-
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
-
-    Console.WriteLine("DEBUG: Starting async read from named pipe.");
 
     using var reader = new StabilizedNamedPipeReader(_pipeStream, _options.TimeoutInMilliseconds, _stabilizationOptions);
     return await reader.ReadAsync(ct).ConfigureAwait(false);

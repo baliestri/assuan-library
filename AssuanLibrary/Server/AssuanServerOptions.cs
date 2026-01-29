@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics.CodeAnalysis;
+using AssuanLibrary.Server.Abstractions;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;
@@ -33,6 +34,11 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   /// </summary>
   public Action<AssuanListenerOptions>? ConfigureListener { get; set; }
 
+  /// <summary>
+  ///   A callback that is invoked when a session is authenticating.
+  /// </summary>
+  public AsyncServerHook? OnAuthenticateSessionAsync { get; set; }
+
   /// <inheritdoc />
   public bool Equals(AssuanServerOptions? other) {
     if (other is null) {
@@ -43,7 +49,9 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
       return true;
     }
 
-    return ConfigureListener == other.ConfigureListener;
+    return Banner == other.Banner &&
+           ConfigureListener == other.ConfigureListener &&
+           OnAuthenticateSessionAsync == other.OnAuthenticateSessionAsync;
   }
 
   /// <inheritdoc />
@@ -77,5 +85,6 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   private IEnumerable<object?> GetEqualityComponents() {
     yield return Banner;
     yield return ConfigureListener;
+    yield return OnAuthenticateSessionAsync;
   }
 }

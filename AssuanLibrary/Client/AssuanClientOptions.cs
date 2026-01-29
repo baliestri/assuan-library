@@ -32,14 +32,14 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   public Action<AssuanConnectionOptions>? ConfigureConnection { get; set; }
 
   /// <summary>
-  ///   A callback that is invoked when a session is authenticating.
+  ///   A callback that is invoked when a session is authenticating, providing authentication context.
   /// </summary>
   public AsyncClientHook<IReadOnlyDictionary<string, object>>? OnSessionAuthenticatingAsync { get; set; }
 
   /// <summary>
   ///   A callback that is invoked when a session is started.
   /// </summary>
-  public AsyncClientHook? OnSessionStartedAsync { get; set; }
+  public AsyncClientHook<IReadOnlyDictionary<string, object>>? OnSessionStartedAsync { get; set; }
 
   /// <summary>
   ///   A callback that is invoked when a session is ending.

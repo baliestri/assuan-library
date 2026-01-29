@@ -73,8 +73,11 @@ public sealed class AssuanClient(
       _connection = connectionFactory.CreateConnection(resolvedEndpoint);
       _connection.Open();
 
-      options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata, CancellationToken.None).GetAwaiter().GetResult();
-      options.OnSessionStartedAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
+      options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata).GetAwaiter().GetResult();
+
+      var banner = _connection.Read();
+      var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner };
+      options.OnSessionStartedAsync?.Invoke(_connection, sessionMetadata).GetAwaiter().GetResult();
     }
     catch (SocketException ex) {
       Dispose();
@@ -112,9 +115,15 @@ public sealed class AssuanClient(
         await options.OnSessionAuthenticatingAsync(_connection, metadata, ct).ConfigureAwait(false);
       }
 
+      var bannerTask = _connection.ReadAsync(ct).AsTask();
       if (options.OnSessionStartedAsync is not null) {
-        await options.OnSessionStartedAsync(_connection, ct).ConfigureAwait(false);
+        var banner = await bannerTask.ConfigureAwait(false);
+        var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner.ToArray() };
+        await options.OnSessionStartedAsync(_connection, sessionMetadata, ct).ConfigureAwait(false);
+        return;
       }
+
+      _ = await bannerTask.ConfigureAwait(false);
     }
     catch (Exception ex) {
       await DisposeAsync().ConfigureAwait(false);

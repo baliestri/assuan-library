@@ -97,8 +97,10 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
     => new DefaultListenerFactory(options);
 
   private async Task HandleSessionAsync(IAssuanConnection connection, CancellationToken ct = default) {
+    AssuanSessionLoop? sessionLoop = null;
+
     var session = new ServerSession(ct);
-    var context = new ServerContext(connection, session);
+    var context = new ServerContext(connection, session, inquire => sessionLoop?.SetActiveInquire(inquire));
 
     if (options.OnAuthenticateSessionAsync is not null) {
       await options.OnAuthenticateSessionAsync(context).ConfigureAwait(false);
@@ -109,27 +111,18 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
       await context.SendResponseAsync(bannerResponse, ct);
     }
 
-    while (connection.IsConnected &&
-           !ct.IsCancellationRequested) {
-      var buffer = await connection.ReadAsync(ct).ConfigureAwait(false);
-
-      if (buffer.IsEmpty) {
-        continue;
-      }
-
-      session.RefreshLastActivity();
-
-      var command = new AssuanCommand(buffer.ToArray());
-      await commandDispatcher.DispatchAsync(command, context).ConfigureAwait(false);
-    }
+    sessionLoop = new AssuanSessionLoop(connection, session, context, commandDispatcher);
+    await sessionLoop.RunAsync();
 
     session.Dispose();
     await connection.DisposeAsync();
   }
 
   private void HandleSession(IAssuanConnection connection, CancellationToken ct = default) {
+    AssuanSessionLoop? sessionLoop = null;
+
     var session = new ServerSession(ct);
-    var context = new ServerContext(connection, session);
+    var context = new ServerContext(connection, session, inquire => sessionLoop?.SetActiveInquire(inquire));
 
     options.OnAuthenticateSessionAsync?.Invoke(context).GetAwaiter().GetResult();
 
@@ -138,19 +131,8 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
       context.SendResponse(bannerResponse);
     }
 
-    while (connection.IsConnected &&
-           !ct.IsCancellationRequested) {
-      var buffer = connection.Read();
-
-      if (buffer.Length == 0) {
-        continue;
-      }
-
-      session.RefreshLastActivity();
-
-      var command = new AssuanCommand(buffer.ToArray());
-      commandDispatcher.Dispatch(command, context);
-    }
+    sessionLoop = new AssuanSessionLoop(connection, session, context, commandDispatcher);
+    sessionLoop.Run();
 
     session.Dispose();
     connection.Dispose();

@@ -3,7 +3,7 @@
 
 using System.Text;
 
-namespace AssuanLibrary.Expressions;
+namespace AssuanLibrary.Protocol.Expressions;
 
 public abstract partial class SymbolicExpression {
   /// <summary>

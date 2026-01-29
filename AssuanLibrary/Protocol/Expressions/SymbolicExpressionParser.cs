@@ -3,9 +3,8 @@
 
 using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Exceptions;
-using AssuanLibrary.Protocol;
 
-namespace AssuanLibrary.Expressions;
+namespace AssuanLibrary.Protocol.Expressions;
 
 /// <summary>
 ///   Parses symbolic expressions from Assuan responses.

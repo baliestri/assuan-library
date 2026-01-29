@@ -2,9 +2,8 @@
 // See the LICENSE file in the repository root for full license text.
 
 using AssuanLibrary.Extensions;
-using AssuanLibrary.Protocol;
 
-namespace AssuanLibrary.Expressions;
+namespace AssuanLibrary.Protocol.Expressions;
 
 /// <summary>
 ///   Represents an atomic symbolic expression.

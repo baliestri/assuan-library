@@ -31,6 +31,15 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
 
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
     return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
   }
 
@@ -68,7 +77,16 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(fullMessage);
     }
 
-    return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Error, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
+    return new AssuanResponse(AssuanResponseType.Error, referenceBuffer);
   }
 
   /// <summary>
@@ -95,6 +113,15 @@ public sealed partial class AssuanResponse {
     if (!AssuanEncoder.IsEncoded(message)) {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
+
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Status, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
 
     return new AssuanResponse(AssuanResponseType.Status, referenceBuffer);
   }
@@ -124,7 +151,16 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
 
-    return new AssuanResponse(AssuanResponseType.Status, referenceBuffer);
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Comment, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
+    return new AssuanResponse(AssuanResponseType.Comment, referenceBuffer);
   }
 
   /// <summary>
@@ -158,6 +194,15 @@ public sealed partial class AssuanResponse {
     if (!AssuanEncoder.IsEncoded(message)) {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
+
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Data, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
 
     return new AssuanResponse(AssuanResponseType.Data, referenceBuffer);
   }

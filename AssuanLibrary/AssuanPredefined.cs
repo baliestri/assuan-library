@@ -5,7 +5,6 @@ namespace AssuanLibrary;
 
 internal static class AssuanPredefined {
   public const int INITIAL_COLLECTION_SIZE = 4;
-  public const int TIMEOUT_IN_SECONDS = 30;
 
   public static class Characters {
     public const byte SPACE = 0x20;

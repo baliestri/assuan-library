@@ -12,7 +12,8 @@ namespace AssuanLibrary.Server;
 /// </summary>
 /// <param name="connection">The Assuan connection.</param>
 /// <param name="session">The Assuan session.</param>
-public sealed class ServerContext(IAssuanConnection connection, IServerSession session) : IServerContext {
+public sealed class ServerContext(IAssuanConnection connection, IServerSession session, Action<IServerInquireContext> registerPipeline)
+  : IServerContext {
   /// <inheritdoc />
   public IServerSession Session { get; } = session;
 
@@ -33,37 +34,26 @@ public sealed class ServerContext(IAssuanConnection connection, IServerSession s
     => await connection.WriteAsync(response.GetOriginalBuffer(), ct).ConfigureAwait(false);
 
   /// <inheritdoc />
-  public byte[] SendResponse(string keyword, IReadOnlyCollection<string> parameters, InquireHandler inquireHandler) {
+  public byte[] Inquire(string keyword, IReadOnlyCollection<string> parameters) {
     var inquireContext = new ServerInquireContext(keyword, parameters);
-    Session.Items["__inquire_context__"] = inquireContext;
+    registerPipeline(inquireContext);
 
     var response = AssuanResponse.Inquire(keyword, [..parameters]);
 
     SendResponse(response);
-    inquireHandler(inquireContext);
 
     return inquireContext.Wait();
   }
 
   /// <inheritdoc />
-  public async Task<ReadOnlyMemory<byte>> SendResponseAsync(string keyword, IReadOnlyCollection<string> parameters,
-  AsyncInquireHandler inquireHandler, CancellationToken ct = default) {
+  public async Task<ReadOnlyMemory<byte>> InquireAsync(string keyword, IReadOnlyCollection<string> parameters, CancellationToken ct = default) {
     var inquireContext = new ServerInquireContext(keyword, parameters);
-    Session.Items["__inquire_context__"] = inquireContext;
+    registerPipeline(inquireContext);
 
     var response = AssuanResponse.Inquire(keyword, [..parameters]);
 
     await SendResponseAsync(response, ct).ConfigureAwait(false);
-    await inquireHandler(inquireContext, ct);
 
     return await inquireContext.WaitAsync(ct).ConfigureAwait(false);
   }
-
-  /// <inheritdoc />
-  public void Close()
-    => connection.Dispose();
-
-  /// <inheritdoc />
-  public async Task CloseAsync(CancellationToken ct = default)
-    => await connection.DisposeAsync().ConfigureAwait(false);
 }

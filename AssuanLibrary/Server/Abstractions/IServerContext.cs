@@ -27,13 +27,12 @@ public interface IServerContext {
   void SendResponse(AssuanResponse response);
 
   /// <summary>
-  ///   Sends an inquire Assuan response back to the client.
+  ///   Inquires data from the client.
   /// </summary>
   /// <param name="keyword">The inquire keyword.</param>
   /// <param name="parameters">The inquire parameters.</param>
-  /// <param name="inquireHandler">The inquire handler to handle any inquire requests.</param>
   /// <returns>The inquire response data.</returns>
-  byte[] SendResponse(string keyword, IReadOnlyCollection<string> parameters, InquireHandler inquireHandler);
+  byte[] Inquire(string keyword, IReadOnlyCollection<string> parameters);
 
   /// <summary>
   ///   Sends an Assuan response collection back to the client asynchronously.
@@ -52,25 +51,11 @@ public interface IServerContext {
   Task SendResponseAsync(AssuanResponse response, CancellationToken ct = default);
 
   /// <summary>
-  ///   Sends an inquire Assuan response back to the client asynchronously.
+  ///   Inquires data from the client asynchronously.
   /// </summary>
   /// <param name="keyword">The inquire keyword.</param>
   /// <param name="parameters">The inquire parameters.</param>
-  /// <param name="inquireHandler">The inquire handler to handle any inquire requests.</param>
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A task that represents the asynchronous send operation, containing the inquire response data.</returns>
-  Task<ReadOnlyMemory<byte>> SendResponseAsync(string keyword, IReadOnlyCollection<string> parameters, AsyncInquireHandler inquireHandler,
-  CancellationToken ct = default);
-
-  /// <summary>
-  ///   Closes the server context and releases any associated resources.
-  /// </summary>
-  void Close();
-
-  /// <summary>
-  ///   Closes the server context and releases any associated resources asynchronously.
-  /// </summary>
-  /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-  /// <returns>A task that represents the asynchronous close operation.</returns>
-  Task CloseAsync(CancellationToken ct = default);
+  Task<ReadOnlyMemory<byte>> InquireAsync(string keyword, IReadOnlyCollection<string> parameters, CancellationToken ct = default);
 }

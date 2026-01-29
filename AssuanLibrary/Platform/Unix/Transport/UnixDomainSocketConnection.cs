@@ -97,7 +97,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
     if (!IsConnected) {
-      throw new AssuanClientException("TCP client is not connected.");
+      throw new AssuanClientException("Socket client is not connected.");
     }
 
     using var finalMemoryStream = new MemoryStream();
@@ -216,7 +216,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
     if (!IsConnected) {
-      throw new AssuanClientException("TCP client is not connected.");
+      throw new AssuanClientException("Socket client is not connected.");
     }
 
     using var finalMemoryStream = new MemoryStream();

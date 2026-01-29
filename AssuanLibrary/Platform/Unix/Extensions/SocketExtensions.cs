@@ -15,7 +15,7 @@ namespace AssuanLibrary.Platform.Unix.Extensions;
 internal static class SocketExtensions {
   extension(Socket socket) {
     /// <summary>
-    ///   Discards any available data in the TCP client receive buffer.
+    ///   Discards any available data in the socket receive buffer.
     /// </summary>
     public void DiscardAvailableData() {
       if (socket.Available == 0) {
@@ -28,7 +28,7 @@ internal static class SocketExtensions {
     }
 
     /// <summary>
-    ///   Discards any available data in the TCP client receive buffer asynchronously.
+    ///   Discards any available data in the socket receive buffer asynchronously.
     /// </summary>
     public async Task DiscardAvailableDataAsync(CancellationToken ct = default) {
       if (socket.Available == 0) {

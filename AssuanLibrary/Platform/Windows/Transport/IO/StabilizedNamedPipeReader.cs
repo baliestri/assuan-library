@@ -12,11 +12,11 @@ namespace AssuanLibrary.Platform.Windows.Transport.IO;
 /// <summary>
 ///   A reader that reads from a named pipe client until the data stabilizes, indicating no more data is incoming.
 /// </summary>
-/// <param name="namedPipeClientStream">The named pipe client to read from.</param>
+/// <param name="pipeStream">The named pipe client to read from.</param>
 /// <param name="timeoutInMilliseconds">The maximum duration to wait for the stream to stabilize before timing out.</param>
 /// <param name="options">The stabilization options to use.</param>
 [SupportedOSPlatform("windows")]
-public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeClientStream, int timeoutInMilliseconds, StabilizationOptions options)
+public struct StabilizedNamedPipeReader(PipeStream pipeStream, int timeoutInMilliseconds, StabilizationOptions options)
   : IStabilizedReader {
   private const int INITIAL_BUFFER_CAPACITY = 4096;
   private readonly TimeSpan _timeout = TimeSpan.FromMilliseconds(timeoutInMilliseconds);
@@ -24,16 +24,16 @@ public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeCli
   private bool _disposed;
 
   /// <summary>
-  ///   Initializes a new instance of the <see cref="StabilizedNamedPipeClientReader" /> struct with default stabilization options.
+  ///   Initializes a new instance of the <see cref="StabilizedNamedPipeReader" /> struct with default stabilization options.
   /// </summary>
-  /// <param name="namedPipeClientStream">The named pipe client to read from.</param>
+  /// <param name="pipeStream">The named pipe client to read from.</param>
   /// <param name="timeoutInMilliseconds">The maximum duration to wait for the stream to stabilize before timing out.</param>
-  public StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeClientStream, int timeoutInMilliseconds)
-    : this(namedPipeClientStream, timeoutInMilliseconds, StabilizationOptions.Default) { }
+  public StabilizedNamedPipeReader(PipeStream pipeStream, int timeoutInMilliseconds)
+    : this(pipeStream, timeoutInMilliseconds, StabilizationOptions.Default) { }
 
   /// <inheritdoc />
   public byte[] Read() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(StabilizedNamedPipeClientReader));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(StabilizedNamedPipeReader));
 
     var sw = Stopwatch.StartNew();
     var lastTick = sw.Elapsed;
@@ -47,7 +47,7 @@ public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeCli
 
     try {
       while (true) {
-        if (!namedPipeClientStream.IsConnected) {
+        if (!pipeStream.IsConnected) {
           break;
         }
 
@@ -62,19 +62,19 @@ public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeCli
 
         var hadData = false;
 
-        if (namedPipeClientStream.CanRead) {
-          var read = namedPipeClientStream.Read(buffer, 0, buffer.Length);
+        if (pipeStream.CanRead) {
+          var read = pipeStream.Read(buffer, 0, buffer.Length);
           hadData = read > 0;
 
           if (hadData) {
             hasReceivedAnyData = true;
             _memoryStream.Write(buffer, 0, read);
             Array.Clear(buffer, 0, read);
-
-            if (namedPipeClientStream.IsMessageComplete) {
-              break;
-            }
           }
+        }
+
+        if (pipeStream.IsMessageComplete) {
+          break;
         }
 
         StabilizationIdleDetector.Update(hadData, elapsed, ref idleElapsed, ref idleCycles);
@@ -101,7 +101,7 @@ public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeCli
 
   /// <inheritdoc />
   public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(StabilizedNamedPipeClientReader));
+    ObjectDisposedException.ThrowIf(_disposed, nameof(StabilizedNamedPipeReader));
 
     var sw = Stopwatch.StartNew();
     var lastTick = sw.Elapsed;
@@ -113,9 +113,11 @@ public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeCli
 
     var buffer = ArrayPool<byte>.Shared.Rent(INITIAL_BUFFER_CAPACITY);
 
+    Console.WriteLine($"DEBUG: Starting stabilized read with timeout {_timeout.TotalMilliseconds} ms.");
+
     try {
       while (!ct.IsCancellationRequested) {
-        if (!namedPipeClientStream.IsConnected) {
+        if (!pipeStream.IsConnected) {
           break;
         }
 
@@ -130,29 +132,34 @@ public struct StabilizedNamedPipeClientReader(NamedPipeClientStream namedPipeCli
 
         var hadData = false;
 
-        if (namedPipeClientStream.CanRead) {
-          var read = await namedPipeClientStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+        Console.WriteLine($"DEBUG: CanRead = {pipeStream.CanRead}, InBufferSize = {pipeStream.InBufferSize}");
+
+        if (pipeStream.CanRead) {
+          var read = await pipeStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
           hadData = read > 0;
 
           if (hadData) {
+            Console.WriteLine($"DEBUG: Read {read} bytes from the named pipe.");
+
             hasReceivedAnyData = true;
             _memoryStream.Write(buffer, 0, read);
             Array.Clear(buffer, 0, read);
+          }
 
-            if (namedPipeClientStream.IsMessageComplete) {
-              break;
-            }
+          if (pipeStream.IsMessageComplete) {
+            break;
           }
         }
 
         StabilizationIdleDetector.Update(hadData, elapsed, ref idleElapsed, ref idleCycles);
 
         if (hasReceivedAnyData && StabilizationIdleDetector.IsStable(idleElapsed, options.Delay)) {
+          Console.WriteLine($"DEBUG -- Data has stabilized after {sw.Elapsed.TotalMilliseconds} ms.");
           break;
         }
 
         var poll = (int)Math.Min(options.PollInterval.TotalMilliseconds, remaining.TotalMilliseconds);
-        Thread.Sleep(poll);
+        await Task.Delay(poll, ct);
       }
 
       var output = _memoryStream.ToArray();

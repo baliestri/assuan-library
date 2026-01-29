@@ -16,52 +16,60 @@ using AssuanLibrary.Transport.Endpoints;
 namespace AssuanLibrary.Client;
 
 /// <inheritdoc />
-public sealed class AssuanClient(
-  IAssuanEndpointResolver endpointResolver,
-  IAssuanConnectionFactory connectionFactory,
-  AssuanClientOptions options,
-  IAssuanEndpoint? endpoint = null,
-  AssuanEndpointKind? kind = null
-) : IAssuanClient {
+public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssuanConnectionFactory connectionFactory, AssuanClientOptions options)
+  : IAssuanClient {
   private IAssuanConnection? _connection;
   private bool _disposed;
 
   /// <summary>
-  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint kind.
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint resolver.
   /// </summary>
-  /// <param name="endpointKind">The kind of endpoint to use for the connection.</param>
-  public AssuanClient(AssuanEndpointKind endpointKind)
-    : this(CreateDefaultResolver(), CreateDefaultFactory(AssuanClientOptions.Default), AssuanClientOptions.Default, null, endpointKind) { }
+  /// <param name="endpointResolver">The endpoint resolver to resolve endpoints.</param>
+  public AssuanClient(IAssuanEndpointResolver endpointResolver)
+    : this(endpointResolver, CreateDefaultFactory(AssuanClientOptions.Default), AssuanClientOptions.Default) { }
 
   /// <summary>
-  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint kind and options.
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint resolver and options.
   /// </summary>
-  /// <param name="endpointKind">The kind of endpoint to use for the connection.</param>
+  /// <param name="endpointResolver">The endpoint resolver to resolve endpoints.</param>
   /// <param name="options">The configuration options for the client.</param>
-  public AssuanClient(AssuanEndpointKind endpointKind, AssuanClientOptions options) :
-    this(CreateDefaultResolver(), CreateDefaultFactory(options), options, null, endpointKind) { }
+  public AssuanClient(IAssuanEndpointResolver endpointResolver, AssuanClientOptions options)
+    : this(endpointResolver, CreateDefaultFactory(options), options) { }
 
   /// <summary>
-  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint.
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified connection factory.
   /// </summary>
-  /// <param name="endpoint">The endpoint to use for the connection.</param>
-  public AssuanClient(IAssuanEndpoint endpoint) :
-    this(CreateDefaultResolver(), CreateDefaultFactory(AssuanClientOptions.Default), AssuanClientOptions.Default, endpoint) { }
+  /// <param name="connectionFactory">The connection factory to create connections.</param>
+  public AssuanClient(IAssuanConnectionFactory connectionFactory)
+    : this(CreateDefaultResolver(), connectionFactory, AssuanClientOptions.Default) { }
 
   /// <summary>
-  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint and options.
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified connection factory and options.
   /// </summary>
-  /// <param name="endpoint">The endpoint to use for the connection.</param>
+  /// <param name="connectionFactory">The connection factory to create connections.</param>
   /// <param name="options">The configuration options for the client.</param>
-  public AssuanClient(IAssuanEndpoint endpoint, AssuanClientOptions options)
-    : this(CreateDefaultResolver(), CreateDefaultFactory(options), options, endpoint) { }
+  public AssuanClient(IAssuanConnectionFactory connectionFactory, AssuanClientOptions options)
+    : this(CreateDefaultResolver(), connectionFactory, options) { }
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified options.
+  /// </summary>
+  /// <param name="options">The configuration options for the client.</param>
+  public AssuanClient(AssuanClientOptions options)
+    : this(CreateDefaultResolver(), CreateDefaultFactory(options), options) { }
+
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanClient" /> class with default settings.
+  /// </summary>
+  public AssuanClient()
+    : this(CreateDefaultResolver(), CreateDefaultFactory(AssuanClientOptions.Default), AssuanClientOptions.Default) { }
 
   /// <inheritdoc />
   [MemberNotNullWhen(true, nameof(_connection))]
   public bool IsConnected => _connection is { IsConnected: true };
 
   /// <inheritdoc />
-  public void Connect() {
+  public void Connect(IAssuanEndpoint endpoint, IReadOnlyDictionary<string, object> metadata) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (IsConnected) {
@@ -69,8 +77,7 @@ public sealed class AssuanClient(
     }
 
     try {
-      var (resolvedEndpoint, metadata) = ResolveEndpoint();
-      _connection = connectionFactory.CreateConnection(resolvedEndpoint);
+      _connection = connectionFactory.CreateConnection(endpoint);
       _connection.Open();
 
       options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata).GetAwaiter().GetResult();
@@ -86,20 +93,7 @@ public sealed class AssuanClient(
   }
 
   /// <inheritdoc />
-  public void Disconnect() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (!IsConnected) {
-      return;
-    }
-
-    options.OnSessionEndingAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
-
-    _connection.Close();
-  }
-
-  /// <inheritdoc />
-  public async Task ConnectAsync(CancellationToken ct = default) {
+  public void Connect(AssuanEndpointKind endpointKind) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
     if (IsConnected) {
@@ -107,43 +101,20 @@ public sealed class AssuanClient(
     }
 
     try {
-      var (resolvedEndpoint, metadata) = ResolveEndpoint();
+      var (resolvedEndpoint, metadata) = endpointResolver.Resolve(endpointKind);
       _connection = connectionFactory.CreateConnection(resolvedEndpoint);
-      await _connection.OpenAsync(ct).ConfigureAwait(false);
+      _connection.Open();
 
-      if (options.OnSessionAuthenticatingAsync is not null) {
-        await options.OnSessionAuthenticatingAsync(_connection, metadata, ct).ConfigureAwait(false);
-      }
+      options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata).GetAwaiter().GetResult();
 
-      var bannerTask = _connection.ReadAsync(ct).AsTask();
-      if (options.OnSessionStartedAsync is not null) {
-        var banner = await bannerTask.ConfigureAwait(false);
-        var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner.ToArray() };
-        await options.OnSessionStartedAsync(_connection, sessionMetadata, ct).ConfigureAwait(false);
-        return;
-      }
-
-      _ = await bannerTask.ConfigureAwait(false);
+      var banner = _connection.Read();
+      var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner };
+      options.OnSessionStartedAsync?.Invoke(_connection, sessionMetadata).GetAwaiter().GetResult();
     }
-    catch (Exception ex) {
-      await DisposeAsync().ConfigureAwait(false);
+    catch (SocketException ex) {
+      Dispose();
       throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
     }
-  }
-
-  /// <inheritdoc />
-  public async Task DisconnectAsync(CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (!IsConnected) {
-      return;
-    }
-
-    if (options.OnSessionEndingAsync is not null) {
-      await options.OnSessionEndingAsync(_connection, ct).ConfigureAwait(false);
-    }
-
-    await _connection.CloseAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -181,6 +152,84 @@ public sealed class AssuanClient(
   }
 
   /// <inheritdoc />
+  public void Disconnect() {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (!IsConnected) {
+      return;
+    }
+
+    options.OnSessionEndingAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
+
+    _connection.Close();
+  }
+
+  /// <inheritdoc />
+  public async Task ConnectAsync(IAssuanEndpoint endpoint, IReadOnlyDictionary<string, object> metadata, CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (IsConnected) {
+      return;
+    }
+
+    try {
+      _connection = connectionFactory.CreateConnection(endpoint);
+      await _connection.OpenAsync(ct).ConfigureAwait(false);
+
+      if (options.OnSessionAuthenticatingAsync is not null) {
+        await options.OnSessionAuthenticatingAsync(_connection, metadata, ct).ConfigureAwait(false);
+      }
+
+      var bannerTask = _connection.ReadAsync(ct).AsTask();
+      if (options.OnSessionStartedAsync is not null) {
+        var banner = await bannerTask.ConfigureAwait(false);
+        var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner.ToArray() };
+        await options.OnSessionStartedAsync(_connection, sessionMetadata, ct).ConfigureAwait(false);
+        return;
+      }
+
+      _ = await bannerTask.ConfigureAwait(false);
+    }
+    catch (Exception ex) {
+      await DisposeAsync().ConfigureAwait(false);
+      throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
+    }
+  }
+
+  /// <inheritdoc />
+  public async Task ConnectAsync(AssuanEndpointKind endpointKind, CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (IsConnected) {
+      return;
+    }
+
+    try {
+      var (resolvedEndpoint, metadata) = endpointResolver.Resolve(endpointKind);
+      _connection = connectionFactory.CreateConnection(resolvedEndpoint);
+      await _connection.OpenAsync(ct).ConfigureAwait(false);
+
+      if (options.OnSessionAuthenticatingAsync is not null) {
+        await options.OnSessionAuthenticatingAsync(_connection, metadata, ct).ConfigureAwait(false);
+      }
+
+      var bannerTask = _connection.ReadAsync(ct).AsTask();
+      if (options.OnSessionStartedAsync is not null) {
+        var banner = await bannerTask.ConfigureAwait(false);
+        var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner.ToArray() };
+        await options.OnSessionStartedAsync(_connection, sessionMetadata, ct).ConfigureAwait(false);
+        return;
+      }
+
+      _ = await bannerTask.ConfigureAwait(false);
+    }
+    catch (Exception ex) {
+      await DisposeAsync().ConfigureAwait(false);
+      throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
+    }
+  }
+
+  /// <inheritdoc />
   public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
 
@@ -213,6 +262,21 @@ public sealed class AssuanClient(
 
     var readBuffer = await _connection.ReadAsync(inquireHandler, ct).ConfigureAwait(false);
     return new AssuanResponseCollection(readBuffer);
+  }
+
+  /// <inheritdoc />
+  public async Task DisconnectAsync(CancellationToken ct = default) {
+    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+
+    if (!IsConnected) {
+      return;
+    }
+
+    if (options.OnSessionEndingAsync is not null) {
+      await options.OnSessionEndingAsync(_connection, ct).ConfigureAwait(false);
+    }
+
+    await _connection.CloseAsync(ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
@@ -254,15 +318,5 @@ public sealed class AssuanClient(
     }
 
     throw new PlatformNotSupportedException();
-  }
-
-  private AssuanEndpointResolution ResolveEndpoint() {
-    if (endpoint is not null) {
-      return new AssuanEndpointResolution(endpoint, new Dictionary<string, object>());
-    }
-
-    return kind is not null
-      ? endpointResolver.Resolve(kind)
-      : throw new AssuanClientException("Either an endpoint or an endpoint kind must be provided to resolve the connection endpoint.");
   }
 }

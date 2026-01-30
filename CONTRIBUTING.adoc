@@ -1,0 +1,142 @@
+= Contributing
+
+Thanks for taking the time to contribute to *AssuanLibrary*.
+
+This repository contains a .NET implementation of the *Assuan* protocol with multiple transports (TCP, Windows Named Pipes, Unix Domain Sockets), plus a small sample app and a test suite.
+
+== Quick links
+
+* Repo: https://github.com/baliestri/assuan-library
+* License: link:LICENSE.md[MIT]
+
+== Ways to contribute
+
+* Report bugs and regressions
+* Propose features or protocol/transport improvements
+* Improve docs and samples
+* Add tests (especially for protocol edge cases)
+* Add transports or platform fixes
+
+== Before you start
+
+* Please search existing issues/PRs first to avoid duplicates.
+* For significant changes, open an issue first so we can align on approach.
+
+== Development prerequisites
+
+* *.NET SDK*: the solution includes projects targeting *`netstandard2.0`* (library) and *`net10.0`* (tests/sample). Install an SDK that supports `net10.0`.
+* Git
+
+Optional but helpful:
+
+* JetBrains Rider / Visual Studio / VS Code
+
+== Solution layout
+
+* `AssuanLibrary/` — main library (`netstandard2.0`)
+* `AssuanLibrary.Extensions.DependencyInjection/` — Microsoft DI helpers (`netstandard2.0`)
+* `AssuanLibrary.Sample/` — sample console app (`net10.0`)
+* `AssuanLibrary.Tests/` — test suite (`net10.0`, xUnit)
+
+The repo uses *central package management* via `Directory.Packages.props`.
+
+== Build, test, and run
+
+From the repo root:
+
+[source,shell]
+----
+# restore packages
+dotnet restore .\AssuanLibrary.sln
+
+# build (warnings are treated as errors)
+dotnet build .\AssuanLibrary.sln -c Release
+
+# run tests
+dotnet test .\AssuanLibrary.Tests\AssuanLibrary.Tests.csproj -c Release
+----
+
+== Platform notes
+
+Some behavior and/or tests may be platform-specific:
+
+* *Windows Named Pipes*: only available on Windows.
+* *Unix Domain Sockets*: expected to work on Linux and likely macOS (macOS isn’t heavily tested).
+
+If you add transport-specific tests, please guard them with OS checks so the suite remains portable.
+
+== Coding standards
+
+* *Nullable reference types* are enabled.
+* Warnings are treated as errors (`TreatWarningsAsErrors=true`). Please keep builds warning-free.
+* Follow the repo’s formatting and style rules in `.editorconfig`.
+* Prefer small, focused commits and PRs.
+
+=== Public API changes
+
+If you change public API surface:
+
+* keep it source/binary compatible when possible
+* add/adjust tests
+* update docs/samples if the external behavior changes
+
+== Commit messages (important)
+
+This repo is set up for *Conventional Commits* and changelog generation via `git-cliff` (`cliff.toml`).
+
+Please use messages like:
+
+* `feat(protocol): support XYZ`
+* `fix(client): handle empty response collections`
+* `doc: improve readme examples`
+* `test(server): add handshake regression test`
+
+Use `!` for breaking changes (and explain in the body):
+
+* `feat!: change default session lifecycle`
+
+== Pull request guidelines
+
+A PR should:
+
+* explain _why_ the change is needed (problem statement)
+* include tests for bug fixes and new behavior
+* keep formatting consistent with existing code
+* pass `dotnet build` and `dotnet test`
+
+If your PR affects multiple areas (protocol + transport + server loop), consider splitting it into smaller PRs.
+
+== Reporting bugs
+
+When filing a bug, include:
+
+* what you expected vs what happened
+* a minimal repro (code snippet or small repo)
+* OS + .NET SDK version
+* relevant logs/exception stack traces
+* transport in use (TCP / Named Pipes / UDS)
+
+== Feature requests
+
+Feature requests are welcome. To make them actionable, include:
+
+* a concrete use case
+* expected protocol semantics (if applicable)
+* compatibility concerns (is it breaking?)
+
+== Security
+
+If you believe you’ve found a security vulnerability, please *do not open a public issue*.
+
+Prefer GitHub Security Advisories (if enabled for the repo). Otherwise, contact the maintainer (see the email in link:LICENSE.md[LICENSE.md]).
+
+== Release / changelog notes (maintainers)
+
+Changelog generation is configured by `cliff.toml` and expects Conventional Commits.
+
+Typical flow:
+
+* tag releases as `vX.Y.Z`
+* generate/update changelog with `git-cliff`
+
+(Exact commands depend on your local tooling.)

@@ -1,79 +1,71 @@
-= Assuan Library (.NET)
+# Assuan Library (.NET)
 
-AssuanLibrary is a modern, transport-agnostic .NET implementation of the Assuan protocol, designed to build clients and servers that speak Assuan over multiple transports such as *TCP*, *Named Pipes (Windows)*, *Unix Domain Sockets (Linux)*, and any other custom transport you implement.
+AssuanLibrary is a modern, transport-agnostic .NET implementation of the Assuan protocol, designed to build clients and servers that speak Assuan over
+multiple transports such as **TCP**, **Named Pipes (Windows)**, **Unix Domain Sockets (Linux)**, and any other custom transport you implement.
 
 The library focuses on:
 
-* correctness of the Assuan protocol lifecycle
-* clean separation between protocol, transport, and application logic
-* explicit, hook-based session control
-* minimal assumptions about authentication and policy
+- correctness of the Assuan protocol lifecycle
+- clean separation between protocol, transport, and application logic
+- explicit, hook-based session control
+- minimal assumptions about authentication and policy
 
-== Features
+## Features
 
-* [x] Assuan protocol encoder/decoder
-* [x] Client and server implementations
-* [x] Multi-transport support:
-* TCP
-* Named Pipes (Windows)
-* Unix Domain Sockets (Linux)
-* [x] Custom command handlers
-* [x] INQUIRE support (sync and async)
-* [x] Explicit session lifecycle hooks
-* [x] No implicit protocol behavior
-* [x] Suitable for embedding or standalone servers
+- [x] Assuan protocol encoder/decoder
+- [x] Client and server implementations
+- [x] Multi-transport support:
+  - TCP
+  - Named Pipes (Windows)
+  - Unix Domain Sockets (Linux)
+- [x] Custom command handlers
+- [x] INQUIRE support (sync and async)
+- [x] Explicit session lifecycle hooks
+- [x] No implicit protocol behavior
+- [x] Suitable for embedding or standalone servers
 
-== Design Principles
+## Design Principles
 
 AssuanLibrary follows a few strict principles:
 
-* Transport is not protocol
-* Connections know how to read/write bytes, not how to speak Assuan.
-* Protocol is explicit
-* Nothing is sent automatically unless explicitly configured.
-* Lifecycle is deterministic
-* Authentication, banner handling, command dispatch, and shutdown all have a defined order.
-* Hooks over magic
-* Custom behavior is implemented via explicit hooks, not hidden logic.
+- Transport is not protocol
+  - Connections know how to read/write bytes, not how to speak Assuan.
+- Protocol is explicit
+  - Nothing is sent automatically unless explicitly configured.
+- Lifecycle is deterministic
+  - Authentication, banner handling, command dispatch, and shutdown all have a defined order.
+- Hooks over magic
+  - Custom behavior is implemented via explicit hooks, not hidden logic.
 
-== Supported Transports
+## Supported Transports
 
-|===
-|Transport |Platform
-
-|TCP |Cross-platform
-|Named Pipes |Windows
-|Unix Domain Sockets |Linux / macOS¹
-|===
+| Transport           | Platform       |
+| ------------------- |----------------|
+| TCP                 | Cross-platform |
+| Named Pipes         | Windows        |
+| Unix Domain Sockets | Linux / macOS¹ |
 
 Transport selection is done via endpoints if not provided, not by hardcoding logic into the client or server.
 
-____
+> PS¹: Unix Domain Sockets are supported on Linux. macOS has not been tested but should work similarly.
 
-PS¹: Unix Domain Sockets are supported on Linux. macOS has not been tested but should work similarly.
+## Installation
 
-____
-
-== Installation
-
-[source,bash]
-----
+```bash
 dotnet add package AssuanLibrary
-----
+```
 
 Optional dependency injection helpers (recommended but not required):
 
-[source,bash]
-----
+```bash
 dotnet add package AssuanLibrary.Extensions.DependencyInjection
-----
+```
 
-== Usage
+## Usage
 
 GnuPG agent client example:
 
-[source,csharp]
-----
+```csharp
 // ----- REQUIRED ONLY FOR TCP CLIENT ON WINDOWS THAT USES GNUPG AGENT -----
 var options = new AssuanClientOptions
 {
@@ -119,12 +111,11 @@ foreach (var response in responseCollection)
 // Expected output:
 // D 2.2.27
 // OK
-----
+```
 
 Custom-Server client example:
 
-[source,csharp]
-----
+```csharp
 var options = new AssuanClientOptions // Those options are not required, we are just adding them for demonstration
 {
   OnSessionStartedAsync = async (connection, ctx, ct) =>
@@ -147,12 +138,11 @@ foreach (var response in responseCollection)
 {
     Console.WriteLine(response);
 }
-----
+```
 
 Custom Server example:
 
-[source,csharp]
-----
+```csharp
 public sealed class GetInfoCommandHandler : CommandHandler
 {
   /// <inheritdoc />
@@ -197,14 +187,13 @@ server.RegisterCommandHandler(new GetInfoCommandHandler());
 // server.RegisterCommandHandler<GetInfoCommandHandler>();
 var tcpEndpoint = new TcpServerEndpoint(IPAddress.Loopback, 23456);
 await server.RunAsync(tcpEndpoint, ct);
-----
+```
 
-== Contributing
+## Contributing
 
 Contributions are welcome!
-Please refer to the CONTRIBUTING file for guidelines.
+Please refer to the [CONTRIBUTING](https://github.com/baliestri/assuan-library/blob/main/CONTRIBUTING.adoc) guide for more information.
 
-== License
+## License
 
-This project is licensed under the MIT License.
-See the link:LICENSE.md[LICENSE] file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/baliestri/assuan-library/blob/main/LICENSE.md) file for details.

@@ -32,15 +32,13 @@ internal static class CustomServer {
     }
   }
 
-  private sealed class GetInfoCommandHandler : CommandHandler {
+  public sealed class GetInfoCommandHandler : CommandHandler {
     /// <inheritdoc />
     public override string Name => "GETINFO";
 
     /// <inheritdoc />
     public override async Task HandleAsync(IReadOnlyAssuanCommand command, IServerContext serverContext) {
       foreach (var arg in command.Arguments) {
-        Console.WriteLine($"DEBUG → GETINFO argument: '{arg}'");
-
         switch (arg) {
           case "version": {
             var responseCollection = AssuanResponseCollection.Create(
@@ -64,6 +62,20 @@ internal static class CustomServer {
             break;
         }
       }
+    }
+  }
+
+  public sealed class ByeCommandHandler : CommandHandler {
+    /// <inheritdoc />
+    public override string Name => "BYE";
+
+    /// <inheritdoc />
+    public override async Task HandleAsync(IReadOnlyAssuanCommand command, IServerContext serverContext) {
+      var responseCollection = AssuanResponseCollection.Create(
+        AssuanResponse.Ok("Goodbye!")
+      );
+      await serverContext.SendResponseAsync(responseCollection, serverContext.Session.CancellationToken);
+      serverContext.Session.CloseGracefully();
     }
   }
 }

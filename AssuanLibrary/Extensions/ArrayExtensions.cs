@@ -8,7 +8,7 @@ namespace AssuanLibrary.Extensions;
 /// <summary>
 ///   Extension methods for arrays.
 /// </summary>
-internal static class ArrayExtensions {
+public static class ArrayExtensions {
   /// <summary>
   ///   Extension methods for arrays.
   /// </summary>

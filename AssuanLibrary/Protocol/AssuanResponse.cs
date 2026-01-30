@@ -13,7 +13,11 @@ namespace AssuanLibrary.Protocol;
 public sealed partial class AssuanResponse : IEquatable<AssuanResponse>, IFormattable {
   private readonly byte[] _buffer;
 
-  internal AssuanResponse(byte[] buffer) {
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="AssuanResponse" /> class from the given buffer.
+  /// </summary>
+  /// <param name="buffer">The response buffer.</param>
+  public AssuanResponse(byte[] buffer) {
     _buffer = buffer;
 
     if (buffer.Length == 0) {

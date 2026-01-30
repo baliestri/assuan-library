@@ -5,7 +5,10 @@ using AssuanLibrary.Server.Abstractions;
 
 namespace AssuanLibrary.Server;
 
-internal sealed class ServerInquireContext : IServerInquireContext {
+/// <summary>
+///   Represents the context for handling an inquire request from the client.
+/// </summary>
+public sealed class ServerInquireContext : IServerInquireContext {
   private readonly MemoryStream _memoryStream;
   private readonly CancellationToken _sessionToken;
   private readonly TaskCompletionSource<ReadOnlyMemory<byte>> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -13,6 +16,12 @@ internal sealed class ServerInquireContext : IServerInquireContext {
   private CancellationTokenRegistration _ctr;
   private bool _disposed;
 
+  /// <summary>
+  ///   Initializes a new instance of the <see cref="ServerInquireContext" /> class.
+  /// </summary>
+  /// <param name="keyword">The inquire keyword.</param>
+  /// <param name="parameters">The inquire parameters.</param>
+  /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the inquire request to complete.</param>
   public ServerInquireContext(string keyword, IReadOnlyCollection<string> parameters, CancellationToken ct = default) {
     Keyword = keyword;
     Parameters = parameters;

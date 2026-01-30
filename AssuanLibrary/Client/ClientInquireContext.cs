@@ -7,7 +7,13 @@ using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Client;
 
-internal sealed class ClientInquireContext(IAssuanConnection connection, string keyword, IReadOnlyCollection<string> parameters)
+/// <summary>
+///   Represents the context for an inquire request from the Assuan server.
+/// </summary>
+/// <param name="connection">The Assuan connection.</param>
+/// <param name="keyword">The inquire keyword.</param>
+/// <param name="parameters">The inquire parameters.</param>
+public sealed class ClientInquireContext(IAssuanConnection connection, string keyword, IReadOnlyCollection<string> parameters)
   : IClientInquireContext {
   /// <inheritdoc />
   public string Keyword { get; } = keyword;

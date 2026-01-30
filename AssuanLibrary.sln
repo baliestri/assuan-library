@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Directory.Packages.props = Directory.Packages.props
 		LICENSE.md = LICENSE.md
 		README.adoc = README.adoc
+		CONTRIBUTING.adoc = CONTRIBUTING.adoc
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssuanLibrary", "AssuanLibrary\AssuanLibrary.csproj", "{D9503804-38BB-467C-8A0E-7A403DEE2265}"

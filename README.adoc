@@ -202,7 +202,7 @@ await server.RunAsync(tcpEndpoint, ct);
 == Contributing
 
 Contributions are welcome!
-Please open issues or pull requests on the https://github.com/baliestri/assuan-library[GitHub repository].
+Please refer to the CONTRIBUTING file for guidelines.
 
 == License
 

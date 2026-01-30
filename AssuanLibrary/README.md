@@ -191,8 +191,9 @@ await server.RunAsync(tcpEndpoint, ct);
 
 ## Contributing
 
-Contributions are welcome! Please open issues or pull requests on the [GitHub repository](https://github.com/baliestri/assuan-library).
+Contributions are welcome!
+Please refer to the [CONTRIBUTING](https://github.com/baliestri/assuan-library/blob/main/CONTRIBUTING.adoc) guide for more information.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE.md) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/baliestri/assuan-library/blob/main/LICENSE.md) file for details.

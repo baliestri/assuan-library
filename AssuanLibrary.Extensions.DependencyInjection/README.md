@@ -1,0 +1,199 @@
+# Assuan Library (.NET)
+
+AssuanLibrary is a modern, transport-agnostic .NET implementation of the Assuan protocol, designed to build clients and servers that speak Assuan over
+multiple transports such as **TCP**, **Named Pipes (Windows)**, **Unix Domain Sockets (Linux)**, and any other custom transport you implement.
+
+The library focuses on:
+
+- correctness of the Assuan protocol lifecycle
+- clean separation between protocol, transport, and application logic
+- explicit, hook-based session control
+- minimal assumptions about authentication and policy
+
+## Features
+
+- [x] Assuan protocol encoder/decoder
+- [x] Client and server implementations
+- [x] Multi-transport support:
+  - TCP
+  - Named Pipes (Windows)
+  - Unix Domain Sockets (Linux)
+- [x] Custom command handlers
+- [x] INQUIRE support (sync and async)
+- [x] Explicit session lifecycle hooks
+- [x] No implicit protocol behavior
+- [x] Suitable for embedding or standalone servers
+
+## Design Principles
+
+AssuanLibrary follows a few strict principles:
+
+- Transport is not protocol
+  - Connections know how to read/write bytes, not how to speak Assuan.
+- Protocol is explicit
+  - Nothing is sent automatically unless explicitly configured.
+- Lifecycle is deterministic
+  - Authentication, banner handling, command dispatch, and shutdown all have a defined order.
+- Hooks over magic
+  - Custom behavior is implemented via explicit hooks, not hidden logic.
+
+## Supported Transports
+
+| Transport           | Platform       |
+| ------------------- |----------------|
+| TCP                 | Cross-platform |
+| Named Pipes         | Windows        |
+| Unix Domain Sockets | Linux / macOS¹ |
+
+Transport selection is done via endpoints if not provided, not by hardcoding logic into the client or server.
+
+> PS¹: Unix Domain Sockets are supported on Linux. macOS has not been tested but should work similarly.
+
+## Installation
+
+```bash
+dotnet add package AssuanLibrary
+```
+
+Optional dependency injection helpers (recommended but not required):
+
+```bash
+dotnet add package AssuanLibrary.Extensions.DependencyInjection
+```
+
+## Usage
+
+GnuPG agent client example:
+
+```csharp
+// ----- REQUIRED ONLY FOR TCP CLIENT ON WINDOWS THAT USES GNUPG AGENT -----
+var options = new AssuanClientOptions
+{
+  OnSessionAuthenticatingAsync = async (connection, ctx, ct) =>
+  {
+    if (ctx.TryGetValue("nonce", out var nonceObj) && nonceObj is byte[] nonce)
+    {
+      await connection.WriteAsync(nonce, ct); // Flushes automatically after writing
+    }
+  }
+};
+// ---------------------------------------------------
+
+await using var client = new AssuanClient(options);
+await client.ConnectAsync(AssuanEndpointKind.AGENT, ct); // Resolves automatically into the correct transport if not provided on AssuanClient
+
+var command = new AssuanCommand("GETINFO") { "version" };
+var responseCollection = await client.InvokeAsync(command, ct);
+
+foreach (var response in responseCollection)
+{
+    Console.WriteLine(response);
+}
+
+// ------------------ IF YOU ALREADY KNOWS THE ENDPOINT AND THE NONCE ON WINDOWS ------------------
+var tcpEndpoint = new TcpClientEndpoint(IPAddress.Loopback, 12345);
+var metadata = new Dictionary<string, object>
+{
+  ["nonce"] = System.Text.Encoding.UTF8.GetBytes("my-secret-nonce") // Replace with the actual nonce value
+};
+await using var client = new AssuanClient();
+await client.ConnectAsync(tcpEndpoint, metadata, ct);
+
+var command = new AssuanCommand("GETINFO") { "version" };
+var responseCollection = await client.InvokeAsync(command, ct);
+
+foreach (var response in responseCollection)
+{
+    Console.WriteLine(response);
+}
+// -------------------------------------------------------------------------------------
+
+// Expected output:
+// D 2.2.27
+// OK
+```
+
+Custom-Server client example:
+
+```csharp
+var options = new AssuanClientOptions // Those options are not required, we are just adding them for demonstration
+{
+  OnSessionStartedAsync = async (connection, ctx, ct) =>
+  {
+    if (ctx.TryGetValue("banner", out var bannerObj) && bannerObj is byte[] banner)
+    {
+      Console.WriteLine($"Server Banner: {System.Text.Encoding.UTF8.GetString(banner)}");
+    }
+  }
+};
+
+var serverEndpoint = new TcpClientEndpoint(IPAddress.Loopback, 23456);
+await using var client = new AssuanClient(options);
+await client.ConnectAsync(serverEndpoint, new Dictionary<string, object>(), ct);
+
+var command = new AssuanCommand("SOME_COMMAND") { "some_argument" };
+var responseCollection = await client.InvokeAsync(command, ct);
+
+foreach (var response in responseCollection)
+{
+    Console.WriteLine(response);
+}
+```
+
+Custom Server example:
+
+```csharp
+public sealed class GetInfoCommandHandler : CommandHandler
+{
+  /// <inheritdoc />
+  public override string Name => "GETINFO";
+
+  /// <inheritdoc />
+  public override async Task HandleAsync(IReadOnlyAssuanCommand command, IServerContext serverContext) {
+    foreach (var arg in command.Arguments) {
+      switch (arg) {
+        case "version": {
+          var responseCollection = AssuanResponseCollection.Create(
+            AssuanResponse.Data(typeof(GetInfoCommandHandler).Assembly.GetName().Version?.ToString() ?? "unknown"),
+            AssuanResponse.Ok()
+          );
+          await serverContext.SendResponseAsync(responseCollection, serverContext.Session.CancellationToken);
+          break;
+        }
+        case "pid": {
+          var responseCollection = AssuanResponseCollection.Create(
+            AssuanResponse.Data(Environment.ProcessId.ToString()),
+            AssuanResponse.Ok()
+          );
+          await serverContext.SendResponseAsync(responseCollection, serverContext.Session.CancellationToken);
+          break;
+        }
+        default:
+          await serverContext.SendResponseAsync(AssuanResponse.Error(45, "Invalid argument"),
+            serverContext.Session.CancellationToken);
+          break;
+      }
+    }
+  }
+}
+
+var serverOptions = new AssuanServerOptions
+{
+  Banner = "My Custom Assuan Server"
+};
+
+var server = new AssuanServer(serverOptions);
+server.RegisterCommandHandler(new GetInfoCommandHandler());
+// server.RegisterCommandHandler<GetInfoCommandHandler>();
+var tcpEndpoint = new TcpServerEndpoint(IPAddress.Loopback, 23456);
+await server.RunAsync(tcpEndpoint, ct);
+```
+
+## Contributing
+
+Contributions are welcome!
+Please refer to the [CONTRIBUTING](https://github.com/baliestri/assuan-library/blob/main/CONTRIBUTING.adoc) guide for more information.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/baliestri/assuan-library/blob/main/LICENSE.md) file for details.

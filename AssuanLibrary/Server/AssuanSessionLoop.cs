@@ -25,7 +25,7 @@ internal sealed class AssuanSessionLoop(
 
   public void Run() {
     while (!session.CancellationToken.IsCancellationRequested) {
-      var buffer = connection.InternalRead();
+      var buffer = connection.ReadAvailable();
 
       if (buffer.Length == 0) {
         continue;
@@ -65,7 +65,7 @@ internal sealed class AssuanSessionLoop(
 
   public async Task RunAsync() {
     while (!session.CancellationToken.IsCancellationRequested) {
-      var buffer = await connection.InternalReadAsync(session.CancellationToken).ConfigureAwait(false);
+      var buffer = await connection.ReadAvailableAsync(session.CancellationToken).ConfigureAwait(false);
 
       if (buffer.IsEmpty) {
         continue;

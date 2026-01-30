@@ -65,9 +65,9 @@ internal sealed class FakeAssuanConnection : IAssuanConnection {
     return ReadAsync(ct);
   }
 
-  public byte[] InternalRead() => Read();
+  public byte[] ReadAvailable() => Read();
 
-  ValueTask<ReadOnlyMemory<byte>> IAssuanConnection.InternalReadAsync(CancellationToken ct)
+  ValueTask<ReadOnlyMemory<byte>> IAssuanConnection.ReadAvailableAsync(CancellationToken ct)
     => ReadAsync(ct);
 
   public void DiscardPendingInput() {

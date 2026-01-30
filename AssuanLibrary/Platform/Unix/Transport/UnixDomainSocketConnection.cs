@@ -149,7 +149,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
-  public byte[] InternalRead() {
+  public byte[] ReadAvailable() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
     if (!IsConnected) {
@@ -304,7 +304,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
-  public async ValueTask<ReadOnlyMemory<byte>> InternalReadAsync(CancellationToken ct = default) {
+  public async ValueTask<ReadOnlyMemory<byte>> ReadAvailableAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(UnixDomainSocketConnection));
 
     if (!IsConnected) {

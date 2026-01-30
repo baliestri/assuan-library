@@ -141,7 +141,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
-  public byte[] InternalRead() {
+  public byte[] ReadAvailable() {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
@@ -283,7 +283,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
-  public async ValueTask<ReadOnlyMemory<byte>> InternalReadAsync(CancellationToken ct = default) {
+  public async ValueTask<ReadOnlyMemory<byte>> ReadAvailableAsync(CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {

@@ -43,10 +43,10 @@ public interface IAssuanConnection : IAsyncDisposable, IDisposable {
   byte[] Read(InquireHandler inquireHandler);
 
   /// <summary>
-  ///   Reads data from the remote connection internally.
+  ///   Reads available data from the remote connection.
   /// </summary>
   /// <returns>A byte array containing the data read.</returns>
-  byte[] InternalRead();
+  byte[] ReadAvailable();
 
   /// <summary>
   ///   Discards any pending input from the remote connection.
@@ -90,11 +90,11 @@ public interface IAssuanConnection : IAsyncDisposable, IDisposable {
   ValueTask<ReadOnlyMemory<byte>> ReadAsync(AsyncInquireHandler inquireHandler, CancellationToken ct = default);
 
   /// <summary>
-  ///   Reads data from the remote connection internally.
+  ///   Reads available data from the remote connection.
   /// </summary>
   /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
   /// <returns>A task that represents the asynchronous read operation, containing the data read.</returns>
-  internal ValueTask<ReadOnlyMemory<byte>> InternalReadAsync(CancellationToken ct = default);
+  ValueTask<ReadOnlyMemory<byte>> ReadAvailableAsync(CancellationToken ct = default);
 
   /// <summary>
   ///   Discards any pending input from the remote connection asynchronously.

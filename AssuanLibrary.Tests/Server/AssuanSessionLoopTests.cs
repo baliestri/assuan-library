@@ -137,6 +137,9 @@ public sealed class AssuanSessionLoopTests {
       _cts.Cancel();
     }
 
+    /// <inheritdoc />
+    public void CloseGracefully() { }
+
     public void Dispose() { }
   }
 }

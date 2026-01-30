@@ -12,6 +12,7 @@ namespace AssuanLibrary.Server;
 /// <param name="ct">A <see cref="CancellationToken" /> to observe cancellation requests.</param>
 public sealed class ServerSession(CancellationToken ct = default) : IServerSession {
   private readonly CancellationTokenSource _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+  private bool _isClosing;
 
   /// <inheritdoc />
   public Guid Id { get; } = Guid.CreateVersion7();
@@ -31,6 +32,16 @@ public sealed class ServerSession(CancellationToken ct = default) : IServerSessi
   /// <inheritdoc />
   public void RefreshLastActivity()
     => LastActivityAt = DateTimeOffset.UtcNow;
+
+  /// <inheritdoc />
+  public void CloseGracefully() {
+    if (_isClosing) {
+      return;
+    }
+
+    _isClosing = true;
+    _cts.Cancel();
+  }
 
   /// <inheritdoc />
   public void Dispose()

@@ -36,4 +36,9 @@ public interface IServerSession : IDisposable {
   ///   Refreshes the last activity timestamp to the current time.
   /// </summary>
   void RefreshLastActivity();
+
+  /// <summary>
+  ///   Closes the session gracefully, allowing ongoing operations to complete.
+  /// </summary>
+  void CloseGracefully();
 }

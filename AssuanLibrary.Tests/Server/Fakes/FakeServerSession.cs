@@ -21,5 +21,8 @@ internal sealed class FakeServerSession : IServerSession {
     LastActivityAt = DateTimeOffset.UtcNow;
   }
 
+  /// <inheritdoc />
+  public void CloseGracefully() { }
+
   public void Dispose() { }
 }

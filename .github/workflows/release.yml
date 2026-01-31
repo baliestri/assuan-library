@@ -40,7 +40,7 @@ jobs:
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --tag ${{ inputs.version }} --output CHANGELOG.md
+          args: --tag ${{ inputs.version }} --prepend CHANGELOG.md --unreleased
 
       - name: Commit CHANGELOG.md
         run: |

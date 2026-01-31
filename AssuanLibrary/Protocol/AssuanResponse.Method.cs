@@ -17,6 +17,15 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
     return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
   }
 
@@ -48,7 +57,7 @@ public sealed partial class AssuanResponse {
   /// </summary>
   /// <returns>A new instance of <see cref="AssuanResponse" /> representing an <c>OK</c> response.</returns>
   public static AssuanResponse Ok()
-    => Ok([]);
+    => Ok(string.Empty);
 
   /// <summary>
   ///   Creates an <c>Error</c> response with the specified buffer.
@@ -60,6 +69,15 @@ public sealed partial class AssuanResponse {
     if (!AssuanEncoder.IsEncoded(buffer)) {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
+
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
 
     return new AssuanResponse(AssuanResponseType.Error, referenceBuffer);
   }
@@ -100,6 +118,15 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
     return new AssuanResponse(AssuanResponseType.Status, referenceBuffer);
   }
 
@@ -137,6 +164,15 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
+
     return new AssuanResponse(AssuanResponseType.Comment, referenceBuffer);
   }
 
@@ -168,7 +204,7 @@ public sealed partial class AssuanResponse {
   /// </summary>
   /// <returns>A new instance of <see cref="AssuanResponse" /> representing a <c>Comment</c> response.</returns>
   public static AssuanResponse Comment()
-    => Comment([]);
+    => Comment(string.Empty);
 
   /// <summary>
   ///   Creates a <c>Data</c> response with the specified buffer.
@@ -180,6 +216,15 @@ public sealed partial class AssuanResponse {
     if (!AssuanEncoder.IsEncoded(buffer)) {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
+
+    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+      return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
+    }
+
+    var bufferWithNewLine = new byte[referenceBuffer.Length + 1];
+    System.Buffer.BlockCopy(referenceBuffer, 0, bufferWithNewLine, 0, referenceBuffer.Length);
+    bufferWithNewLine[^1] = Characters.LINE_FEED;
+    referenceBuffer = bufferWithNewLine;
 
     return new AssuanResponse(AssuanResponseType.Data, referenceBuffer);
   }

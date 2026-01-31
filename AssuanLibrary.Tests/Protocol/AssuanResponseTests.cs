@@ -165,4 +165,52 @@ public sealed class AssuanResponseTests {
 
     response.ToString("TGX", CultureInfo.InvariantCulture).ShouldBe("hello");
   }
+
+  [Fact]
+  public void Ok_ShouldCreateOkResponse_WithLineFeedAtEnd() {
+    var response = AssuanResponse.Ok();
+
+    response.Type.ShouldBe(AssuanResponseType.Ok);
+    response.Buffer.ShouldBe([0x0A]);
+  }
+
+  [Fact]
+  public void Error_ShouldCreateErrorResponse_WithLineFeedAtEnd() {
+    var response = AssuanResponse.Error(1, "message");
+
+    response.Type.ShouldBe(AssuanResponseType.Error);
+    response.Buffer.ShouldBe("1 message\n"u8.ToArray());
+  }
+
+  [Fact]
+  public void Status_ShouldCreateStatusResponse_WithLineFeedAtEnd() {
+    var response = AssuanResponse.Status("status message");
+
+    response.Type.ShouldBe(AssuanResponseType.Status);
+    response.Buffer.ShouldBe("status message\n"u8.ToArray());
+  }
+
+  [Fact]
+  public void Comment_ShouldCreateCommentResponse_WithLineFeedAtEnd() {
+    var response = AssuanResponse.Comment();
+
+    response.Type.ShouldBe(AssuanResponseType.Comment);
+    response.Buffer.ShouldBe([0x0A]);
+  }
+
+  [Fact]
+  public void Data_ShouldCreateDataResponse_WithEncodedBufferAndLineFeed() {
+    var response = AssuanResponse.Data("AB CD");
+
+    response.Type.ShouldBe(AssuanResponseType.Data);
+    response.Buffer.ShouldBe("AB CD\n"u8.ToArray());
+  }
+
+  [Fact]
+  public void Inquire_ShouldCreateInquireResponse_WithEncodedBufferAndLineFeed() {
+    var response = AssuanResponse.Inquire("Inquiry data", "--param");
+
+    response.Type.ShouldBe(AssuanResponseType.Inquire);
+    response.Buffer.ShouldBe("Inquiry data --param\n"u8.ToArray());
+  }
 }

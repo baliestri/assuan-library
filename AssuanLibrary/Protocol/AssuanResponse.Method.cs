@@ -17,7 +17,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
     }
 
@@ -40,7 +41,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
     }
 
@@ -70,7 +72,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
     }
 
@@ -95,7 +98,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(fullMessage);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Error, referenceBuffer);
     }
 
@@ -118,7 +122,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
     }
 
@@ -141,7 +146,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Status, referenceBuffer);
     }
 
@@ -164,7 +170,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
     }
 
@@ -187,7 +194,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Comment, referenceBuffer);
     }
 
@@ -217,7 +225,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Ok, referenceBuffer);
     }
 
@@ -240,7 +249,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(message);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Data, referenceBuffer);
     }
 
@@ -263,7 +273,8 @@ public sealed partial class AssuanResponse {
       referenceBuffer = AssuanEncoder.AsBytes(buffer);
     }
 
-    if (referenceBuffer[^1] == Characters.LINE_FEED) {
+    if (referenceBuffer.Length > 0 &&
+        referenceBuffer[^1] == Characters.LINE_FEED) {
       return new AssuanResponse(AssuanResponseType.Inquire, referenceBuffer);
     }
 

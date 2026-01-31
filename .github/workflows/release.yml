@@ -1,4 +1,4 @@
-name: Release and Changelog
+name: Generate Tag and Release to Main Branch
 
 on:
   workflow_dispatch:

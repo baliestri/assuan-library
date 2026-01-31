@@ -1,4 +1,4 @@
-name: Generate Tag and Release to Main Branch
+name: Generate Tag and Update CHANGELOG
 
 on:
   workflow_dispatch:
@@ -10,9 +10,10 @@ on:
 permissions:
   id-token: write
   contents: write
+  discussions: write
 
 jobs:
-  release:
+  generate-changelog:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -61,3 +62,9 @@ jobs:
           git push origin main
           git push origin develop
           git push origin --tags
+
+  call-release:
+    needs: generate-changelog
+    uses: ./.github/workflows/release-tag.yml
+    with:
+      version: ${{ inputs.version }}

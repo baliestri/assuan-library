@@ -1,5 +1,21 @@
 # Assuan Library .NET Changelog
 
+## [1.0.1](https://github.com/baliestri/assuan-library/compare/v1.0.0..v1.0.1) - 2026-01-31
+
+### 🐛 Bug Fixes
+
+- Update Git version retrieval logic and improve regex pattern - ([d56fbb5](https://github.com/baliestri/assuan-library/commit/d56fbb5e0aafcba9393d3b7eb7252829dbc54252))
+- Ensure newline termination for AssuanResponse buffers - ([e102112](https://github.com/baliestri/assuan-library/commit/e1021123cdb363cac0cb8b961ca7cc34ab2ea3ac))
+
+### ⚙️ Miscellaneous Tasks
+
+- Separate workflow logic for tag/changelog and release - ([b2e12fe](https://github.com/baliestri/assuan-library/commit/b2e12fe6fa90042239b7dcc2f5cc96fcff9c3bc8))
+- Update workflow changelog generation - ([cb22a15](https://github.com/baliestri/assuan-library/commit/cb22a15aff41ff4771a54d5178c4b877223367cd))
+- Update workflow names for clarity in release and packaging - ([2cc6b21](https://github.com/baliestri/assuan-library/commit/2cc6b21b33ad6d8e0c0fbcabe9c46fcb82958964))
+- Change console transport sample - ([f7ff6cf](https://github.com/baliestri/assuan-library/commit/f7ff6cf45b9219c64013fe8ff97a933fce344b9a))
+- Add version input for workflow_dispatch in pack.yml - ([05d86c1](https://github.com/baliestri/assuan-library/commit/05d86c19659394e388eaa0b5194e3eb264769aff))
+- Update pack.yml to trigger package release on workflow_dispatch - ([431428e](https://github.com/baliestri/assuan-library/commit/431428ea3ee8bc19dcb7fcebb6945c7fe03dde90))
+
 ## [1.0.0] - 2026-01-30
 
 ### ⛰️  Features

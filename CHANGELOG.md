@@ -1,5 +1,15 @@
 # Assuan Library .NET Changelog
 
+## [1.0.2](https://github.com/baliestri/assuan-library/compare/v1.0.1..v1.0.2) - 2026-01-31
+
+### 🐛 Bug Fixes
+
+- Add buffer length check before accessing last character for newline termination - ([d555c03](https://github.com/baliestri/assuan-library/commit/d555c03b69c8128422fd427c3767bc1d9535e3ce))
+
+### 🧪 Testing
+
+- Add unit tests for AssuanResponse with line feed termination - ([904f4e3](https://github.com/baliestri/assuan-library/commit/904f4e3c01d970eaa527240e3ff327952b53de59))
+
 ## [1.0.1](https://github.com/baliestri/assuan-library/compare/v1.0.0..v1.0.1) - 2026-01-31
 
 ### 🐛 Bug Fixes

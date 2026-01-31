@@ -1,11 +1,13 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Target Name="GetVersionFromGit" BeforeTargets="BeforeBuild">
-    <Exec Command="git describe --tags --long --match v*" StandardOutputImportance="High" StandardErrorImportance="High" ContinueOnError="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="GitVersion" />
-    </Exec>
+    <Exec Command="git describe --tags --long --match v* &gt; gitversion.txt" ContinueOnError="true" />
+
+    <ReadLinesFromFile File="gitversion.txt">
+      <Output TaskParameter="Lines" PropertyName="GitVersion" />
+    </ReadLinesFromFile>
 
     <PropertyGroup>
-      <RegexGitVersion>^v(.+)-(\d+)-g(.+)</RegexGitVersion>
+      <RegexGitVersion>^v([^-]+)-(\d+)-g([0-9a-f]+)$</RegexGitVersion>
       <GitVersion Condition="'$([System.Text.RegularExpressions.Regex]::IsMatch($(GitVersion), $(RegexGitVersion)))' == 'false'">v1.0.0-0-g0000000</GitVersion>
       <FileVersion>$([System.Text.RegularExpressions.Regex]::Match($(GitVersion), $(RegexGitVersion)).Groups[1].Value)</FileVersion>
       <BuildVersion>$([System.Text.RegularExpressions.Regex]::Match($(GitVersion), $(RegexGitVersion)).Groups[1].Value)</BuildVersion>
@@ -19,8 +21,10 @@
       <InformationalVersion>$(FormattedVersion)</InformationalVersion>
       <ProductVersion>$(FormattedVersion)</ProductVersion>
       <PackageVersion>$(BuildVersion)</PackageVersion>
-      <NugetVersion>$(BuildVersion)</NugetVersion>
+      <NuGetVersion>$(BuildVersion)</NuGetVersion>
       <AssemblyVersion>$(FileVersion)</AssemblyVersion>
     </PropertyGroup>
+
+    <Delete Files="gitversion.txt" />
   </Target>
 </Project>

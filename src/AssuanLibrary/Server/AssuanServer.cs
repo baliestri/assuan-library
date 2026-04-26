@@ -2,9 +2,9 @@
 // See the LICENSE file in the repository root for full license text.
 
 using AssuanLibrary.Platform.Common.Transport;
-using AssuanLibrary.Protocol;
 using AssuanLibrary.Server.Abstractions;
 using AssuanLibrary.Server.Dispatching;
+using AssuanLibrary.Server.Sessions;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Endpoints;
 
@@ -13,6 +13,8 @@ namespace AssuanLibrary.Server;
 /// <inheritdoc />
 public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, ICommandDispatcher commandDispatcher, AssuanServerOptions options)
   : IAssuanServer {
+  private readonly AssuanSessionRunner _sessionRunner = new(commandDispatcher, options);
+
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint factory.
   /// </summary>
@@ -62,7 +64,7 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
 
     do {
       var connection = listener.Accept();
-      HandleSession(connection);
+      _sessionRunner.Run(connection);
     }
     while (true);
   }
@@ -73,7 +75,7 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
 
     do {
       var connection = await listener.AcceptAsync(ct).ConfigureAwait(false);
-      await HandleSessionAsync(connection, ct).ConfigureAwait(false);
+      await _sessionRunner.RunAsync(connection, ct).ConfigureAwait(false);
     }
     while (!ct.IsCancellationRequested);
   }
@@ -96,46 +98,4 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
 
   private static IAssuanListenerFactory CreateDefaultFactory(AssuanServerOptions options)
     => new DefaultListenerFactory(options);
-
-  private async Task HandleSessionAsync(IAssuanConnection connection, CancellationToken ct = default) {
-    AssuanSessionLoop? sessionLoop = null;
-
-    var session = new ServerSession(ct);
-    var context = new ServerContext(connection, session, inquire => sessionLoop?.SetActiveInquire(inquire));
-
-    if (options.OnAuthenticateSessionAsync is not null) {
-      await options.OnAuthenticateSessionAsync(context).ConfigureAwait(false);
-    }
-
-    if (options.SendBanner) {
-      var bannerResponse = AssuanResponse.Ok(options.Banner);
-      await context.SendResponseAsync(bannerResponse, ct);
-    }
-
-    sessionLoop = new AssuanSessionLoop(connection, session, context, commandDispatcher);
-    await sessionLoop.RunAsync();
-
-    session.Dispose();
-    await connection.DisposeAsync();
-  }
-
-  private void HandleSession(IAssuanConnection connection, CancellationToken ct = default) {
-    AssuanSessionLoop? sessionLoop = null;
-
-    var session = new ServerSession(ct);
-    var context = new ServerContext(connection, session, inquire => sessionLoop?.SetActiveInquire(inquire));
-
-    options.OnAuthenticateSessionAsync?.Invoke(context).GetAwaiter().GetResult();
-
-    if (options.SendBanner) {
-      var bannerResponse = AssuanResponse.Ok(options.Banner);
-      context.SendResponse(bannerResponse);
-    }
-
-    sessionLoop = new AssuanSessionLoop(connection, session, context, commandDispatcher);
-    sessionLoop.Run();
-
-    session.Dispose();
-    connection.Dispose();
-  }
 }

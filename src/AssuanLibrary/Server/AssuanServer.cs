@@ -14,6 +14,7 @@ namespace AssuanLibrary.Server;
 public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, ICommandDispatcher commandDispatcher, AssuanServerOptions options)
   : IAssuanServer {
   private readonly AssuanSessionRunner _sessionRunner = new(commandDispatcher, options);
+  private int _state = (int)AssuanServerState.Stopped;
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint factory.
@@ -60,18 +61,30 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
 
   /// <inheritdoc />
   public void Run(IAssuanEndpoint endpoint) {
+    BeginRun();
+
     var listener = listenerFactory.CreateListener(endpoint);
 
-    do {
-      var connection = listener.Accept();
-      _sessionRunner.Run(connection);
+    try {
+      SetState(AssuanServerState.Running);
+
+      do {
+        var connection = listener.Accept();
+        _sessionRunner.Run(connection);
+      }
+      while (true);
     }
-    while (true);
+    finally {
+      EndRun();
+    }
   }
 
   /// <inheritdoc />
   public async Task RunAsync(IAssuanEndpoint endpoint, CancellationToken ct = default) {
+    BeginRun();
+
     if (options.MaxConcurrentSessions <= 0) {
+      EndRun();
       throw new ArgumentOutOfRangeException(nameof(options.MaxConcurrentSessions), options.MaxConcurrentSessions,
         "MaxConcurrentSessions must be greater than zero.");
     }
@@ -82,6 +95,8 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
     var sessionFailure = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
     try {
+      SetState(AssuanServerState.Running);
+
       while (!ct.IsCancellationRequested) {
         await WaitForSessionSlotAsync(sessionConcurrencySemaphore, sessionFailure.Task, ct).ConfigureAwait(false);
 
@@ -102,7 +117,9 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
       // Graceful shutdown requested.
     }
     finally {
+      SetState(AssuanServerState.Stopping);
       await Task.WhenAll(runningSessionTasks).ConfigureAwait(false);
+      EndRun();
     }
   }
 
@@ -154,6 +171,19 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
       await sessionFailureTask.ConfigureAwait(false);
     }
   }
+
+  private void BeginRun() {
+    if (Interlocked.CompareExchange(ref _state, (int)AssuanServerState.Starting, (int)AssuanServerState.Stopped)
+        != (int)AssuanServerState.Stopped) {
+      throw new InvalidOperationException("This AssuanServer instance is already running.");
+    }
+  }
+
+  private void EndRun()
+    => SetState(AssuanServerState.Stopped);
+
+  private void SetState(AssuanServerState state)
+    => Volatile.Write(ref _state, (int)state);
 
   private static IAssuanListenerFactory CreateDefaultFactory(AssuanServerOptions options)
     => new DefaultListenerFactory(options);

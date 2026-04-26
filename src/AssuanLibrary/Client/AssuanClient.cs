@@ -19,7 +19,7 @@ namespace AssuanLibrary.Client;
 public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssuanConnectionFactory connectionFactory, AssuanClientOptions options)
   : IAssuanClient {
   private IAssuanConnection? _connection;
-  private bool _disposed;
+  private int _state = (int)AssuanClientState.Disconnected;
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanClient" /> class with the specified endpoint resolver.
@@ -66,15 +66,12 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
 
   /// <inheritdoc />
   [MemberNotNullWhen(true, nameof(_connection))]
-  public bool IsConnected => _connection is { IsConnected: true };
+  public bool IsConnected
+    => (AssuanClientState)Volatile.Read(ref _state) == AssuanClientState.Connected && _connection is { IsConnected: true };
 
   /// <inheritdoc />
   public void Connect(IAssuanEndpoint endpoint, IReadOnlyDictionary<string, object> metadata) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (IsConnected) {
-      return;
-    }
+    EnsureCanConnect();
 
     try {
       _connection = connectionFactory.CreateConnection(endpoint);
@@ -85,20 +82,22 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
       var banner = _connection.Read();
       var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner };
       options.OnSessionStartedAsync?.Invoke(_connection, sessionMetadata).GetAwaiter().GetResult();
+
+      SetState(AssuanClientState.Connected);
     }
     catch (SocketException ex) {
       Dispose();
       throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
     }
+    catch {
+      SetStateIfNotDisposed(AssuanClientState.Disconnected);
+      throw;
+    }
   }
 
   /// <inheritdoc />
   public void Connect(AssuanEndpointKind endpointKind) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (IsConnected) {
-      return;
-    }
+    EnsureCanConnect();
 
     try {
       var (resolvedEndpoint, metadata) = endpointResolver.Resolve(endpointKind);
@@ -110,67 +109,63 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
       var banner = _connection.Read();
       var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner };
       options.OnSessionStartedAsync?.Invoke(_connection, sessionMetadata).GetAwaiter().GetResult();
+
+      SetState(AssuanClientState.Connected);
     }
     catch (SocketException ex) {
       Dispose();
       throw new AssuanClientException("Failed to connect to the Assuan server.", ex);
     }
+    catch {
+      SetStateIfNotDisposed(AssuanClientState.Disconnected);
+      throw;
+    }
   }
 
   /// <inheritdoc />
   public AssuanResponseCollection Invoke(AssuanCommand command) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (!IsConnected) {
-      return options.ThrowIfNotConnected
-        ? throw new AssuanClientException("The client is not connected to the server.")
-        : new AssuanResponseCollection();
-    }
+    var connection = GetConnectedConnection();
 
     var writtenBuffer = command.ToBytes();
-    _connection.Write(writtenBuffer);
+    connection.Write(writtenBuffer);
 
-    var readBuffer = _connection.Read();
+    var readBuffer = connection.Read();
     return new AssuanResponseCollection(readBuffer);
   }
 
   /// <inheritdoc />
   public AssuanResponseCollection Invoke(AssuanCommand command, InquireHandler inquireHandler) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (!IsConnected) {
-      return options.ThrowIfNotConnected
-        ? throw new AssuanClientException("The client is not connected to the server.")
-        : new AssuanResponseCollection();
-    }
+    var connection = GetConnectedConnection();
 
     var writtenBuffer = command.ToBytes();
-    _connection.Write(writtenBuffer);
+    connection.Write(writtenBuffer);
 
-    var readBuffer = _connection.Read(inquireHandler);
+    var readBuffer = connection.Read(inquireHandler);
     return new AssuanResponseCollection(readBuffer);
   }
 
   /// <inheritdoc />
   public void Disconnect() {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+    EnsureNotDisposed();
 
-    if (!IsConnected) {
+    if ((AssuanClientState)Volatile.Read(ref _state) != AssuanClientState.Connected ||
+        _connection is null) {
       return;
     }
 
-    options.OnSessionEndingAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
+    try {
+      options.OnSessionEndingAsync?.Invoke(_connection, CancellationToken.None).GetAwaiter().GetResult();
 
-    _connection.Close();
+      _connection.Close();
+    }
+    finally {
+      SetStateIfNotDisposed(AssuanClientState.Disconnected);
+    }
   }
 
   /// <inheritdoc />
   public async Task ConnectAsync(IAssuanEndpoint endpoint, IReadOnlyDictionary<string, object> metadata, CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (IsConnected) {
-      return;
-    }
+    EnsureCanConnect();
 
     try {
       _connection = connectionFactory.CreateConnection(endpoint);
@@ -185,10 +180,12 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
         var banner = await bannerTask.ConfigureAwait(false);
         var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner.ToArray() };
         await options.OnSessionStartedAsync(_connection, sessionMetadata, ct).ConfigureAwait(false);
+        SetState(AssuanClientState.Connected);
         return;
       }
 
       _ = await bannerTask.ConfigureAwait(false);
+      SetState(AssuanClientState.Connected);
     }
     catch (Exception ex) {
       await DisposeAsync().ConfigureAwait(false);
@@ -198,11 +195,7 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
 
   /// <inheritdoc />
   public async Task ConnectAsync(AssuanEndpointKind endpointKind, CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (IsConnected) {
-      return;
-    }
+    EnsureCanConnect();
 
     try {
       var (resolvedEndpoint, metadata) = endpointResolver.Resolve(endpointKind);
@@ -218,10 +211,12 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
         var banner = await bannerTask.ConfigureAwait(false);
         var sessionMetadata = new Dictionary<string, object> { ["banner"] = banner.ToArray() };
         await options.OnSessionStartedAsync(_connection, sessionMetadata, ct).ConfigureAwait(false);
+        SetState(AssuanClientState.Connected);
         return;
       }
 
       _ = await bannerTask.ConfigureAwait(false);
+      SetState(AssuanClientState.Connected);
     }
     catch (Exception ex) {
       await DisposeAsync().ConfigureAwait(false);
@@ -231,68 +226,61 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
 
   /// <inheritdoc />
   public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (!IsConnected) {
-      return options.ThrowIfNotConnected
-        ? throw new AssuanClientException("The client is not connected to the server.")
-        : new AssuanResponseCollection();
-    }
+    var connection = GetConnectedConnection();
 
     var writtenBuffer = command.ToReadOnlyMemory();
-    await _connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
+    await connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
 
-    var readBuffer = await _connection.ReadAsync(ct).ConfigureAwait(false);
+    var readBuffer = await connection.ReadAsync(ct).ConfigureAwait(false);
     return new AssuanResponseCollection(readBuffer);
   }
 
   /// <inheritdoc />
   public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, AsyncInquireHandler inquireHandler,
   CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
-
-    if (!IsConnected) {
-      return options.ThrowIfNotConnected
-        ? throw new AssuanClientException("The client is not connected to the server.")
-        : new AssuanResponseCollection();
-    }
+    var connection = GetConnectedConnection();
 
     var writtenBuffer = command.ToReadOnlyMemory();
-    await _connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
+    await connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
 
-    var readBuffer = await _connection.ReadAsync(inquireHandler, ct).ConfigureAwait(false);
+    var readBuffer = await connection.ReadAsync(inquireHandler, ct).ConfigureAwait(false);
     return new AssuanResponseCollection(readBuffer);
   }
 
   /// <inheritdoc />
   public async Task DisconnectAsync(CancellationToken ct = default) {
-    ObjectDisposedException.ThrowIf(_disposed, nameof(AssuanClient));
+    EnsureNotDisposed();
 
-    if (!IsConnected) {
+    if ((AssuanClientState)Volatile.Read(ref _state) != AssuanClientState.Connected ||
+        _connection is null) {
       return;
     }
 
-    if (options.OnSessionEndingAsync is not null) {
-      await options.OnSessionEndingAsync(_connection, ct).ConfigureAwait(false);
-    }
+    try {
+      if (options.OnSessionEndingAsync is not null) {
+        await options.OnSessionEndingAsync(_connection, ct).ConfigureAwait(false);
+      }
 
-    await _connection.CloseAsync(ct).ConfigureAwait(false);
+      await _connection.CloseAsync(ct).ConfigureAwait(false);
+    }
+    finally {
+      SetStateIfNotDisposed(AssuanClientState.Disconnected);
+    }
   }
 
   /// <inheritdoc />
   public void Dispose() {
-    if (_disposed) {
+    if (Interlocked.Exchange(ref _state, (int)AssuanClientState.Disposed) == (int)AssuanClientState.Disposed) {
       return;
     }
 
     _connection?.Dispose();
     _connection = null;
-    _disposed = true;
   }
 
   /// <inheritdoc />
   public async ValueTask DisposeAsync() {
-    if (_disposed) {
+    if (Interlocked.Exchange(ref _state, (int)AssuanClientState.Disposed) == (int)AssuanClientState.Disposed) {
       return;
     }
 
@@ -301,7 +289,39 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
     }
 
     _connection = null;
-    _disposed = true;
+  }
+
+  private IAssuanConnection GetConnectedConnection() {
+    EnsureNotDisposed();
+
+    if ((AssuanClientState)Volatile.Read(ref _state) != AssuanClientState.Connected ||
+        _connection is null ||
+        !_connection.IsConnected) {
+      throw new AssuanClientException("The client is not connected to the server.");
+    }
+
+    return _connection;
+  }
+
+  private void EnsureCanConnect() {
+    EnsureNotDisposed();
+
+    if (Interlocked.CompareExchange(ref _state, (int)AssuanClientState.Connecting, (int)AssuanClientState.Disconnected)
+        != (int)AssuanClientState.Disconnected) {
+      throw new InvalidOperationException("The client is already connected or connecting.");
+    }
+  }
+
+  private void EnsureNotDisposed()
+    => ObjectDisposedException.ThrowIf((AssuanClientState)Volatile.Read(ref _state) == AssuanClientState.Disposed, nameof(AssuanClient));
+
+  private void SetState(AssuanClientState state)
+    => Volatile.Write(ref _state, (int)state);
+
+  private void SetStateIfNotDisposed(AssuanClientState state) {
+    if ((AssuanClientState)Volatile.Read(ref _state) != AssuanClientState.Disposed) {
+      SetState(state);
+    }
   }
 
   private static IAssuanConnectionFactory CreateDefaultFactory(AssuanClientOptions options)

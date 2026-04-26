@@ -9,8 +9,12 @@
     <File Path="LICENSE.md" />
     <File Path="README.adoc" />
   </Folder>
-  <Project Path="AssuanLibrary.Extensions.DependencyInjection/AssuanLibrary.Extensions.DependencyInjection.csproj" />
-  <Project Path="AssuanLibrary.Sample/AssuanLibrary.Sample.csproj" />
-  <Project Path="AssuanLibrary.Tests/AssuanLibrary.Tests.csproj" />
-  <Project Path="AssuanLibrary/AssuanLibrary.csproj" />
+  <Folder Name="/Source/">
+    <Project Path="src/AssuanLibrary.Extensions.DependencyInjection/AssuanLibrary.Extensions.DependencyInjection.csproj" />
+    <Project Path="src/AssuanLibrary.Sample/AssuanLibrary.Sample.csproj" />
+    <Project Path="src/AssuanLibrary/AssuanLibrary.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj" />
+  </Folder>
 </Solution>

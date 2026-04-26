@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AssuanLibrary\AssuanLibrary.csproj" />
+    <ProjectReference Include="..\..\src\AssuanLibrary\AssuanLibrary.csproj" />
   </ItemGroup>
 
 </Project>

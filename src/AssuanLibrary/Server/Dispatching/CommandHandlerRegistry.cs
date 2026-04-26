@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Server.Abstractions;
 
 namespace AssuanLibrary.Server.Dispatching;
@@ -17,9 +18,7 @@ internal sealed class CommandHandlerRegistry : ICommandHandlerRegistry {
   }
 
   public void Add(CommandHandler handler) {
-    if (handler is null) {
-      throw new ArgumentNullException(nameof(handler));
-    }
+    ArgumentNullException.ThrowIfNull(handler);
 
     if (_handlers.ContainsKey(handler.Name)) {
       throw new InvalidOperationException($"A handler for the command '{handler.Name}' is already registered.");
@@ -28,11 +27,9 @@ internal sealed class CommandHandlerRegistry : ICommandHandlerRegistry {
     _handlers[handler.Name] = handler;
   }
 
-  public bool TryGet(string commandName, out CommandHandler handler) {
-    if (commandName is null) {
-      throw new ArgumentNullException(nameof(commandName));
-    }
+  public bool TryGet(string commandName, [NotNullWhen(true)] out CommandHandler? handler) {
+    ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
 
-    return _handlers.TryGetValue(commandName, out handler!);
+    return _handlers.TryGetValue(commandName, out handler);
   }
 }

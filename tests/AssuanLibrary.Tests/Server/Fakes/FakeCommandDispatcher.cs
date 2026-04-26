@@ -3,6 +3,7 @@
 
 using AssuanLibrary.Protocol.Abstractions;
 using AssuanLibrary.Server.Abstractions;
+using AssuanLibrary.Server.Dispatching;
 
 namespace AssuanLibrary.Tests.Server.Fakes;
 

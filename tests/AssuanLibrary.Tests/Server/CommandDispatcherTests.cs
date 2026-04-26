@@ -4,8 +4,8 @@
 using System.Globalization;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Protocol.Abstractions;
-using AssuanLibrary.Server;
 using AssuanLibrary.Server.Abstractions;
+using AssuanLibrary.Server.Dispatching;
 using AssuanLibrary.Tests.Client.Fakes;
 using AssuanLibrary.Tests.Server.Fakes;
 
@@ -14,7 +14,7 @@ namespace AssuanLibrary.Tests.Server;
 public sealed class CommandDispatcherTests {
   [Fact]
   public void Dispatch_ShouldReturnUnknownCommandError_WhenNoHandlerMatched() {
-    var dispatcher = new CommandDispatcher();
+    var dispatcher = new CommandDispatcher([]);
 
     var conn = new FakeAssuanConnection();
     var session = new FakeServerSession(CancellationToken.None);
@@ -46,7 +46,7 @@ public sealed class CommandDispatcherTests {
 
   [Fact]
   public void TryAdd_ShouldReturnFalse_WhenDuplicateName() {
-    var dispatcher = new CommandDispatcher();
+    var dispatcher = new CommandDispatcher([]);
 
     dispatcher.TryAdd(new TestHandler()).ShouldBeTrue();
     dispatcher.TryAdd(new TestHandler()).ShouldBeFalse();

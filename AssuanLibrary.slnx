@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="cliff.toml" />
+    <File Path="CONTRIBUTING.adoc" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="LICENSE.md" />
+    <File Path="README.adoc" />
+  </Folder>
+  <Project Path="AssuanLibrary.Extensions.DependencyInjection/AssuanLibrary.Extensions.DependencyInjection.csproj" />
+  <Project Path="AssuanLibrary.Sample/AssuanLibrary.Sample.csproj" />
+  <Project Path="AssuanLibrary.Tests/AssuanLibrary.Tests.csproj" />
+  <Project Path="AssuanLibrary/AssuanLibrary.csproj" />
+</Solution>

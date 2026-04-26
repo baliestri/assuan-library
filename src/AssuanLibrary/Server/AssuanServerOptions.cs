@@ -15,7 +15,9 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   ///   A read-only instance of <see cref="AssuanServerOptions" /> with default values.
   /// </summary>
   public static readonly AssuanServerOptions Default = new() {
-    Banner = "Assuan Server Ready"
+    Banner = "Assuan Server Ready",
+    MaxConcurrentSessions = 64,
+    ContinueOnSessionError = true
   };
 
   /// <summary>
@@ -35,6 +37,16 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   public Action<AssuanListenerOptions>? ConfigureListener { get; set; }
 
   /// <summary>
+  ///   Maximum number of sessions that can be processed concurrently.
+  /// </summary>
+  public int MaxConcurrentSessions { get; set; } = 64;
+
+  /// <summary>
+  ///   Indicates whether the accept loop should continue when a single session fails.
+  /// </summary>
+  public bool ContinueOnSessionError { get; set; } = true;
+
+  /// <summary>
   ///   A callback that is invoked when a session is authenticating.
   /// </summary>
   public AsyncServerHook? OnAuthenticateSessionAsync { get; set; }
@@ -51,6 +63,8 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
 
     return Banner == other.Banner &&
            ConfigureListener == other.ConfigureListener &&
+           MaxConcurrentSessions == other.MaxConcurrentSessions &&
+           ContinueOnSessionError == other.ContinueOnSessionError &&
            OnAuthenticateSessionAsync == other.OnAuthenticateSessionAsync;
   }
 
@@ -85,6 +99,8 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   private IEnumerable<object?> GetEqualityComponents() {
     yield return Banner;
     yield return ConfigureListener;
+    yield return MaxConcurrentSessions;
+    yield return ContinueOnSessionError;
     yield return OnAuthenticateSessionAsync;
   }
 }

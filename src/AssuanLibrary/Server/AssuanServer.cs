@@ -71,13 +71,39 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
 
   /// <inheritdoc />
   public async Task RunAsync(IAssuanEndpoint endpoint, CancellationToken ct = default) {
-    var listener = listenerFactory.CreateListener(endpoint);
-
-    do {
-      var connection = await listener.AcceptAsync(ct).ConfigureAwait(false);
-      await _sessionRunner.RunAsync(connection, ct).ConfigureAwait(false);
+    if (options.MaxConcurrentSessions <= 0) {
+      throw new ArgumentOutOfRangeException(nameof(options.MaxConcurrentSessions), options.MaxConcurrentSessions,
+        "MaxConcurrentSessions must be greater than zero.");
     }
-    while (!ct.IsCancellationRequested);
+
+    var listener = listenerFactory.CreateListener(endpoint);
+    using var sessionConcurrencySemaphore = new SemaphoreSlim(options.MaxConcurrentSessions, options.MaxConcurrentSessions);
+    var runningSessionTasks = new List<Task>();
+    var sessionFailure = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    try {
+      while (!ct.IsCancellationRequested) {
+        await WaitForSessionSlotAsync(sessionConcurrencySemaphore, sessionFailure.Task, ct).ConfigureAwait(false);
+
+        IAssuanConnection? connection;
+
+        try {
+          connection = await listener.AcceptAsync(ct).ConfigureAwait(false);
+        }
+        catch {
+          sessionConcurrencySemaphore.Release();
+          throw;
+        }
+
+        runningSessionTasks.Add(RunSessionAsync(connection, sessionConcurrencySemaphore, sessionFailure, ct));
+      }
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+      // Graceful shutdown requested.
+    }
+    finally {
+      await Task.WhenAll(runningSessionTasks).ConfigureAwait(false);
+    }
   }
 
   /// <inheritdoc />
@@ -93,6 +119,39 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
 
     if (!commandDispatcher.TryAdd(handler)) {
       throw new InvalidOperationException($"A handler for the command '{handler.Name}' is already registered.");
+    }
+  }
+
+  private async Task RunSessionAsync(IAssuanConnection connection, SemaphoreSlim sessionConcurrencySemaphore,
+  TaskCompletionSource<object?> sessionFailure, CancellationToken ct) {
+    try {
+      await _sessionRunner.RunAsync(connection, ct).ConfigureAwait(false);
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+      // Graceful shutdown requested.
+    }
+    catch (Exception ex) {
+      if (!options.ContinueOnSessionError) {
+        sessionFailure.TrySetException(ex);
+      }
+    }
+    finally {
+      sessionConcurrencySemaphore.Release();
+    }
+  }
+
+  private static async Task WaitForSessionSlotAsync(SemaphoreSlim sessionConcurrencySemaphore, Task sessionFailureTask, CancellationToken ct) {
+    var waitForSlotTask = sessionConcurrencySemaphore.WaitAsync(ct);
+    var completedTask = await Task.WhenAny(waitForSlotTask, sessionFailureTask).ConfigureAwait(false);
+
+    if (ReferenceEquals(completedTask, sessionFailureTask)) {
+      await sessionFailureTask.ConfigureAwait(false);
+    }
+
+    await waitForSlotTask.ConfigureAwait(false);
+
+    if (sessionFailureTask.IsCompleted) {
+      await sessionFailureTask.ConfigureAwait(false);
     }
   }
 

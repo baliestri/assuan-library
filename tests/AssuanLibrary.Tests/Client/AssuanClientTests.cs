@@ -48,7 +48,7 @@ public sealed class AssuanClientTests {
   }
 
   [Fact]
-  public void Connect_ShouldNoOp_WhenAlreadyConnected() {
+  public void Connect_ShouldThrow_WhenAlreadyConnected() {
     var resolver = new FakeEndpointResolver();
     var factory = new FakeAssuanConnectionFactory();
     factory.Connection.ReadBuffers.Enqueue("OK banner"u8.ToArray());
@@ -56,7 +56,7 @@ public sealed class AssuanClientTests {
     var client = new AssuanClient(resolver, factory, AssuanClientOptions.Default);
 
     client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 0), new Dictionary<string, object>());
-    client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 1), new Dictionary<string, object>());
+    Should.Throw<InvalidOperationException>(() => client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 1), new Dictionary<string, object>()));
 
     factory.Connection.OpenCalls.ShouldBe(1);
   }
@@ -88,13 +88,11 @@ public sealed class AssuanClientTests {
   }
 
   [Fact]
-  public void Invoke_ShouldReturnEmpty_WhenNotConnected_AndThrowIfNotConnectedIsFalse() {
+  public void Invoke_ShouldThrow_WhenNotConnected_RegardlessOfThrowIfNotConnectedOption() {
     var client = new AssuanClient(new FakeEndpointResolver(), new FakeAssuanConnectionFactory(),
       new AssuanClientOptions { ThrowIfNotConnected = false });
 
-    var result = client.Invoke(new AssuanCommand("GETINFO"));
-
-    result.ShouldBeEmpty();
+    Should.Throw<AssuanClientException>(() => client.Invoke(new AssuanCommand("GETINFO")));
   }
 
   [Fact]
@@ -116,8 +114,7 @@ public sealed class AssuanClientTests {
 
     factory.Connection.ReadBuffers.Enqueue("OK hi\n"u8.ToArray());
 
-    var cmd = new AssuanCommand("CMD");
-    cmd.Add("hi");
+    var cmd = new AssuanCommand("CMD") { "hi" };
 
     var result = client.Invoke(cmd);
 
@@ -170,8 +167,11 @@ public sealed class AssuanClientTests {
 
   [Fact]
   public async Task ConnectAsync_ShouldWrapExceptions_AndDisposeAsync() {
-    var factory = new FakeAssuanConnectionFactory();
-    factory.Connection.ThrowOnOpenAsync = new InvalidOperationException("boom");
+    var factory = new FakeAssuanConnectionFactory {
+      Connection = {
+        ThrowOnOpenAsync = new InvalidOperationException("boom")
+      }
+    };
 
     var client = new AssuanClient(new FakeEndpointResolver(), factory, AssuanClientOptions.Default);
 
@@ -180,5 +180,33 @@ public sealed class AssuanClientTests {
 
     ex.InnerException.ShouldBeOfType<InvalidOperationException>();
     factory.Connection.DisposeAsyncCalls.ShouldBe(1);
+  }
+
+  [Fact]
+  public async Task ConnectAsync_ShouldThrow_WhenAlreadyConnected() {
+    var factory = new FakeAssuanConnectionFactory();
+    factory.Connection.ReadBuffers.Enqueue("OK banner"u8.ToArray());
+
+    var client = new AssuanClient(new FakeEndpointResolver(), factory, AssuanClientOptions.Default);
+    client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 0), new Dictionary<string, object>());
+
+    await Should.ThrowAsync<InvalidOperationException>(async () =>
+      await client.ConnectAsync(new TcpClientEndpoint(IPAddress.Loopback, 1), new Dictionary<string, object>(), CancellationToken.None));
+  }
+
+  [Fact]
+  public void Connect_ShouldThrowObjectDisposedException_AfterDispose() {
+    var client = new AssuanClient(new FakeEndpointResolver(), new FakeAssuanConnectionFactory(), AssuanClientOptions.Default);
+    client.Dispose();
+
+    Should.Throw<ObjectDisposedException>(() => client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 0), new Dictionary<string, object>()));
+  }
+
+  [Fact]
+  public void Invoke_ShouldThrowObjectDisposedException_AfterDispose() {
+    var client = new AssuanClient(new FakeEndpointResolver(), new FakeAssuanConnectionFactory(), AssuanClientOptions.Default);
+    client.Dispose();
+
+    Should.Throw<ObjectDisposedException>(() => client.Invoke(new AssuanCommand("GETINFO")));
   }
 }

@@ -4,6 +4,7 @@
 using AssuanLibrary.Platform.Common.Transport;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Server.Abstractions;
+using AssuanLibrary.Server.Dispatching;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Endpoints;
 
@@ -17,7 +18,7 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
   /// </summary>
   /// <param name="listenerFactory">The listener factory to create listeners for incoming connections.</param>
   public AssuanServer(IAssuanListenerFactory listenerFactory)
-    : this(listenerFactory, new CommandDispatcher(), AssuanServerOptions.Default) { }
+    : this(listenerFactory, new CommandDispatcher([]), AssuanServerOptions.Default) { }
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint factory and options.
@@ -25,7 +26,7 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
   /// <param name="listenerFactory">The listener factory to create listeners for incoming connections.</param>
   /// <param name="options">The configuration options for the server.</param>
   public AssuanServer(IAssuanListenerFactory listenerFactory, AssuanServerOptions options)
-    : this(listenerFactory, new CommandDispatcher(), options) { }
+    : this(listenerFactory, new CommandDispatcher([]), options) { }
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with the specified endpoint and command dispatcher.
@@ -47,13 +48,13 @@ public sealed class AssuanServer(IAssuanListenerFactory listenerFactory, IComman
   /// </summary>
   /// <param name="options">The configuration options for the server.</param>
   public AssuanServer(AssuanServerOptions options)
-    : this(CreateDefaultFactory(options), new CommandDispatcher(), options) { }
+    : this(CreateDefaultFactory(options), new CommandDispatcher([]), options) { }
 
   /// <summary>
   ///   Initializes a new instance of the <see cref="AssuanServer" /> class with default settings.
   /// </summary>
   public AssuanServer()
-    : this(CreateDefaultFactory(AssuanServerOptions.Default), new CommandDispatcher(), AssuanServerOptions.Default) { }
+    : this(CreateDefaultFactory(AssuanServerOptions.Default), new CommandDispatcher([]), AssuanServerOptions.Default) { }
 
   /// <inheritdoc />
   public void Run(IAssuanEndpoint endpoint) {

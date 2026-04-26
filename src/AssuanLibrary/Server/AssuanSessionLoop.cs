@@ -3,6 +3,7 @@
 
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Server.Abstractions;
+using AssuanLibrary.Server.Dispatching;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;

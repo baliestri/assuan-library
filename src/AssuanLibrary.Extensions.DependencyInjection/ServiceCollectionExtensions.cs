@@ -5,8 +5,8 @@ using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Platform.Common.Transport;
 using AssuanLibrary.Platform.Unix.Transport;
 using AssuanLibrary.Platform.Windows.Transport;
-using AssuanLibrary.Server;
 using AssuanLibrary.Server.Abstractions;
+using AssuanLibrary.Server.Dispatching;
 using AssuanLibrary.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions {
   /// <returns>The service collection itself.</returns>
   public static IServiceCollection AddCommandDispatcher(this IServiceCollection serviceCollection, params CommandHandler[] commandHandlers) {
     serviceCollection.TryAddSingleton<ICommandDispatcher>(_ => {
-      var commandDispatcher = new CommandDispatcher();
+      var commandDispatcher = new CommandDispatcher([]);
 
       foreach (var handler in commandHandlers) {
         commandDispatcher.TryAdd(handler);

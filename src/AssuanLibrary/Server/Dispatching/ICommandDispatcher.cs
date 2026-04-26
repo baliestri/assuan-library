@@ -2,18 +2,19 @@
 // See the LICENSE file in the repository root for full license text.
 
 using AssuanLibrary.Protocol.Abstractions;
+using AssuanLibrary.Server.Abstractions;
 
-namespace AssuanLibrary.Server.Abstractions;
+namespace AssuanLibrary.Server.Dispatching;
 
 /// <summary>
-///   Represents a dispatcher for Assuan commands on server side.
+///   Dispatches Assuan commands to registered handlers.
 /// </summary>
 public interface ICommandDispatcher {
   /// <summary>
   ///   Tries to add a new command handler to the dispatcher.
   /// </summary>
   /// <param name="handler">The command handler to add.</param>
-  /// <returns><see langword="true" /> if the handler was added successfully; otherwise, <see langword="false" />.</returns>
+  /// <returns><see langword="true" /> if the handler was added; otherwise, <see langword="false" />.</returns>
   bool TryAdd(CommandHandler handler);
 
   /// <summary>
@@ -24,7 +25,7 @@ public interface ICommandDispatcher {
   void Dispatch(IReadOnlyAssuanCommand command, IServerContext context);
 
   /// <summary>
-  ///   Asynchronously dispatches the given command to the appropriate handler.
+  ///   Dispatches the given command to the appropriate handler asynchronously.
   /// </summary>
   /// <param name="command">The command to dispatch.</param>
   /// <param name="context">The server context.</param>

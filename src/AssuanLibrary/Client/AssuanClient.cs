@@ -18,6 +18,7 @@ namespace AssuanLibrary.Client;
 /// <inheritdoc />
 public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssuanConnectionFactory connectionFactory, AssuanClientOptions options)
   : IAssuanClient {
+  private readonly AssuanClientCommandInvoker _commandInvoker = new(new AssuanCommandFormatter(), new AssuanResponseParser());
   private IAssuanConnection? _connection;
   private int _state = (int)AssuanClientState.Disconnected;
 
@@ -125,23 +126,13 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
   /// <inheritdoc />
   public AssuanResponseCollection Invoke(AssuanCommand command) {
     var connection = GetConnectedConnection();
-
-    var writtenBuffer = command.ToBytes();
-    connection.Write(writtenBuffer);
-
-    var readBuffer = connection.Read();
-    return new AssuanResponseCollection(readBuffer);
+    return _commandInvoker.Invoke(connection, command);
   }
 
   /// <inheritdoc />
   public AssuanResponseCollection Invoke(AssuanCommand command, InquireHandler inquireHandler) {
     var connection = GetConnectedConnection();
-
-    var writtenBuffer = command.ToBytes();
-    connection.Write(writtenBuffer);
-
-    var readBuffer = connection.Read(inquireHandler);
-    return new AssuanResponseCollection(readBuffer);
+    return _commandInvoker.Invoke(connection, command, inquireHandler);
   }
 
   /// <inheritdoc />
@@ -227,24 +218,14 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
   /// <inheritdoc />
   public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, CancellationToken ct = default) {
     var connection = GetConnectedConnection();
-
-    var writtenBuffer = command.ToReadOnlyMemory();
-    await connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
-
-    var readBuffer = await connection.ReadAsync(ct).ConfigureAwait(false);
-    return new AssuanResponseCollection(readBuffer);
+    return await _commandInvoker.InvokeAsync(connection, command, ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />
   public async ValueTask<AssuanResponseCollection> InvokeAsync(AssuanCommand command, AsyncInquireHandler inquireHandler,
   CancellationToken ct = default) {
     var connection = GetConnectedConnection();
-
-    var writtenBuffer = command.ToReadOnlyMemory();
-    await connection.WriteAsync(writtenBuffer, ct).ConfigureAwait(false);
-
-    var readBuffer = await connection.ReadAsync(inquireHandler, ct).ConfigureAwait(false);
-    return new AssuanResponseCollection(readBuffer);
+    return await _commandInvoker.InvokeAsync(connection, command, inquireHandler, ct).ConfigureAwait(false);
   }
 
   /// <inheritdoc />

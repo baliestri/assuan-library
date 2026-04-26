@@ -143,6 +143,47 @@ public sealed class AssuanClientTests {
   }
 
   [Fact]
+  public async Task InvokeAsync_ShouldWriteCommand_AndReadResponses() {
+    var resolver = new FakeEndpointResolver();
+    var factory = new FakeAssuanConnectionFactory();
+    factory.Connection.ReadBuffers.Enqueue("OK banner"u8.ToArray());
+
+    var client = new AssuanClient(resolver, factory, AssuanClientOptions.Default);
+    client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 0), new Dictionary<string, object>());
+
+    factory.Connection.ReadMemoryBuffers.Enqueue("OK hi\n"u8.ToArray().AsMemory());
+
+    var cmd = new AssuanCommand("CMD");
+    cmd.Add("hi");
+
+    var result = await client.InvokeAsync(cmd, CancellationToken.None);
+
+    factory.Connection.Writes.Count.ShouldBe(1);
+    result.Count.ShouldBe(1);
+    result[0].Type.ShouldBe(AssuanResponseType.Ok);
+    result[0].ToString().ShouldBe("hi");
+  }
+
+  [Fact]
+  public async Task InvokeAsync_WithInquireHandler_ShouldPassHandlerToConnection() {
+    var resolver = new FakeEndpointResolver();
+    var factory = new FakeAssuanConnectionFactory();
+    factory.Connection.ReadBuffers.Enqueue("OK banner"u8.ToArray());
+
+    var client = new AssuanClient(resolver, factory, AssuanClientOptions.Default);
+    client.Connect(new TcpClientEndpoint(IPAddress.Loopback, 0), new Dictionary<string, object>());
+
+    factory.Connection.ReadMemoryBuffers.Enqueue("OK done\n"u8.ToArray().AsMemory());
+
+    Task<ReadOnlyMemory<byte>> Handler(IClientInquireContext _ctx, CancellationToken _ct)
+      => Task.FromResult(ReadOnlyMemory<byte>.Empty);
+
+    _ = await client.InvokeAsync(new AssuanCommand("CMD"), Handler, CancellationToken.None);
+
+    factory.Connection.LastAsyncInquireHandler.ShouldBe((AsyncInquireHandler)Handler);
+  }
+
+  [Fact]
   public void Disconnect_ShouldNoOp_WhenNotConnected() {
     var factory = new FakeAssuanConnectionFactory();
     var client = new AssuanClient(new FakeEndpointResolver(), factory, AssuanClientOptions.Default);

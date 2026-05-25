@@ -1,5 +1,34 @@
 # Assuan Library .NET Changelog
 
+## [1.1.0](https://github.com/baliestri/assuan-library/compare/v1.0.2..v1.1.0) - 2026-05-25
+
+### ⛰️  Features
+
+- *(command)* Validate command names and improve error handling - ([5d631eb](https://github.com/baliestri/assuan-library/commit/5d631ebc8d06cf17bc97aa67bd607e6fedf34a44))
+- *(logging)* Implement logging functionality for Assuan connections - ([7073fa0](https://github.com/baliestri/assuan-library/commit/7073fa0a4955d9fd25fc9c6998c3962fc74978c4))
+- *(server)* Implement session concurrency control and error handling - ([27c5d37](https://github.com/baliestri/assuan-library/commit/27c5d37e500ccbf5cd187e4f5952082d901ec29e))
+
+### 🚜 Refactor
+
+- *(client)* Manage connection state with enum and improve error handling - ([18f7f7d](https://github.com/baliestri/assuan-library/commit/18f7f7d7f24c2c49ae060c2cc10ec24b6c89c01f))
+- *(dispatching)* Simplify null checks in CommandHandlerRegistry - ([b5196a5](https://github.com/baliestri/assuan-library/commit/b5196a542d82dbad44b492427f762014268ad5d9))
+- *(dispatching)* Restructure CommandDispatcher and registry - ([30312f2](https://github.com/baliestri/assuan-library/commit/30312f25593cb709198abaae0ebc6391aea05088))
+- *(sessions)* Introduce AssuanSessionRunner and context management - ([62181d6](https://github.com/baliestri/assuan-library/commit/62181d6d1218057ba8f48b7ad957844e11790370))
+
+### 🧪 Testing
+
+- *(client)* Add unit tests for AssuanClient command invoker - ([542d57d](https://github.com/baliestri/assuan-library/commit/542d57d3c4f5e618bdd952ed912a724e3437d840))
+- *(client)* Update connection tests to handle exceptions - ([456c9ba](https://github.com/baliestri/assuan-library/commit/456c9ba4e5db1a37978e059ba499389bca4d66db))
+- *(dispatching)* Add unit tests for CommandHandlerRegistry - ([1f49a5c](https://github.com/baliestri/assuan-library/commit/1f49a5c0a8e1f60413226f67a8b1549c6ed0ba6b))
+- *(logging)* Add unit tests for Assuan connection logging - ([10da4f3](https://github.com/baliestri/assuan-library/commit/10da4f35de4398c63a2a09e3e3163cce47462ee4))
+- *(protocol)* Add robustness tests for encoder and decoder - ([491949b](https://github.com/baliestri/assuan-library/commit/491949b3623a69ac32c2a07d2d7b97fdefbb977f))
+- *(sessions)* Add unit tests for AssuanSessionRunner - ([1124567](https://github.com/baliestri/assuan-library/commit/112456773b25e0d5e6953fca34831fb86263123a))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(solution)* Reorganize project structure into Source and Tests folders - ([6c5f82b](https://github.com/baliestri/assuan-library/commit/6c5f82bf5e7a3303a3c91a7e9010b56f62e0f578))
+- *(solution)* Replace text-based solution with xml-based solution - ([c24c0cb](https://github.com/baliestri/assuan-library/commit/c24c0cbbf04144c992393748c9c52d1c51fe04a4))
+
 ## [1.0.2](https://github.com/baliestri/assuan-library/compare/v1.0.1..v1.0.2) - 2026-01-31
 
 ### 🐛 Bug Fixes

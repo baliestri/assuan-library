@@ -22,10 +22,13 @@ public static class AssuanClientServiceCollectionExtensions {
   /// <param name="serviceCollection">The service collection to register the services in.</param>
   /// <returns>The service collection itself.</returns>
   public static IServiceCollection AddAssuanClient(this IServiceCollection serviceCollection, Action<AssuanClientOptions>? configureOptions) {
-    var options = AssuanClientOptions.Default;
-    configureOptions?.Invoke(options);
+    serviceCollection.TryAddSingleton(serviceProvider => {
+      var options = AssuanClientOptions.CreateDefault();
+      configureOptions?.Invoke(options);
+      options.Logging.UseMicrosoftLoggerWhenAvailable(serviceProvider, "AssuanLibrary.Client");
+      return options;
+    });
 
-    serviceCollection.TryAddSingleton(options);
     serviceCollection.TryAddTransient<IAssuanClient, AssuanClient>();
 
     return serviceCollection;

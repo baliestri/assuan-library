@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics.CodeAnalysis;
+using AssuanLibrary.Logging;
 using AssuanLibrary.Server.Abstractions;
 using AssuanLibrary.Transport;
 
@@ -14,11 +15,7 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   /// <summary>
   ///   A read-only instance of <see cref="AssuanServerOptions" /> with default values.
   /// </summary>
-  public static readonly AssuanServerOptions Default = new() {
-    Banner = "Assuan Server Ready",
-    MaxConcurrentSessions = 64,
-    ContinueOnSessionError = true
-  };
+  public static readonly AssuanServerOptions Default = CreateDefault();
 
   /// <summary>
   ///   The banner message to send upon connection establishment.
@@ -51,6 +48,11 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
   /// </summary>
   public AsyncServerHook? OnAuthenticateSessionAsync { get; set; }
 
+  /// <summary>
+  ///   Gets or sets logging options for the Assuan server.
+  /// </summary>
+  public AssuanLoggingOptions Logging { get; set; } = AssuanLoggingOptions.CreateDefault();
+
   /// <inheritdoc />
   public bool Equals(AssuanServerOptions? other) {
     if (other is null) {
@@ -65,7 +67,8 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
            ConfigureListener == other.ConfigureListener &&
            MaxConcurrentSessions == other.MaxConcurrentSessions &&
            ContinueOnSessionError == other.ContinueOnSessionError &&
-           OnAuthenticateSessionAsync == other.OnAuthenticateSessionAsync;
+           OnAuthenticateSessionAsync == other.OnAuthenticateSessionAsync &&
+           Equals(Logging, other.Logging);
   }
 
   /// <inheritdoc />
@@ -102,5 +105,16 @@ public sealed class AssuanServerOptions : IEquatable<AssuanServerOptions> {
     yield return MaxConcurrentSessions;
     yield return ContinueOnSessionError;
     yield return OnAuthenticateSessionAsync;
+    yield return Logging;
   }
+
+  internal static AssuanServerOptions CreateDefault()
+    => new() {
+      Banner = "Assuan Server Ready",
+      MaxConcurrentSessions = 64,
+      ContinueOnSessionError = true,
+      ConfigureListener = null,
+      OnAuthenticateSessionAsync = null,
+      Logging = AssuanLoggingOptions.CreateDefault()
+    };
 }

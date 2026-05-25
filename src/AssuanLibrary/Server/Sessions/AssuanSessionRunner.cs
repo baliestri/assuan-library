@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Runtime.ExceptionServices;
+using AssuanLibrary.Logging;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Server.Dispatching;
 using AssuanLibrary.Transport;
@@ -12,7 +13,10 @@ internal sealed class AssuanSessionRunner(ICommandDispatcher commandDispatcher, 
   public void Run(IAssuanConnection connection, CancellationToken cancellationToken = default) {
     ExceptionDispatchInfo? capturedException = null;
 
-    using var sessionContext = new AssuanSessionContext(connection, cancellationToken);
+    using var sessionContext = new AssuanSessionContext(
+      LoggingAssuanConnection.Wrap(connection, options.Logging, AssuanConnectionLoggingRole.Server),
+      cancellationToken
+    );
 
     try {
       options.OnAuthenticateSessionAsync?.Invoke(sessionContext.ServerContext).GetAwaiter().GetResult();
@@ -34,7 +38,10 @@ internal sealed class AssuanSessionRunner(ICommandDispatcher commandDispatcher, 
   public async Task RunAsync(IAssuanConnection connection, CancellationToken cancellationToken = default) {
     ExceptionDispatchInfo? capturedException = null;
 
-    await using var sessionContext = new AssuanSessionContext(connection, cancellationToken);
+    await using var sessionContext = new AssuanSessionContext(
+      LoggingAssuanConnection.Wrap(connection, options.Logging, AssuanConnectionLoggingRole.Server),
+      cancellationToken
+    );
 
     try {
       if (options.OnAuthenticateSessionAsync is not null) {

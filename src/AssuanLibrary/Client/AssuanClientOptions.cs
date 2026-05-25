@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using AssuanLibrary.Client.Abstractions;
+using AssuanLibrary.Logging;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Client;
@@ -13,13 +14,7 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   /// <summary>
   ///   A read-only instance of <see cref="AssuanClientOptions" /> with default values.
   /// </summary>
-  public static readonly AssuanClientOptions Default = new() {
-    ThrowIfNotConnected = true,
-    ConfigureConnection = null,
-    OnSessionAuthenticatingAsync = null,
-    OnSessionStartedAsync = null,
-    OnSessionEndingAsync = null
-  };
+  public static readonly AssuanClientOptions Default = CreateDefault();
 
   /// <summary>
   ///   Indicates whether to throw an exception if the client is not connected when attempting to send or receive data.
@@ -46,6 +41,11 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
   /// </summary>
   public AsyncClientHook? OnSessionEndingAsync { get; set; }
 
+  /// <summary>
+  ///   Gets or sets logging options for the Assuan client.
+  /// </summary>
+  public AssuanLoggingOptions Logging { get; set; } = AssuanLoggingOptions.CreateDefault();
+
   /// <inheritdoc />
   public bool Equals(AssuanClientOptions? other) {
     if (other is null) {
@@ -60,7 +60,8 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
            ConfigureConnection == other.ConfigureConnection &&
            OnSessionAuthenticatingAsync == other.OnSessionAuthenticatingAsync &&
            OnSessionStartedAsync == other.OnSessionStartedAsync &&
-           OnSessionEndingAsync == other.OnSessionEndingAsync;
+           OnSessionEndingAsync == other.OnSessionEndingAsync &&
+           Equals(Logging, other.Logging);
   }
 
   /// <inheritdoc />
@@ -97,5 +98,16 @@ public sealed class AssuanClientOptions : IEquatable<AssuanClientOptions> {
     yield return OnSessionAuthenticatingAsync;
     yield return OnSessionStartedAsync;
     yield return OnSessionEndingAsync;
+    yield return Logging;
   }
+
+  internal static AssuanClientOptions CreateDefault()
+    => new() {
+      ThrowIfNotConnected = true,
+      ConfigureConnection = null,
+      OnSessionAuthenticatingAsync = null,
+      OnSessionStartedAsync = null,
+      OnSessionEndingAsync = null,
+      Logging = AssuanLoggingOptions.CreateDefault()
+    };
 }

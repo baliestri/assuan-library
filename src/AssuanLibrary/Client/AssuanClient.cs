@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using AssuanLibrary.Client.Abstractions;
 using AssuanLibrary.Exceptions;
+using AssuanLibrary.Logging;
 using AssuanLibrary.Platform.Common.Transport;
 using AssuanLibrary.Platform.Unix.Transport.Endpoints;
 using AssuanLibrary.Platform.Windows.Transport.Endpoints;
@@ -75,7 +76,7 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
     EnsureCanConnect();
 
     try {
-      _connection = connectionFactory.CreateConnection(endpoint);
+      _connection = CreateLoggedConnection(endpoint);
       _connection.Open();
 
       options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata).GetAwaiter().GetResult();
@@ -102,7 +103,7 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
 
     try {
       var (resolvedEndpoint, metadata) = endpointResolver.Resolve(endpointKind);
-      _connection = connectionFactory.CreateConnection(resolvedEndpoint);
+      _connection = CreateLoggedConnection(resolvedEndpoint);
       _connection.Open();
 
       options.OnSessionAuthenticatingAsync?.Invoke(_connection, metadata).GetAwaiter().GetResult();
@@ -159,7 +160,7 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
     EnsureCanConnect();
 
     try {
-      _connection = connectionFactory.CreateConnection(endpoint);
+      _connection = CreateLoggedConnection(endpoint);
       await _connection.OpenAsync(ct).ConfigureAwait(false);
 
       if (options.OnSessionAuthenticatingAsync is not null) {
@@ -190,7 +191,7 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
 
     try {
       var (resolvedEndpoint, metadata) = endpointResolver.Resolve(endpointKind);
-      _connection = connectionFactory.CreateConnection(resolvedEndpoint);
+      _connection = CreateLoggedConnection(resolvedEndpoint);
       await _connection.OpenAsync(ct).ConfigureAwait(false);
 
       if (options.OnSessionAuthenticatingAsync is not null) {
@@ -307,6 +308,9 @@ public sealed class AssuanClient(IAssuanEndpointResolver endpointResolver, IAssu
 
   private static IAssuanConnectionFactory CreateDefaultFactory(AssuanClientOptions options)
     => new DefaultConnectionFactory(options);
+
+  private IAssuanConnection CreateLoggedConnection(IAssuanEndpoint endpoint)
+    => LoggingAssuanConnection.Wrap(connectionFactory.CreateConnection(endpoint), options.Logging, AssuanConnectionLoggingRole.Client);
 
   private static IAssuanEndpointResolver CreateDefaultResolver() {
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {

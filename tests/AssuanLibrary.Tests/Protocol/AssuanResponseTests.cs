@@ -38,6 +38,38 @@ public sealed class AssuanResponseTests {
   }
 
   [Fact]
+  public void Constructor_ShouldParseInquireResponses() {
+    var response = new AssuanResponse("INQUIRE KEYWORD"u8.ToArray());
+
+    response.Type.ShouldBe(AssuanResponseType.Inquire);
+    response.Buffer.ShouldBe("KEYWORD"u8.ToArray());
+  }
+
+  [Fact]
+  public void Constructor_ShouldFallbackToUnknown_ForUnknownResponseType() {
+    var response = new AssuanResponse("WHAT payload"u8.ToArray());
+
+    response.Type.ShouldBe(AssuanResponseType.Unknown);
+    response.Buffer.ShouldBe("WHAT payload"u8.ToArray());
+  }
+
+  [Fact]
+  public void Constructor_ShouldFallbackToUnknown_ForIncompleteResponseType() {
+    var response = new AssuanResponse("INQ"u8.ToArray());
+
+    response.Type.ShouldBe(AssuanResponseType.Unknown);
+    response.Buffer.ShouldBe("INQ"u8.ToArray());
+  }
+
+  [Fact]
+  public void Constructor_ShouldPreserveInvalidUtf8PayloadBytes() {
+    var response = new AssuanResponse([0x44, 0x20, 0xFF, 0xFE]);
+
+    response.Type.ShouldBe(AssuanResponseType.Data);
+    response.Buffer.ShouldBe([0xFF, 0xFE]);
+  }
+
+  [Fact]
   public void DecodedBuffer_ShouldReturnDecodedBytes() {
     var buffer = "D %41%42"u8.ToArray();
 

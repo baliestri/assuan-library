@@ -80,4 +80,33 @@ public sealed class AssuanResponseCollectionTests {
     collection.Count.ShouldBe(1);
     collection[0].Type.ShouldBe(AssuanResponseType.Unknown);
   }
+
+  [Fact]
+  public void Constructor_ShouldKeepIncompleteLine_AsUnknownResponse() {
+    var collection = new AssuanResponseCollection("OK ready\nINQ"u8.ToArray());
+
+    collection.Count.ShouldBe(2);
+    collection[0].Type.ShouldBe(AssuanResponseType.Ok);
+    collection[1].Type.ShouldBe(AssuanResponseType.Unknown);
+  }
+
+  [Fact]
+  public void Constructor_ShouldParseMultipleDataResponses() {
+    var collection = new AssuanResponseCollection("D one\nD two\nOK\n"u8.ToArray());
+
+    collection.Count.ShouldBe(3);
+    collection[0].Type.ShouldBe(AssuanResponseType.Data);
+    collection[1].Type.ShouldBe(AssuanResponseType.Data);
+    collection[2].Type.ShouldBe(AssuanResponseType.Ok);
+  }
+
+  [Fact]
+  public void Constructor_ShouldParseInquireDataEndSequence() {
+    var collection = new AssuanResponseCollection("INQUIRE KEY\nD value\nEND\n"u8.ToArray());
+
+    collection.Count.ShouldBe(3);
+    collection[0].Type.ShouldBe(AssuanResponseType.Inquire);
+    collection[1].Type.ShouldBe(AssuanResponseType.Data);
+    collection[2].Type.ShouldBe(AssuanResponseType.End);
+  }
 }

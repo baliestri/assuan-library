@@ -60,6 +60,32 @@ public sealed class AssuanSessionLoopTests {
   }
 
   [Fact]
+  public void Run_ShouldRouteMultipleInquireDataChunks_BeforeEnd() {
+    var conn = new FakeAssuanConnection();
+
+    using var cts = new CancellationTokenSource();
+    var session = new CancelOnRefreshSession(cts);
+
+    var dispatcher = new FakeCommandDispatcher();
+    var ctx = new RecordingServerContext(conn, session);
+
+    var loop = new AssuanSessionLoop(conn, session, ctx, dispatcher);
+
+    var inquire = new FakeServerInquireContext("X", []);
+    loop.SetActiveInquire(inquire);
+
+    conn.ReadBuffers.Enqueue("D one\nD two\nEND\n"u8.ToArray());
+
+    loop.Run();
+
+    inquire.Received.Count.ShouldBe(2);
+    inquire.Received[0].ShouldBe("one"u8.ToArray());
+    inquire.Received[1].ShouldBe("two"u8.ToArray());
+    inquire.CompleteCalls.ShouldBe(1);
+    dispatcher.DispatchCalls.ShouldBeEmpty();
+  }
+
+  [Fact]
   public void Run_ShouldSendOperationCanceledError_OnCancelResponse() {
     var conn = new FakeAssuanConnection();
 

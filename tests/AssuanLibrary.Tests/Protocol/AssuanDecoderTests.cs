@@ -157,4 +157,19 @@ public sealed class AssuanDecoderTests {
     var bytes = AssuanDecoder.ToBytes("%00");
     bytes.ShouldBe([0x00]);
   }
+
+  [Fact]
+  public void ToString_ShouldDecodeCarriageReturnAndLineFeedEscapes() {
+    AssuanDecoder.ToString("a%0Db%0Ac").ShouldBe("a\rb\nc");
+  }
+
+  [Fact]
+  public void ToBytes_ShouldHandleLargePayload() {
+    var source = string.Concat(Enumerable.Repeat("ABC%20", 10_000));
+
+    var decoded = AssuanDecoder.ToBytes(source);
+
+    decoded.Length.ShouldBeGreaterThan(10_000);
+    decoded.ShouldContain((byte)' ');
+  }
 }

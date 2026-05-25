@@ -24,6 +24,23 @@ public sealed class AssuanCommandTests {
   }
 
   [Fact]
+  public void Constructor_ShouldThrow_WhenCommandNameContainsWhitespaceOrControlCharacters() {
+    Should.Throw<ArgumentException>(() => new AssuanCommand("BAD NAME"));
+    Should.Throw<ArgumentException>(() => new AssuanCommand("BAD\rNAME"));
+    Should.Throw<ArgumentException>(() => new AssuanCommand("BAD\nNAME"));
+  }
+
+  [Fact]
+  public void Constructor_FromBuffer_ShouldThrow_WhenBufferIsEmpty() {
+    Should.Throw<ArgumentException>(() => new AssuanCommand([]));
+  }
+
+  [Fact]
+  public void Constructor_FromBuffer_ShouldThrow_WhenNameContainsControlCharacters() {
+    Should.Throw<ArgumentException>(() => new AssuanCommand("CMD\rARG\n"u8.ToArray()));
+  }
+
+  [Fact]
   public void Indexer_Get_ShouldReturnEntry() {
     var command = new AssuanCommand("CMD") { "arg" };
 
@@ -200,6 +217,27 @@ public sealed class AssuanCommandTests {
     var command = new AssuanCommand("CMD") { "a" };
 
     command.ToBytes().Length.ShouldBeGreaterThan(0);
+  }
+
+  [Fact]
+  public void ToBytes_ShouldEncodeArgumentsWithSpacePercentAndNewLines() {
+    var command = new AssuanCommand("CMD") {
+      "hello world",
+      "%value",
+      "line1\rline2\nline3"
+    };
+
+    var bytes = command.ToBytes();
+    var encoded = System.Text.Encoding.ASCII.GetString(bytes);
+
+    encoded.ShouldContain("hello world");
+    encoded.ShouldContain("%25value");
+    encoded.ShouldContain("line1%0Dline2%0Aline3");
+
+    var decoded = AssuanDecoder.ToString(bytes);
+
+    decoded.ShouldContain("%value");
+    decoded.ShouldContain("line1\rline2\nline3");
   }
 
   [Fact]

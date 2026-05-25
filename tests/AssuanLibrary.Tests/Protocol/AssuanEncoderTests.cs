@@ -49,6 +49,13 @@ public sealed class AssuanEncoderTests {
   }
 
   [Fact]
+  public void AsString_ShouldEncodeCarriageReturnAndLineFeed() {
+    var result = AssuanEncoder.AsString("a\rb\nc", false);
+
+    result.ShouldBe("a%0Db%0Ac");
+  }
+
+  [Fact]
   public void NonAsciiCharacters_ShouldBePercentEncoded() {
     const string INPUT = "é"; // 0xE9
 
@@ -124,6 +131,11 @@ public sealed class AssuanEncoderTests {
   public void AsString_ShouldNotDoubleEncode_ExistingPercentTriplets() {
     AssuanEncoder.AsString("%41", false).ShouldBe("%41");
     AssuanEncoder.AsString("%41", false, true).ShouldBe("%41");
+  }
+
+  [Fact]
+  public void AsString_ShouldEncodeSinglePercentCharacter() {
+    AssuanEncoder.AsString("value%", false).ShouldBe("value%25");
   }
 
   [Fact]

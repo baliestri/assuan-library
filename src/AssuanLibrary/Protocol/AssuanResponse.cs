@@ -26,11 +26,17 @@ public sealed partial class AssuanResponse : IEquatable<AssuanResponse>, IFormat
       return;
     }
 
-    var type = AssuanResponseType.Parse(buffer.Take(Characters.SPACE));
-    var responseBuffer = buffer.Skip(Characters.SPACE);
+    try {
+      var type = AssuanResponseType.Parse(buffer.Take(Characters.SPACE));
+      var responseBuffer = buffer.Skip(Characters.SPACE);
 
-    Type = type;
-    Buffer = responseBuffer;
+      Type = type;
+      Buffer = responseBuffer;
+    }
+    catch (Exception ex) when (ex is NotSupportedException or ArgumentOutOfRangeException) {
+      Type = AssuanResponseType.Unknown;
+      Buffer = buffer.ToArray();
+    }
   }
 
   private AssuanResponse(AssuanResponseType type, byte[] buffer) {

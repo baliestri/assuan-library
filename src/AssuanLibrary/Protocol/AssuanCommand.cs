@@ -20,6 +20,10 @@ public sealed class AssuanCommand : IAssuanCommand, IEquatable<AssuanCommand> {
   public AssuanCommand(string commandName) {
     ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
 
+    if (!IsValidCommandName(commandName)) {
+      throw new ArgumentException("The command name contains invalid characters.", nameof(commandName));
+    }
+
     _entries = new string[INITIAL_COLLECTION_SIZE];
     _entries[0] = commandName.Trim();
 
@@ -37,6 +41,10 @@ public sealed class AssuanCommand : IAssuanCommand, IEquatable<AssuanCommand> {
 
     if (parts.Length == 0) {
       throw new ArgumentException("The command buffer does not contain a valid command.", nameof(buffer));
+    }
+
+    if (!IsValidCommandName(parts[0])) {
+      throw new ArgumentException("The command buffer does not contain a valid command name.", nameof(buffer));
     }
 
     _entries = new string[parts.Length];
@@ -197,5 +205,22 @@ public sealed class AssuanCommand : IAssuanCommand, IEquatable<AssuanCommand> {
     for (var i = 0; i < Count; i++) {
       yield return _entries[i];
     }
+  }
+
+  private static bool IsValidCommandName(string commandName) {
+    var span = commandName.AsSpan().Trim();
+
+    if (span.Length == 0) {
+      return false;
+    }
+
+    foreach (var c in span) {
+      if (char.IsWhiteSpace(c) ||
+          char.IsControl(c)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

@@ -1,5 +1,11 @@
 # Assuan Library .NET Changelog
 
+## [1.1.1](https://github.com/baliestri/assuan-library/compare/v1.1.0..v1.1.1) - 2026-05-25
+
+### Build
+
+- *(project)* Update LICENSE.md path in project files - ([f00844a](https://github.com/baliestri/assuan-library/commit/f00844aa5ce061d8fb282aaaa4fd1126f7339fdc))
+
 ## [1.1.0](https://github.com/baliestri/assuan-library/compare/v1.0.2..v1.1.0) - 2026-05-25
 
 ### ⛰️  Features

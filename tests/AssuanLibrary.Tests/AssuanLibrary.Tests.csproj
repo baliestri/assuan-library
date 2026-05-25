@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="JetBrains.Annotations" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="Shouldly" />
@@ -26,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\AssuanLibrary.Extensions.DependencyInjection\AssuanLibrary.Extensions.DependencyInjection.csproj" />
     <ProjectReference Include="..\..\src\AssuanLibrary\AssuanLibrary.csproj" />
   </ItemGroup>
 

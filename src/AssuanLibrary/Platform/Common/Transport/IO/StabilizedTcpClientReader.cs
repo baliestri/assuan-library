@@ -58,7 +58,7 @@ public struct StabilizedTcpClientReader(TcpClient tcpClient, int timeoutInMillis
       var available = tcpClient.Available;
       var hadData = false;
 
-      if (hadData) {
+      if (available > 0) {
         var read = ReadChunk(available);
         hadData = read > 0;
 

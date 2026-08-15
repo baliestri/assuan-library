@@ -100,7 +100,7 @@ internal sealed class AssuanSessionLoop(
       }
 
       var command = new AssuanCommand(buffer.ToArray());
-      _ = commandDispatcher.DispatchAsync(command, context).ConfigureAwait(false);
+      await commandDispatcher.DispatchAsync(command, context).ConfigureAwait(false);
     }
   }
 }

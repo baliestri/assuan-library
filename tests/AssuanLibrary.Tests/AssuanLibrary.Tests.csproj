@@ -5,6 +5,9 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
+    <!-- The test project intentionally exercises TCP/Unix-domain-socket/named-pipe code from a single
+         Windows dev machine (see Platform/ tests), so CA1416 platform-compatibility warnings are noise here. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -92,52 +92,15 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    using var finalMemoryStream = new MemoryStream();
-    using var memoryStream = new MemoryStream();
-
-    while (true) {
+    return InquireReadLoop.Read(this, buffer => {
       var b = _pipeStream.ReadByte();
       if (b < 0) {
-        break; // EOF
+        return 0;
       }
 
-      memoryStream.WriteByte((byte)b);
-
-      if (b != Characters.LINE_FEED) {
-        continue;
-      }
-
-      var responseBuffer = memoryStream.ToArray();
-      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
-
-      finalMemoryStream.Write(responseBuffer);
-      memoryStream.SetLength(0);
-
-      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
-        break;
-      }
-
-      if (response.Type is not AssuanResponseType.Inquire) {
-        continue;
-      }
-
-      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
-
-      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
-      var parameters = responseParts.Skip(1).ToArray();
-
-      var ctx = new ClientInquireContext(this, keyword, parameters);
-
-      try {
-        inquireHandler(ctx);
-      }
-      catch {
-        ctx.Cancel();
-        throw;
-      }
-    }
-
-    return finalMemoryStream.ToArray();
+      buffer[0] = (byte)b;
+      return 1;
+    }, inquireHandler);
   }
 
   /// <inheritdoc />
@@ -184,7 +147,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
-      return;
+      throw new AssuanClientException("The named pipe connection is not open.");
     }
 
     _pipeStream.Close();
@@ -227,59 +190,14 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
-  public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(AsyncInquireHandler inquireHandler, CancellationToken ct = default) {
+  public ValueTask<ReadOnlyMemory<byte>> ReadAsync(AsyncInquireHandler inquireHandler, CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
       throw new AssuanClientException("The named pipe connection is not open.");
     }
 
-    using var finalMemoryStream = new MemoryStream();
-    using var memoryStream = new MemoryStream();
-
-    while (!ct.IsCancellationRequested) {
-      var b = _pipeStream.ReadByte();
-      if (b < 0) {
-        break; // EOF
-      }
-
-      memoryStream.WriteByte((byte)b);
-
-      if (b != Characters.LINE_FEED) {
-        continue;
-      }
-
-      var responseBuffer = memoryStream.ToArray();
-      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
-
-      finalMemoryStream.Write(responseBuffer);
-      memoryStream.SetLength(0);
-
-      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
-        break;
-      }
-
-      if (response.Type is not AssuanResponseType.Inquire) {
-        continue;
-      }
-
-      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
-
-      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
-      var parameters = responseParts.Skip(1).ToArray();
-
-      var ctx = new ClientInquireContext(this, keyword, parameters);
-
-      try {
-        await inquireHandler(ctx, ct);
-      }
-      catch {
-        await ctx.CancelAsync(ct).ConfigureAwait(false);
-        throw;
-      }
-    }
-
-    return finalMemoryStream.ToArray();
+    return InquireReadLoop.ReadAsync(this, (buffer, token) => _pipeStream.ReadAsync(buffer, token), inquireHandler, ct);
   }
 
   /// <inheritdoc />
@@ -329,7 +247,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
-      return;
+      throw new AssuanClientException("The named pipe connection is not open.");
     }
 
     await Task.Run(() => _pipeStream.Close(), ct);

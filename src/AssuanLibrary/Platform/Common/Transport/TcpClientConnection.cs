@@ -96,52 +96,15 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    using var finalMemoryStream = new MemoryStream();
-    using var memoryStream = new MemoryStream();
-
-    while (true) {
+    return InquireReadLoop.Read(this, buffer => {
       var b = _networkStream.ReadByte();
       if (b < 0) {
-        break; // EOF
+        return 0;
       }
 
-      memoryStream.WriteByte((byte)b);
-
-      if (b != Characters.LINE_FEED) {
-        continue;
-      }
-
-      var responseBuffer = memoryStream.ToArray();
-      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
-
-      finalMemoryStream.Write(responseBuffer);
-      memoryStream.SetLength(0);
-
-      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
-        break;
-      }
-
-      if (response.Type is not AssuanResponseType.Inquire) {
-        continue;
-      }
-
-      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
-
-      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
-      var parameters = responseParts.Skip(1).ToArray();
-
-      var ctx = new ClientInquireContext(this, keyword, parameters);
-
-      try {
-        inquireHandler(ctx);
-      }
-      catch {
-        ctx.Cancel();
-        throw;
-      }
-    }
-
-    return finalMemoryStream.ToArray();
+      buffer[0] = (byte)b;
+      return 1;
+    }, inquireHandler);
   }
 
   /// <inheritdoc />
@@ -237,7 +200,7 @@ internal sealed class TcpClientConnection : IAssuanConnection {
   }
 
   /// <inheritdoc />
-  public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(AsyncInquireHandler inquireHandler,
+  public ValueTask<ReadOnlyMemory<byte>> ReadAsync(AsyncInquireHandler inquireHandler,
   CancellationToken ct = default) {
     ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientConnection));
 
@@ -245,54 +208,7 @@ internal sealed class TcpClientConnection : IAssuanConnection {
       throw new AssuanClientException("TCP client is not connected.");
     }
 
-    using var finalMemoryStream = new MemoryStream();
-    using var memoryStream = new MemoryStream();
-
-    var b = new byte[1];
-
-    while (true) {
-      var bytesRead = await _networkStream.ReadAsync(b, ct).ConfigureAwait(false);
-      if (bytesRead == 0) {
-        break; // EOF
-      }
-
-      memoryStream.WriteByte(b[0]);
-
-      if (b[0] != Characters.LINE_FEED) {
-        continue;
-      }
-
-      var responseBuffer = memoryStream.ToArray();
-      var response = new AssuanResponse(responseBuffer.Take(Characters.LINE_FEED));
-
-      finalMemoryStream.Write(responseBuffer);
-      memoryStream.SetLength(0);
-
-      if (response.Type is AssuanResponseType.Ok or AssuanResponseType.Error) {
-        break;
-      }
-
-      if (response.Type is not AssuanResponseType.Inquire) {
-        continue;
-      }
-
-      var responseParts = AssuanDecoder.GetInquireParameters(response.Buffer);
-
-      var keyword = responseParts.Length > 0 ? responseParts[0] : string.Empty;
-      var parameters = responseParts.Skip(1).ToArray();
-
-      var ctx = new ClientInquireContext(this, keyword, parameters);
-
-      try {
-        await inquireHandler(ctx, ct);
-      }
-      catch {
-        await ctx.CancelAsync(ct).ConfigureAwait(false);
-        throw;
-      }
-    }
-
-    return finalMemoryStream.ToArray();
+    return InquireReadLoop.ReadAsync(this, (buffer, token) => _networkStream.ReadAsync(buffer, token), inquireHandler, ct);
   }
 
   /// <inheritdoc />

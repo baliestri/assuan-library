@@ -248,15 +248,17 @@ internal sealed class TcpClientConnection : IAssuanConnection {
     using var finalMemoryStream = new MemoryStream();
     using var memoryStream = new MemoryStream();
 
-    while (!ct.IsCancellationRequested) {
-      var b = _networkStream.ReadByte();
-      if (b < 0) {
+    var b = new byte[1];
+
+    while (true) {
+      var bytesRead = await _networkStream.ReadAsync(b, ct).ConfigureAwait(false);
+      if (bytesRead == 0) {
         break; // EOF
       }
 
-      memoryStream.WriteByte((byte)b);
+      memoryStream.WriteByte(b[0]);
 
-      if (b != Characters.LINE_FEED) {
+      if (b[0] != Characters.LINE_FEED) {
         continue;
       }
 

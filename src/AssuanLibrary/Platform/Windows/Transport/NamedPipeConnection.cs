@@ -237,15 +237,17 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     using var finalMemoryStream = new MemoryStream();
     using var memoryStream = new MemoryStream();
 
-    while (!ct.IsCancellationRequested) {
-      var b = _pipeStream.ReadByte();
-      if (b < 0) {
+    var b = new byte[1];
+
+    while (true) {
+      var bytesRead = await _pipeStream.ReadAsync(b, ct).ConfigureAwait(false);
+      if (bytesRead == 0) {
         break; // EOF
       }
 
-      memoryStream.WriteByte((byte)b);
+      memoryStream.WriteByte(b[0]);
 
-      if (b != Characters.LINE_FEED) {
+      if (b[0] != Characters.LINE_FEED) {
         continue;
       }
 

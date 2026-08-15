@@ -1,5 +1,30 @@
 # Assuan Library .NET Changelog
 
+## [1.2.0](https://github.com/baliestri/assuan-library/compare/v1.1.1..v1.2.0) - 2026-08-15
+
+### 🐛 Bug Fixes
+
+- *(server)* Await command dispatch in async session loop - ([0940b13](https://github.com/baliestri/assuan-library/commit/0940b1307da2fafc201a7a274d51a7f5881a0bd9))
+- *(transport)* Align Close()/CloseAsync() semantics across connections - ([b42add5](https://github.com/baliestri/assuan-library/commit/b42add5dd693e07238e7cd5cd098991ea69abc2c))
+- *(transport)* Use async byte reads in tcp/pipe inquire loop - ([052396e](https://github.com/baliestri/assuan-library/commit/052396ebf5aa4ff82fae20d62286514ec1df5ff9))
+- *(transport)* Check available bytes in sync tcp reader - ([efbc15a](https://github.com/baliestri/assuan-library/commit/efbc15a5d5d6a69881a07c1d69451d220c064abf))
+
+### 🚜 Refactor
+
+- *(client)* Extract shared inquire-parsing read loop - ([23a7a12](https://github.com/baliestri/assuan-library/commit/23a7a1204369efbdf314bb3029a47cc739b9b085))
+
+### 🎨 Styling
+
+- *(build)* Normalize csproj encoding and line endings - ([8080d49](https://github.com/baliestri/assuan-library/commit/8080d49b5439f318035b6f9dd159094dabddcd6c))
+
+### 🧪 Testing
+
+- *(transport)* Add coverage for readers, connections, listeners, session context - ([0d301ef](https://github.com/baliestri/assuan-library/commit/0d301efa66c7bc248ac4038ec8d99f5c339cdcb8))
+
+### ⚙️ Miscellaneous Tasks
+
+- Run dotnet build and test on push and pull_request - ([de20c6a](https://github.com/baliestri/assuan-library/commit/de20c6ae374dc9ff035bf6f7c6559711f7f605ee))
+
 ## [1.1.1](https://github.com/baliestri/assuan-library/compare/v1.1.0..v1.1.1) - 2026-05-25
 
 ### Build

@@ -196,6 +196,7 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
     }
 
     _socket.Shutdown(SocketShutdown.Both);
+    _socket.Close();
   }
 
   /// <inheritdoc />
@@ -353,7 +354,10 @@ internal sealed class UnixDomainSocketConnection : IAssuanConnection {
       throw new AssuanClientException("Socket is not connected.");
     }
 
-    await Task.Run(() => _socket.Shutdown(SocketShutdown.Both), ct);
+    await Task.Run(() => {
+      _socket.Shutdown(SocketShutdown.Both);
+      _socket.Close();
+    }, ct);
   }
 
   /// <inheritdoc />

@@ -184,7 +184,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
-      return;
+      throw new AssuanClientException("The named pipe connection is not open.");
     }
 
     _pipeStream.Close();
@@ -331,7 +331,7 @@ internal sealed class NamedPipeConnection : IAssuanConnection {
     ObjectDisposedException.ThrowIf(_disposed, nameof(NamedPipeConnection));
 
     if (!IsConnected) {
-      return;
+      throw new AssuanClientException("The named pipe connection is not open.");
     }
 
     await Task.Run(() => _pipeStream.Close(), ct);

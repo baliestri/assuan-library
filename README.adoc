@@ -11,7 +11,8 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Unix sockets: Linux verified with private directories, peer UID checks, and safe cleanup
 * [ ] Unix socket validation on macOS
 * [x] Discovery and connection to an existing GnuPG agent (fixture-tested; real-agent interop pending)
-* [ ] Server sessions, handlers, and concurrent serving
+* [x] Serial server sessions, typed handlers, hooks, and bounded inquiries
+* [ ] Concurrent server acceptance and shutdown coordination
 * [ ] Client transactions, inquiries, and response collection
 * [ ] Incremental source generators and optional DI/Logging integrations
 * [ ] Selectable examples in one console application
@@ -23,6 +24,7 @@ See link:docs/protocol.md[the protocol guide] for Assuan wire parsing, framing a
 See link:docs/transport.md[the transport guide] for TCP, custom streams and channel ownership.
 See link:docs/local-ipc.md[the local IPC guide] for Unix socket and Windows named pipe policies.
 See link:docs/agent-discovery.md[the agent discovery guide] for `gpgconf`, binary paths and the Windows nonce.
+See link:docs/server-session.md[the server session guide] for handlers, hooks, inquiries and buffer lifetimes.
 
 [source,csharp]
 ----

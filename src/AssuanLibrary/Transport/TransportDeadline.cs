@@ -9,8 +9,9 @@ namespace AssuanLibrary.Transport;
 internal readonly struct TransportDeadline {
   private static readonly TimeSpan _longestSupportedTimeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1L);
   private readonly long _started;
+  private readonly TimeProvider? _provider;
 
-  internal TransportDeadline(TimeSpan budget) {
+  internal TransportDeadline(TimeSpan budget, TimeProvider? provider = null) {
     if (budget < TimeSpan.Zero ||
         budget > _longestSupportedTimeout) {
       throw new TransportException(TransportErrorKind.InvalidOptions);
@@ -21,12 +22,13 @@ internal readonly struct TransportDeadline {
     }
 
     Remaining = budget;
-    _started = Stopwatch.GetTimestamp();
+    _provider = provider;
+    _started = provider?.GetTimestamp() ?? Stopwatch.GetTimestamp();
   }
 
   internal TimeSpan Remaining {
     get {
-      var time = field - Stopwatch.GetElapsedTime(_started);
+      var time = field - (_provider?.GetElapsedTime(_started) ?? Stopwatch.GetElapsedTime(_started));
       return time > TimeSpan.Zero ? time : TimeSpan.Zero;
     }
   }

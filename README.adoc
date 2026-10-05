@@ -13,7 +13,8 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Discovery and connection to an existing GnuPG agent (fixture-tested; real-agent interop pending)
 * [x] Serial server sessions, typed handlers, hooks, and bounded inquiries
 * [x] Bounded concurrent server acceptance and supervised shutdown
-* [ ] Client transactions, inquiries, and response collection
+* [x] Serial client transactions, borrowed events, and bounded response collection
+* [ ] Interactive client inquiries and greeting callbacks
 * [ ] Incremental source generators and optional DI/Logging integrations
 * [ ] Selectable examples in one console application
 * [ ] Complete public documentation, NuGet README, `llms.txt`, and `llms-full.txt`
@@ -26,6 +27,7 @@ See link:docs/local-ipc.md[the local IPC guide] for Unix socket and Windows name
 See link:docs/agent-discovery.md[the agent discovery guide] for `gpgconf`, binary paths and the Windows nonce.
 See link:docs/server-session.md[the server session guide] for handlers, hooks, inquiries and buffer lifetimes.
 See link:docs/server.md[the concurrent server guide] for admission, shutdown and pending sessions.
+See link:docs/client-transactions.md[the client transactions guide] for streaming responses and opt-in collection.
 
 [source,csharp]
 ----

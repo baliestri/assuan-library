@@ -16,6 +16,9 @@ public enum TransportErrorKind {
   /// <summary>The channel or listener was closed.</summary>
   Closed,
 
+  /// <summary>The required local access policy could not be established or verified.</summary>
+  AccessPolicy,
+
   /// <summary>The requested address is invalid for this transport.</summary>
   InvalidEndpoint,
 
@@ -37,6 +40,7 @@ public sealed class TransportException : Exception {
     TransportErrorKind.Timeout => "transport deadline expired",
     TransportErrorKind.Cancelled => "transport operation cancelled",
     TransportErrorKind.Closed => "transport is closed",
+    TransportErrorKind.AccessPolicy => "transport access policy failed",
     TransportErrorKind.InvalidEndpoint => "invalid transport endpoint",
     TransportErrorKind.InvalidOptions => "invalid transport options",
     TransportErrorKind.Io => "transport I/O failed",

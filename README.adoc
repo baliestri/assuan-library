@@ -6,7 +6,8 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 
 * [x] Canonical binary S-expressions: bounded parsing, scoped views, owned values, and encoding
 * [x] Assuan protocol primitives: wire parsing/encoding, framing, secret storage, and state validation
-* [ ] TCP, Unix socket, named pipe, and custom transports; agent discovery
+* [x] TCP and custom byte streams with bounded asynchronous line I/O
+* [ ] Unix socket and named pipe transports; agent discovery
 * [ ] Server sessions, handlers, and concurrent serving
 * [ ] Client transactions, inquiries, and response collection
 * [ ] Incremental source generators and optional DI/Logging integrations
@@ -16,6 +17,7 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 
 See link:docs/s-expressions.md[the S-expression guide] for usage, byte limits and buffer ownership.
 See link:docs/protocol.md[the protocol guide] for Assuan wire parsing, framing and secret storage.
+See link:docs/transport.md[the transport guide] for TCP, custom streams and channel ownership.
 
 [source,csharp]
 ----

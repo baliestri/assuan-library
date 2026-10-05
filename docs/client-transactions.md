@@ -1,6 +1,6 @@
 # Streaming Assuan client transactions
 
-`AssuanClient` owns a connected stream and reads a noninteractive Assuan greeting before returning. It accepts an already-connected `Stream`, an explicit TCP/Unix/named-pipe endpoint, or a `ResolvedAgentEndpoint`. The last form calls the resolved endpoint's own `ConnectAsync`, including the **native Windows nonce handshake**; a bare `TcpEndpoint` cannot replace it. No command is sent on connection.
+`AssuanClient` owns a connected stream and reads the Assuan greeting before returning, cancelling greeting inquiries with `CAN` by default. It accepts an already-connected `Stream`, an explicit TCP/Unix/named-pipe endpoint, or a `ResolvedAgentEndpoint`. The last form calls the resolved endpoint's own `ConnectAsync`, including the **native Windows nonce handshake**; a bare `TcpEndpoint` cannot replace it. No command is sent on connection.
 
 ```csharp
 using AssuanLibrary.Client;
@@ -54,4 +54,4 @@ static class CollectionExample {
 
 Collection defaults are 16 MiB of retained bytes and 4,096 observed events. Every event counts, including `END` and the final response; retained status keywords, their separator, arguments and comments count toward the byte budget. Secret collection holds **only decoded data** in a fixed-capacity `SecretBuffer`, wiped on disposal. Status and comments remain in ordinary managed memory. If those metadata could be sensitive, use secret-classified **streaming** instead. Caller-owned command arguments, copies and OS/runtime buffers remain the caller's responsibility.
 
-Connection, greeting and command budgets default to 10, 120 and 300 seconds. A command's single budget includes pauses between event reads, not just socket I/O. Cancellation or uncertain I/O invalidates the client rather than retrying. Interactive `INQUIRE` in a greeting or command currently raises `UnsupportedInquiry` and closes the connection; inquiry replies and greeting callbacks belong to the next client stage.
+Connection, greeting and command budgets default to 10, 120 and 300 seconds. A command's single budget includes pauses between event reads, not just socket I/O. Cancellation or uncertain I/O invalidates the client rather than retrying. Interactive `INQUIRE` is handled through an exclusive event guard; see [the inquiry guide](client-inquiries.md) for command replies, manual greeting and callback/default `CAN` policies.

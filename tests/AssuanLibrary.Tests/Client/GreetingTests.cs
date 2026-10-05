@@ -27,13 +27,12 @@ public sealed class GreetingTests {
   }
 
   [Fact]
-  public async Task InquiryBeforeGreetingOkFailsClosedUntilInteractiveSupportExists() {
-    var stream = new ScriptedClientStream("INQUIRE PIN\n"u8.ToArray());
-    var error = await Assert.ThrowsAsync<ClientException>(() => AssuanClient.FromStreamAsync(stream,
-      cancellationToken: TestContext.Current.CancellationToken));
-    Assert.Equal(ClientErrorKind.UnsupportedInquiry, error.Kind);
-    Assert.True(stream.Closed);
-    Assert.Empty(stream.WrittenBytes);
+  public async Task InquiryBeforeGreetingOkIsCancelledAndFinalStillRequired() {
+    var stream = new ScriptedClientStream("INQUIRE PIN\nOK\n"u8.ToArray());
+    await using var client = await AssuanClient.FromStreamAsync(stream,
+      cancellationToken: TestContext.Current.CancellationToken);
+    Assert.True(client.IsUsable);
+    Assert.Equal("CAN\n"u8.ToArray(), stream.WrittenBytes);
   }
 
   [Fact]

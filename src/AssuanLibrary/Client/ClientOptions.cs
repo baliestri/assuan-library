@@ -33,10 +33,10 @@ public sealed class ClientOptions {
   /// <summary>Total command budget including all events and final; defaults to 300 seconds.</summary>
   public TimeSpan CommandTimeout { get; }
 
-  /// <summary>Reserved for interactive inquiries in the next stage.</summary>
+  /// <summary>Inquiry budget, capped by the greeting or command budget; defaults to 120 seconds.</summary>
   public TimeSpan InquiryTimeout { get; }
 
-  /// <summary>Reserved decoded-send limit; defaults to one MiB.</summary>
+  /// <summary>Maximum cumulative raw bytes sent during one inquiry; defaults to one MiB.</summary>
   public int MaxInquiryBytes { get; }
 
   private static TimeSpan Validate(TimeSpan value) {

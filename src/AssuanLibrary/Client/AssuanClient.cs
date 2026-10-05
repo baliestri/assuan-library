@@ -5,7 +5,6 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using AssuanLibrary.Protocol;
-using AssuanLibrary.Protocol.State;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Discovery;
 using AssuanLibrary.Transport.Unix;
@@ -32,72 +31,98 @@ public sealed class AssuanClient : IAsyncDisposable {
     return ValueTask.CompletedTask;
   }
 
-  /// <summary>Takes ownership of a connected duplex stream and consumes a noninteractive greeting.</summary>
+  internal static AssuanClient FromReadyCore(ClientCore core, ClientOptions options) => new(core, options);
+
+  /// <summary>Begins an owned greeting without reading or writing any bytes.</summary>
+  public static ClientHandshake BeginHandshake(Stream stream, ClientOptions? options = null) {
+    ArgumentNullException.ThrowIfNull(stream);
+    return new ClientHandshake(new ClientCore(stream), options ?? ClientOptions.Default);
+  }
+
+  /// <summary>Takes ownership of a connected stream, auto-cancels greeting inquiries and waits for a final.</summary>
   public static Task<AssuanClient> FromStreamAsync(Stream stream, ClientOptions? options = null,
   CancellationToken cancellationToken = default)
     => FromStreamWithClockAsync(stream, options, TimeProvider.System, cancellationToken);
 
+  /// <summary>Consumes a greeting, delegating every inquiry to an exclusive callback.</summary>
+  public static Task<AssuanClient> FromStreamAsync(Stream stream, IGreetingInquiryHandler handler,
+  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ArgumentNullException.ThrowIfNull(handler);
+    return DriveHandshakeAsync(stream, options, TimeProvider.System, handler, cancellationToken);
+  }
+
   // Deterministic tests advance only client-owned total budgets; channel I/O still
   // enforces its real per-call deadline using the remaining amount passed to it.
-  internal static async Task<AssuanClient> FromStreamWithClockAsync(Stream stream, ClientOptions? options,
-  TimeProvider clock, CancellationToken cancellationToken) {
+  internal static Task<AssuanClient> FromStreamWithClockAsync(Stream stream, ClientOptions? options,
+  TimeProvider clock, CancellationToken cancellationToken)
+    => DriveHandshakeAsync(stream, options, clock, null, cancellationToken);
+
+  private static async Task<AssuanClient> DriveHandshakeAsync(Stream stream, ClientOptions? options,
+  TimeProvider clock, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(stream);
     ArgumentNullException.ThrowIfNull(clock);
-    options ??= ClientOptions.Default;
-    var core = new ClientCore(stream, clock);
-    var transferred = false;
-    try {
-      var deadline = new TransportDeadline(options.GreetingTimeout, clock);
-      if (cancellationToken.IsCancellationRequested) {
-        throw new ClientException(ClientErrorKind.Cancelled);
-      }
+    await using var handshake = new ClientHandshake(new ClientCore(stream, clock), options ?? ClientOptions.Default);
+    if (cancellationToken.IsCancellationRequested) {
+      throw new ClientException(ClientErrorKind.Cancelled);
+    }
 
-      while (true) {
-        await core.Channel.ReadLineAsync(deadline.Remaining, cancellationToken).ConfigureAwait(false);
-        ProtocolResponseKind kind;
-        uint? errorCode = null;
-
-        {
-          var response = ProtocolResponse.Parse(core.Channel.Line);
-          kind = response.Kind;
-          if (kind == ProtocolResponseKind.Err) {
-            errorCode = response.ErrorCode;
-          }
-        }
-
-        switch (kind) {
-          case ProtocolResponseKind.Inquire:
-            throw new ClientException(ClientErrorKind.UnsupportedInquiry);
-          case ProtocolResponseKind.Err:
-            throw new ClientException(ClientErrorKind.GreetingRejected, errorCode);
-        }
-
-        core.Machine.Receive(kind);
-        if (deadline.Remaining == TimeSpan.Zero) {
-          throw new ClientException(ClientErrorKind.Timeout);
-        }
-
-        if (kind != ProtocolResponseKind.Ok) {
+    while (await handshake.ReadNextAsync(cancellationToken).ConfigureAwait(false) is { } ev) {
+      var deferred = false;
+      try {
+        if (ev.Kind != ClientEventKind.Inquire) {
           continue;
         }
 
-        transferred = true;
-        return new AssuanClient(core, options);
+        var inquiry = ev.Inquiry;
+        if (handler is null) {
+          await inquiry.CancelAsync(cancellationToken).ConfigureAwait(false);
+          continue;
+        }
+
+        var remaining = inquiry.Deadline.Remaining;
+        if (remaining == TimeSpan.Zero) {
+          throw new ClientException(ClientErrorKind.Timeout);
+        }
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        linked.CancelAfter(remaining);
+        Task response;
+        try { response = handler.RespondAsync(inquiry, linked.Token).AsTask(); }
+        catch (Exception error) { throw new ClientException(ClientErrorKind.State, technicalCause: error); }
+
+        try { await response.WaitAsync(remaining, linked.Token).ConfigureAwait(false); }
+        catch (Exception error) when (error is TimeoutException or OperationCanceledException) {
+          await handshake.DisposeAsync().ConfigureAwait(false);
+          if (!response.IsCompleted) {
+            var borrowed = ev;
+            _ = response.ContinueWith(completed => {
+              _ = completed.Exception;
+              borrowed.Dispose();
+            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            deferred = true;
+          }
+
+          throw new ClientException(cancellationToken.IsCancellationRequested
+            ? ClientErrorKind.Cancelled
+            : ClientErrorKind.Timeout);
+        }
+        catch (ClientException) { throw; }
+        catch (Exception error) {
+          throw new ClientException(ClientErrorKind.State, technicalCause: error);
+        }
+
+        if (!inquiry.IsCompleted) {
+          throw new ClientException(ClientErrorKind.Incomplete);
+        }
+      }
+      finally {
+        if (!deferred) {
+          ev.Dispose();
+        }
       }
     }
-    catch (TransportException error) { throw ClientCore.Classify(error, cancellationToken); }
-    catch (ProtocolException error) { throw new ClientException(ClientErrorKind.Protocol, technicalCause: error); }
-    catch (StateException error) { throw new ClientException(ClientErrorKind.State, technicalCause: error); }
-    catch (OperationCanceledException error) {
-      throw new ClientException(cancellationToken.IsCancellationRequested
-        ? ClientErrorKind.Cancelled
-        : ClientErrorKind.Timeout, technicalCause: error);
-    }
-    finally {
-      if (!transferred) {
-        core.Invalidate();
-      }
-    }
+
+    return handshake.Finish();
   }
 
   /// <summary>Connects to a chosen TCP address and consumes the greeting.</summary>
@@ -106,7 +131,17 @@ public sealed class AssuanClient : IAsyncDisposable {
     ArgumentNullException.ThrowIfNull(endpoint);
 
     return ConnectViaAsync((timeout, token) => TcpConnector.ConnectAsync(endpoint, timeout, token),
-      options ?? ClientOptions.Default, cancellationToken);
+      options ?? ClientOptions.Default, null, cancellationToken);
+  }
+
+  /// <summary>Connects over TCP and delegates greeting inquiries to a callback.</summary>
+  public static Task<AssuanClient> ConnectAsync(IPEndPoint endpoint, IGreetingInquiryHandler handler,
+  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ArgumentNullException.ThrowIfNull(endpoint);
+    ArgumentNullException.ThrowIfNull(handler);
+
+    return ConnectViaAsync((timeout, token) => TcpConnector.ConnectAsync(endpoint, timeout, token),
+      options ?? ClientOptions.Default, handler, cancellationToken);
   }
 
   /// <summary>Connects to an explicit Unix socket or Windows named pipe.</summary>
@@ -118,7 +153,20 @@ public sealed class AssuanClient : IAsyncDisposable {
       LocalEndpointKind.UnixSocket => UnixConnector.ConnectAsync(endpoint, timeout, token),
       LocalEndpointKind.NamedPipe => PipeConnector.ConnectAsync(endpoint, timeout, token),
       var _ => throw new ClientException(ClientErrorKind.InvalidOptions)
-    }, options ?? ClientOptions.Default, cancellationToken);
+    }, options ?? ClientOptions.Default, null, cancellationToken);
+  }
+
+  /// <summary>Connects over local IPC with a greeting inquiry callback.</summary>
+  public static Task<AssuanClient> ConnectAsync(LocalEndpoint endpoint, IGreetingInquiryHandler handler,
+  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ArgumentNullException.ThrowIfNull(endpoint);
+    ArgumentNullException.ThrowIfNull(handler);
+
+    return ConnectViaAsync((timeout, token) => endpoint.Kind switch {
+      LocalEndpointKind.UnixSocket => UnixConnector.ConnectAsync(endpoint, timeout, token),
+      LocalEndpointKind.NamedPipe => PipeConnector.ConnectAsync(endpoint, timeout, token),
+      var _ => throw new ClientException(ClientErrorKind.InvalidOptions)
+    }, options ?? ClientOptions.Default, handler, cancellationToken);
   }
 
   /// <summary>Uses the resolved endpoint's own connection method, including a Windows nonce handshake.</summary>
@@ -127,7 +175,17 @@ public sealed class AssuanClient : IAsyncDisposable {
     ArgumentNullException.ThrowIfNull(endpoint);
 
     return ConnectViaAsync((timeout, token) => endpoint.ConnectAsync(timeout, token),
-      options ?? ClientOptions.Default, cancellationToken);
+      options ?? ClientOptions.Default, null, cancellationToken);
+  }
+
+  /// <summary>Uses the resolved endpoint's nonce handshake and a greeting inquiry callback.</summary>
+  public static Task<AssuanClient> ConnectAsync(ResolvedAgentEndpoint endpoint, IGreetingInquiryHandler handler,
+  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ArgumentNullException.ThrowIfNull(endpoint);
+    ArgumentNullException.ThrowIfNull(handler);
+
+    return ConnectViaAsync((timeout, token) => endpoint.ConnectAsync(timeout, token),
+      options ?? ClientOptions.Default, handler, cancellationToken);
   }
 
   /// <summary>Starts one validated command; its transaction owns all reads until a final response.</summary>
@@ -179,7 +237,7 @@ public sealed class AssuanClient : IAsyncDisposable {
       }
 
       _core.IoUncertain = false;
-      return new ClientTransaction(_core, deadline, sensitivity);
+      return new ClientTransaction(_core, deadline, sensitivity, _options);
     }
     catch (Exception error) when (error is not ClientException { Kind: ClientErrorKind.State }) {
       _core.Invalidate();
@@ -251,6 +309,9 @@ public sealed class AssuanClient : IAsyncDisposable {
               comments.Add(data.ToArray());
               break;
             }
+            case ClientEventKind.Inquire:
+              await current.Inquiry.CancelAsync(token).ConfigureAwait(false);
+              break;
           }
         }
       }
@@ -276,14 +337,15 @@ public sealed class AssuanClient : IAsyncDisposable {
   }
 
   private static async Task<AssuanClient> ConnectViaAsync(Func<TimeSpan, CancellationToken, Task<Stream>> connect,
-  ClientOptions options, CancellationToken cancellationToken) {
+  ClientOptions options, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
     try {
       if (cancellationToken.IsCancellationRequested) {
         throw new ClientException(ClientErrorKind.Cancelled);
       }
 
       var stream = await connect(options.ConnectTimeout, cancellationToken).ConfigureAwait(false);
-      return await FromStreamAsync(stream, options, cancellationToken).ConfigureAwait(false);
+      return await DriveHandshakeAsync(stream, options, TimeProvider.System, handler, cancellationToken)
+        .ConfigureAwait(false);
     }
     catch (Exception error) when (error is TransportException or OperationCanceledException or TimeoutException) {
       throw ClientCore.Classify(error, cancellationToken);

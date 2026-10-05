@@ -36,24 +36,14 @@ public sealed class LifecycleTests {
   }
 
   [Fact]
-  public async Task PrematureFinishAndUnexpectedInquiryCloseConnection() {
+  public async Task PrematureFinishClosesConnection() {
     var early = new ScriptedClientStream("OK\n"u8.ToArray());
-    await using (var client = await AssuanClient.FromStreamAsync(early,
-                   cancellationToken: TestContext.Current.CancellationToken)) {
-      await using var tx = await client.CommandAsync("NOP", ReadOnlyMemory<byte>.Empty,
-        PayloadSensitivity.Public, TestContext.Current.CancellationToken);
-      Assert.Equal(ClientErrorKind.Incomplete, Assert.Throws<ClientException>(() => tx.Finish()).Kind);
-      Assert.False(client.IsUsable);
-    }
-
-    var inquiry = new ScriptedClientStream("OK\n"u8.ToArray(), "INQUIRE PIN\n"u8.ToArray());
-    await using var other = await AssuanClient.FromStreamAsync(inquiry,
+    await using var client = await AssuanClient.FromStreamAsync(early,
       cancellationToken: TestContext.Current.CancellationToken);
-    await using var pending = await other.CommandAsync("GET", ReadOnlyMemory<byte>.Empty,
+    await using var tx = await client.CommandAsync("NOP", ReadOnlyMemory<byte>.Empty,
       PayloadSensitivity.Public, TestContext.Current.CancellationToken);
-    var error = await Assert.ThrowsAsync<ClientException>(() => pending.ReadNextAsync(TestContext.Current.CancellationToken));
-    Assert.Equal(ClientErrorKind.UnsupportedInquiry, error.Kind);
-    Assert.True(inquiry.Closed);
+    Assert.Equal(ClientErrorKind.Incomplete, Assert.Throws<ClientException>(tx.Finish).Kind);
+    Assert.False(client.IsUsable);
   }
 
   [Fact]

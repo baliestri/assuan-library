@@ -11,6 +11,7 @@ namespace AssuanLibrary.Client;
 public sealed class ClientTransaction : IAsyncDisposable {
   private readonly ClientCore _core;
   private readonly TransportDeadline _deadline;
+  private readonly ClientOptions _options;
   private readonly PayloadSensitivity _sensitivity;
   private int _disposed;
   private bool _finalSeen;
@@ -19,13 +20,15 @@ public sealed class ClientTransaction : IAsyncDisposable {
   private int _reading;
   private uint? _remoteCode;
 
-  internal ClientTransaction(ClientCore core, TransportDeadline deadline, PayloadSensitivity sensitivity) {
+  internal ClientTransaction(ClientCore core, TransportDeadline deadline, PayloadSensitivity sensitivity,
+  ClientOptions options) {
     _core = core;
     _deadline = deadline;
     _sensitivity = sensitivity;
+    _options = options;
   }
 
-  /// <summary>Abandoning a transaction without a final response makes the client unusable.</summary>
+  /// <summary>Abandoning a transaction without a final response invalidates the client.</summary>
   public ValueTask DisposeAsync() {
     if (Interlocked.Exchange(ref _disposed, 1) == 0) {
       if (!_finalSeen ||
@@ -59,98 +62,26 @@ public sealed class ClientTransaction : IAsyncDisposable {
         return null;
       }
 
-      if (_core.Machine.State != ClientState.Command ||
+      if (_core.Machine.State is not (ClientState.Command or ClientState.AwaitFinal) ||
           _core.IoUncertain) {
+        _core.Invalidate();
         throw new ClientException(ClientErrorKind.State);
       }
 
-      while (true) {
-        if (_deadline.Remaining == TimeSpan.Zero) {
-          throw new ClientException(ClientErrorKind.Timeout);
-        }
-
-        _core.IoUncertain = true;
-        await _core.Channel.ReadLineAsync(_deadline.Remaining, cancellationToken).ConfigureAwait(false);
-        ProtocolResponseKind wireKind;
-        int payloadOffset = 0, payloadLength = 0, keywordLength = 0;
-        uint? remoteCode = null;
-        {
-          var line = _core.Channel.Line;
-          var parsed = ProtocolResponse.Parse(line);
-          wireKind = parsed.Kind;
-          switch (wireKind) {
-            case ProtocolResponseKind.Data or ProtocolResponseKind.Comment or ProtocolResponseKind.Ok or ProtocolResponseKind.Err:
-              payloadLength = parsed.PayloadBytes.Length;
-              payloadOffset = wireKind switch {
-                ProtocolResponseKind.Data => 2,
-                ProtocolResponseKind.Comment => 1,
-                var _ => line.Length - payloadLength
-              };
-              break;
-            case ProtocolResponseKind.Status:
-              keywordLength = parsed.KeywordBytes.Length;
-              payloadLength = parsed.Arguments.Length;
-              payloadOffset = line.Length - payloadLength;
-              break;
-          }
-
-          if (wireKind == ProtocolResponseKind.Err) {
-            remoteCode = parsed.ErrorCode;
-          }
-        }
-
-        switch (wireKind) {
-          case ProtocolResponseKind.Empty:
-            _core.IoUncertain = false;
-            continue;
-          case ProtocolResponseKind.Inquire:
-            throw new ClientException(ClientErrorKind.UnsupportedInquiry);
-        }
-
-        if (cancellationToken.IsCancellationRequested) {
-          throw new ClientException(ClientErrorKind.Cancelled);
-        }
-
-        if (_deadline.Remaining == TimeSpan.Zero) {
-          throw new ClientException(ClientErrorKind.Timeout);
-        }
-
-        _core.Machine.Receive(wireKind);
-        var kind = wireKind switch {
-          ProtocolResponseKind.Data => ClientEventKind.Data,
-          ProtocolResponseKind.Status => ClientEventKind.Status,
-          ProtocolResponseKind.Comment => ClientEventKind.Comment,
-          ProtocolResponseKind.End => ClientEventKind.End,
-          ProtocolResponseKind.Ok or ProtocolResponseKind.Err => ClientEventKind.Finished,
-          var _ => throw new ClientException(ClientErrorKind.Protocol)
-        };
-
-        if (kind == ClientEventKind.Data) {
-          payloadLength = ProtocolEscaping.DecodeDataInPlace(_core.Channel.MutableLine[2..]);
-        }
-
-        var received = _core.Channel.ReceivedLineMemory;
-        var payload = received.Slice(payloadOffset, payloadLength);
-        var keyword = kind == ClientEventKind.Status ? received.Slice(2, keywordLength) : ReadOnlyMemory<byte>.Empty;
-        _core.Channel.BeginReceivedLease();
-        Volatile.Write(ref _leaseActive, 1);
-        if (kind == ClientEventKind.Finished) {
-          _finalSeen = true;
-          _remoteCode = remoteCode;
-        }
-
-        _core.IoUncertain = false;
-        return new ClientEventLease(kind, payload, keyword, _sensitivity, remoteCode, ReleaseLease);
+      var ev = await _core.ReadEventAsync(_deadline, _options, _sensitivity, ReleaseLease,
+        cancellationToken).ConfigureAwait(false);
+      Volatile.Write(ref _leaseActive, 1);
+      if (ev.Kind == ClientEventKind.Finished) {
+        _finalSeen = true;
+        _remoteCode = ev.RemoteCode;
       }
-    }
-    catch (Exception error) {
-      _core.Invalidate();
-      throw ClientCore.Classify(error, cancellationToken);
+
+      return ev;
     }
     finally { Interlocked.Exchange(ref _reading, 0); }
   }
 
-  /// <summary>Completes only after a final OK/ERR and the event lease has been released.</summary>
+  /// <summary>Completes only after final OK/ERR and release of its event lease.</summary>
   public void Finish() {
     if (Volatile.Read(ref _disposed) != 0) {
       throw new ObjectDisposedException(nameof(ClientTransaction));
@@ -172,6 +103,7 @@ public sealed class ClientTransaction : IAsyncDisposable {
 
     _finished = true;
     Interlocked.Exchange(ref _core.TransactionActive, 0);
+
     if (_remoteCode.HasValue) {
       throw new ClientException(ClientErrorKind.Remote, _remoteCode);
     }

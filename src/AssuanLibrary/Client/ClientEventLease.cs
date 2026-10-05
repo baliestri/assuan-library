@@ -6,23 +6,25 @@ using AssuanLibrary.Protocol;
 namespace AssuanLibrary.Client;
 
 /// <summary>Category of one borrowed response event.</summary>
-public enum ClientEventKind { Data, Status, Comment, End, Finished }
+public enum ClientEventKind { Data, Status, Comment, End, Inquire, Finished }
 
 /// <summary>One response event borrowing the channel's receive buffer until disposal.</summary>
 public sealed class ClientEventLease : IDisposable {
+  private readonly ClientInquiry? _inquiry;
   private readonly ReadOnlyMemory<byte> _payload;
   private readonly Action _release;
   private readonly PayloadSensitivity _sensitivity;
   private int _disposed;
 
   internal ClientEventLease(ClientEventKind kind, ReadOnlyMemory<byte> payload, ReadOnlyMemory<byte> keyword,
-  PayloadSensitivity sensitivity, uint? remoteCode, Action release) {
+  PayloadSensitivity sensitivity, uint? remoteCode, Action release, ClientInquiry? inquiry = null) {
     Kind = kind;
     _payload = payload;
     KeywordBytes = keyword;
     _sensitivity = sensitivity;
     RemoteCode = remoteCode;
     _release = release;
+    _inquiry = inquiry;
   }
 
   /// <summary>Event category without its borrowed content.</summary>
@@ -30,6 +32,14 @@ public sealed class ClientEventLease : IDisposable {
 
   /// <summary>Full ERR code, or null for a successful final or nonfinal event.</summary>
   public uint? RemoteCode { get; }
+
+  /// <summary>Exclusive response guard on an INQUIRE event only.</summary>
+  public ClientInquiry Inquiry {
+    get {
+      CheckOpen();
+      return Kind == ClientEventKind.Inquire ? _inquiry! : throw new InvalidOperationException("The event is not an inquiry.");
+    }
+  }
 
   /// <summary>Validated ASCII keyword on a status event.</summary>
   public ReadOnlyMemory<byte> KeywordBytes {
@@ -47,8 +57,8 @@ public sealed class ClientEventLease : IDisposable {
   public ReadOnlyMemory<byte> PayloadBytes {
     get {
       CheckOpen();
-      if (Kind == ClientEventKind.End) {
-        throw new InvalidOperationException("END has no payload.");
+      if (Kind is ClientEventKind.End or ClientEventKind.Inquire) {
+        throw new InvalidOperationException("This event has no payload.");
       }
 
       if (_sensitivity == PayloadSensitivity.Secret) {
@@ -62,6 +72,10 @@ public sealed class ClientEventLease : IDisposable {
   /// <summary>Releases this event before the next read or Finish.</summary>
   public void Dispose() {
     if (Interlocked.Exchange(ref _disposed, 1) == 0) {
+      if (_inquiry is { IsCompleted: false }) {
+        _inquiry.Abort();
+      }
+
       _release();
     }
   }
@@ -70,7 +84,7 @@ public sealed class ClientEventLease : IDisposable {
   public ReadOnlyMemory<byte> ExposeSecret() {
     CheckOpen();
     if (_sensitivity != PayloadSensitivity.Secret ||
-        Kind == ClientEventKind.End) {
+        Kind is ClientEventKind.End or ClientEventKind.Inquire) {
       throw new InvalidOperationException("No secret payload is available.");
     }
 

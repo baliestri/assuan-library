@@ -14,6 +14,7 @@ internal class ScriptedClientStream : Stream {
   }
 
   internal byte[] WrittenBytes => _output.ToArray();
+  internal int ReadCalls { get; private set; }
   internal bool Closed { get; private set; }
   public override bool CanRead => !Closed;
   public override bool CanWrite => !Closed;
@@ -24,8 +25,10 @@ internal class ScriptedClientStream : Stream {
   public override int Read(byte[] buffer, int offset, int count)
     => _input.Read(buffer, offset, count);
 
-  public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-    => _input.ReadAsync(buffer, cancellationToken);
+  public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) {
+    ReadCalls++;
+    return _input.ReadAsync(buffer, cancellationToken);
+  }
 
   public override void Write(byte[] buffer, int offset, int count)
     => _output.Write(buffer, offset, count);

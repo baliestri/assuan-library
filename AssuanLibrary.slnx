@@ -15,6 +15,7 @@
     <Project Path="src/AssuanLibrary/AssuanLibrary.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="tests/AssuanLibrary.GpgconfFixture/AssuanLibrary.GpgconfFixture.csproj" />
     <Project Path="tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj" />
     <Project Path="tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj" />
   </Folder>

@@ -5,6 +5,7 @@ using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace AssuanLibrary.Transport.Unix;
@@ -34,6 +35,8 @@ internal static partial class UnixNative {
   private const int INTERRUPTED = 4;
   private const int BAD_DESCRIPTOR = 9;
   private const int LINUX_NONBLOCKING_CLOSE_ON_EXEC = 0x80800;
+  private const int IN_PROGRESS_LINUX = 115;
+  private const int IN_PROGRESS_MAC = 36;
 
   internal static uint EffectiveUid {
     get {
@@ -80,6 +83,27 @@ internal static partial class UnixNative {
 
   [LibraryImport("libSystem.B.dylib", EntryPoint = "bind", SetLastError = true)]
   private static partial int MacBind(int fd, [In] byte[] address, uint addressLength);
+
+  [LibraryImport("libc", EntryPoint = "connect", SetLastError = true)]
+  private static partial int LinuxConnect(int fd, [In] byte[] address, uint addressLength);
+
+  [LibraryImport("libSystem.B.dylib", EntryPoint = "connect", SetLastError = true)]
+  private static partial int MacConnect(int fd, [In] byte[] address, uint addressLength);
+
+  [LibraryImport("libc", EntryPoint = "unlink", SetLastError = true)]
+  private static partial int LinuxUnlink([In] byte[] path);
+
+  [LibraryImport("libSystem.B.dylib", EntryPoint = "unlink", SetLastError = true)]
+  private static partial int MacUnlink([In] byte[] path);
+
+  [LibraryImport("libc", EntryPoint = "dup", SetLastError = true)]
+  private static partial int LinuxDup(int fd);
+
+  [LibraryImport("libSystem.B.dylib", EntryPoint = "dup", SetLastError = true)]
+  private static partial int MacDup(int fd);
+
+  [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+  private static partial int LinuxFcntl(int fd, int command, int value);
 
   [LibraryImport("libc", EntryPoint = "accept4", SetLastError = true)]
   private static partial int LinuxAccept(int fd, IntPtr address, IntPtr addressLength, int flags);
@@ -187,29 +211,15 @@ internal static partial class UnixNative {
   }
 
   internal static void BindSocket(Socket socket, string path) {
-    EnsureSupported();
     byte[] encoded;
     try { encoded = new UTF8Encoding(false, true).GetBytes(path); }
     catch (EncoderFallbackException) { throw new TransportException(TransportErrorKind.InvalidEndpoint); }
 
-    // Linux sockaddr_un: 2-byte family + 108-byte path; macOS: len + family + 104-byte path.
-    var maximum = OperatingSystem.IsLinux() ? 107 : 103; // Reserve one NUL terminator.
-    if (encoded.Length == 0 ||
-        encoded.Length > maximum) {
-      throw new TransportException(TransportErrorKind.InvalidEndpoint);
-    }
+    BindRawSocket(socket, encoded);
+  }
 
-    var length = checked((uint)(2 + encoded.Length + 1));
-    var address = new byte[(int)length];
-    if (OperatingSystem.IsLinux()) {
-      address[0] = 1;
-    }
-    else {
-      address[0] = (byte)length;
-      address[1] = 1;
-    }
-
-    encoded.AsSpan().CopyTo(address.AsSpan(2));
+  internal static void BindRawSocket(Socket socket, ReadOnlySpan<byte> path) {
+    var (address, length) = CreateSocketAddress(path);
     var handle = socket.SafeHandle;
     var added = false;
     try {
@@ -229,6 +239,125 @@ internal static partial class UnixNative {
         handle.DangerousRelease();
       }
     }
+  }
+
+  internal static bool ConnectRaw(Socket socket, ReadOnlySpan<byte> path) {
+    var (address, length) = CreateSocketAddress(path);
+    var handle = socket.SafeHandle;
+    var added = false;
+    try {
+      handle.DangerousAddRef(ref added);
+      var fd = checked((int)handle.DangerousGetHandle().ToInt64());
+      var status = OperatingSystem.IsLinux() ? LinuxConnect(fd, address, length) : MacConnect(fd, address, length);
+      if (status == 0) {
+        return true;
+      }
+
+      var error = Marshal.GetLastPInvokeError();
+      if (error == (OperatingSystem.IsLinux() ? IN_PROGRESS_LINUX : IN_PROGRESS_MAC)) {
+        return false;
+      }
+
+      throw new TransportException(TransportErrorKind.Io, new Win32Exception(error));
+    }
+    catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) {
+      throw new TransportException(TransportErrorKind.AccessPolicy, error);
+    }
+    finally {
+      if (added) {
+        handle.DangerousRelease();
+      }
+    }
+  }
+
+  // Used by the deterministic binary-path fixture; normal listener cleanup has
+  // stronger inode/owner checks and must not call this by pathname alone.
+  internal static void UnlinkRawFixturePath(ReadOnlySpan<byte> path) {
+    EnsureSupported();
+    if (path.IsEmpty ||
+        path[0] != (byte)'/' ||
+        path.IndexOf((byte)0) >= 0) {
+      throw new TransportException(TransportErrorKind.InvalidEndpoint);
+    }
+
+    var terminated = new byte[path.Length + 1];
+    path.CopyTo(terminated);
+    try {
+      var result = OperatingSystem.IsLinux() ? LinuxUnlink(terminated) : MacUnlink(terminated);
+      if (result != 0) {
+        throw new TransportException(TransportErrorKind.Io,
+          new Win32Exception(Marshal.GetLastPInvokeError()));
+      }
+    }
+    finally {
+      CryptographicOperations.ZeroMemory(terminated);
+    }
+  }
+
+  internal static Socket DuplicateConnectedSocket(Socket socket) {
+    EnsureSupported();
+    var handle = socket.SafeHandle;
+    var added = false;
+    int duplicate;
+    try {
+      handle.DangerousAddRef(ref added);
+      var fd = checked((int)handle.DangerousGetHandle().ToInt64());
+      duplicate = OperatingSystem.IsLinux() ? LinuxDup(fd) : MacDup(fd);
+    }
+    catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) {
+      throw new TransportException(TransportErrorKind.AccessPolicy, error);
+    }
+    finally {
+      if (added) {
+        handle.DangerousRelease();
+      }
+    }
+
+    if (duplicate < 0) {
+      throw new TransportException(TransportErrorKind.Io,
+        new Win32Exception(Marshal.GetLastPInvokeError()));
+    }
+
+    var owned = new SafeSocketHandle(duplicate, true);
+    try {
+      var status = OperatingSystem.IsLinux()
+        ? LinuxFcntl(duplicate, 2, 1)
+        : MacFcntl(duplicate, 2, 1);
+      if (status != 0) {
+        throw new TransportException(TransportErrorKind.AccessPolicy);
+      }
+
+      return new Socket(owned);
+    }
+    catch {
+      owned.Dispose();
+      throw;
+    }
+  }
+
+  private static (byte[] Address, uint Length) CreateSocketAddress(ReadOnlySpan<byte> path) {
+    EnsureSupported();
+
+    // Linux sockaddr_un: 2-byte family + 108-byte path; macOS: len + family + 104-byte path.
+    var maximum = OperatingSystem.IsLinux() ? 107 : 103; // Reserve one NUL terminator.
+    if (path.IsEmpty ||
+        path.Length > maximum ||
+        path.IndexOf((byte)0) >= 0) {
+      throw new TransportException(TransportErrorKind.InvalidEndpoint);
+    }
+
+    var length = checked((uint)(2 + path.Length + 1));
+    var address = new byte[(int)length];
+    if (OperatingSystem.IsLinux()) {
+      address[0] = 1;
+    }
+    else {
+      address[0] = (byte)length;
+      address[1] = 1;
+    }
+
+    path.CopyTo(address.AsSpan(2));
+    return (address, length);
   }
 
   internal static Socket? TryAccept(Socket listener) {

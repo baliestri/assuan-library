@@ -22,6 +22,7 @@ public sealed class AssuanChannel : IAsyncDisposable {
   private int _pending;
   private int _pendingReadIo;
   private int _pendingWriteIo;
+  private int _receivedLease;
 
   /// <summary>Takes ownership of a connected duplex byte stream without reading or writing it.</summary>
   public AssuanChannel(Stream stream)
@@ -53,11 +54,28 @@ public sealed class AssuanChannel : IAsyncDisposable {
     }
   }
 
-  /// <summary>Closes the channel and wipes all buffers not still borrowed by pending I/O.</summary>
+  /// <summary>Closes the channel and wipes buffers after any pending I/O or received-line lease releases them.</summary>
   public ValueTask DisposeAsync() {
     Close();
     return ValueTask.CompletedTask;
   }
+
+  // An inquiry chunk borrows the framed line across awaits. Closing the stream
+  // must not wipe that storage until the chunk releases it.
+  internal void BeginReceivedLease() {
+    CheckOpen();
+    if (Interlocked.CompareExchange(ref _receivedLease, 1, 0) != 0) {
+      throw new InvalidOperationException("A received line is already borrowed.");
+    }
+  }
+
+  internal void EndReceivedLease() {
+    Interlocked.Exchange(ref _receivedLease, 0);
+    WipeWhenIdle();
+  }
+
+  internal void ClearReceivedLeaseLine()
+    => _frame.MutableLine.Clear();
 
   /// <summary>Reads one line, or returns false for clean EOF exactly at a line boundary.</summary>
   /// <remarks>Timeout, cancellation, framing or I/O failure closes the channel. A custom stream must support cancellation.</remarks>
@@ -240,7 +258,10 @@ public sealed class AssuanChannel : IAsyncDisposable {
       return;
     }
 
-    _frame.Dispose();
+    if (Volatile.Read(ref _receivedLease) == 0) {
+      _frame.Dispose();
+    }
+
     _pending = 0;
     if (Volatile.Read(ref _pendingReadIo) == 0) {
       CryptographicOperations.ZeroMemory(_ahead);

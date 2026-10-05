@@ -11,10 +11,17 @@ public enum ServerErrorKind { InvalidOptions, Protocol, Transport, Limit, Cancel
 
 /// <summary>A server-session error without command or payload bytes in its diagnostics.</summary>
 public sealed class ServerException : Exception {
-  internal ServerException(ServerErrorKind kind) : base($"server session failed: {kind}") => Kind = kind;
+  internal ServerException(ServerErrorKind kind, Exception? technicalCause = null)
+    : base($"server session failed: {kind}") {
+    Kind = kind;
+    TechnicalCause = technicalCause;
+  }
 
   /// <summary>The failure category.</summary>
   public ServerErrorKind Kind { get; }
+
+  /// <summary>Optional external cause; redact its text before displaying or logging it.</summary>
+  public Exception? TechnicalCause { get; }
 }
 
 /// <summary>Category of failed command-handler registration.</summary>

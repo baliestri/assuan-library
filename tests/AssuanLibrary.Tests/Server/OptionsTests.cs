@@ -15,6 +15,8 @@ public sealed class OptionsTests {
     Assert.Equal(TimeSpan.FromSeconds(300), options.IdleTimeout);
     Assert.Equal(TimeSpan.FromSeconds(30), options.ClosedTimeout);
     Assert.Equal(1024 * 1024, options.MaxInquiryBytes);
+    Assert.Equal(128, options.MaxSessions);
+    Assert.Equal(TimeSpan.FromSeconds(30), options.ShutdownGracePeriod);
   }
 
   [Fact]
@@ -31,5 +33,11 @@ public sealed class OptionsTests {
       Assert.Throws<ServerException>(() => new ServerOptions(idleTimeout: TimeSpan.Zero)).Kind);
     Assert.Equal(ServerErrorKind.InvalidOptions,
       Assert.Throws<ServerException>(() => new ServerOptions(closedTimeout: TimeSpan.Zero)).Kind);
+    Assert.Equal(ServerErrorKind.InvalidOptions,
+      Assert.Throws<ServerException>(() => new ServerOptions(maxSessions: 0)).Kind);
+    Assert.Equal(ServerErrorKind.InvalidOptions,
+      Assert.Throws<ServerException>(() => new ServerOptions(shutdownGracePeriod: TimeSpan.Zero)).Kind);
+    Assert.Equal(ServerErrorKind.InvalidOptions,
+      Assert.Throws<ServerException>(() => new ServerOptions(shutdownGracePeriod: TimeSpan.MaxValue)).Kind);
   }
 }

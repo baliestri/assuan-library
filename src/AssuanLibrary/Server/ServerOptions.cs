@@ -10,7 +10,7 @@ public sealed class ServerOptions {
   /// <summary>Validates all limits before a session writes to the connection.</summary>
   public ServerOptions(TimeSpan? greetingTimeout = null, TimeSpan? commandTimeout = null,
   TimeSpan? inquiryTimeout = null, TimeSpan? idleTimeout = null, TimeSpan? closedTimeout = null,
-  int maxInquiryBytes = 1024 * 1024) {
+  int maxInquiryBytes = 1024 * 1024, int maxSessions = 128, TimeSpan? shutdownGracePeriod = null) {
     GreetingTimeout = Check(greetingTimeout ?? TimeSpan.FromSeconds(120));
     CommandTimeout = Check(commandTimeout ?? TimeSpan.FromSeconds(300));
     InquiryTimeout = Check(inquiryTimeout ?? TimeSpan.FromSeconds(120));
@@ -21,6 +21,12 @@ public sealed class ServerOptions {
     }
 
     MaxInquiryBytes = maxInquiryBytes;
+    if (maxSessions <= 0) {
+      throw new ServerException(ServerErrorKind.InvalidOptions);
+    }
+
+    MaxSessions = maxSessions;
+    ShutdownGracePeriod = Check(shutdownGracePeriod ?? TimeSpan.FromSeconds(30));
   }
 
   /// <summary>The standard per-session limits.</summary>
@@ -43,6 +49,12 @@ public sealed class ServerOptions {
 
   /// <summary>Maximum decoded payload bytes in one inquiry.</summary>
   public int MaxInquiryBytes { get; }
+
+  /// <summary>Maximum admitted sessions, including authentication and close hooks.</summary>
+  public int MaxSessions { get; }
+
+  /// <summary>One shared grace period after the host stops accepting connections.</summary>
+  public TimeSpan ShutdownGracePeriod { get; }
 
   private static TimeSpan Check(TimeSpan timeout) {
     try { _ = new TransportDeadline(timeout); }

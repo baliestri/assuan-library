@@ -15,7 +15,8 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Bounded concurrent server acceptance and supervised shutdown
 * [x] Serial client transactions, borrowed events, and bounded response collection
 * [x] Interactive client inquiries and greeting callbacks
-* [ ] Incremental source generators and optional DI/Logging integrations
+* [x] Incremental server handler registration and OPTION routing (solution analyzer reference)
+* [ ] Optional DI/Logging generation and analyzer NuGet packaging
 * [ ] Selectable examples in one console application
 * [ ] Complete public documentation, NuGet README, `llms.txt`, and `llms-full.txt`
 * [ ] CI/CD and release 2.0.0
@@ -29,6 +30,7 @@ See link:docs/server-session.md[the server session guide] for handlers, hooks, i
 See link:docs/server.md[the concurrent server guide] for admission, shutdown and pending sessions.
 See link:docs/client-transactions.md[the client transactions guide] for streaming responses and opt-in collection.
 See link:docs/client-inquiries.md[the client inquiry guide] for END/CAN, manual greetings and callbacks.
+See link:docs/generators.md[the generators guide] for command groups and OPTION routing.
 
 [source,csharp]
 ----

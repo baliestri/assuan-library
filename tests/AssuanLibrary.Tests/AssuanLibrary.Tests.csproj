@@ -29,5 +29,6 @@
   <ItemGroup>
     <ProjectReference Include="..\AssuanLibrary.GpgconfFixture\AssuanLibrary.GpgconfFixture.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\AssuanLibrary\AssuanLibrary.csproj" />
+    <ProjectReference Include="..\..\src\AssuanLibrary.Generators\AssuanLibrary.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

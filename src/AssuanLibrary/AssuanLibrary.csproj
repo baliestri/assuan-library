@@ -3,4 +3,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AssuanLibrary.Generators\AssuanLibrary.Generators.csproj"
+                      ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="..\AssuanLibrary.Generators\bin\$(Configuration)\netstandard2.0\AssuanLibrary.Generators.dll"
+          Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false" />
+  </ItemGroup>
 </Project>

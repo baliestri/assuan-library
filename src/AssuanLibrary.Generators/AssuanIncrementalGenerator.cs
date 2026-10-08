@@ -32,6 +32,9 @@ public sealed class AssuanIncrementalGenerator : IIncrementalGenerator {
       static (syntax, token) => OptionModel.Extract(syntax, token));
     context.RegisterSourceOutput(options.WithComparer(EqualityComparer<OptionModel>.Default),
       ReportOption);
+    var integrations = context.CompilationProvider.Select(static (compilation, _) =>
+      IntegrationAvailability.Detect(compilation)).WithComparer(EqualityComparer<IntegrationAvailability>.Default);
+    context.RegisterSourceOutput(integrations, EmitIntegrations);
   }
 
   private static void EmitHandler(SourceProductionContext context, HandlerModel model) {
@@ -74,5 +77,27 @@ public sealed class AssuanIncrementalGenerator : IIncrementalGenerator {
         ? GeneratorDiagnostics._invalidOptionSignature
         : GeneratorDiagnostics._invalidOptionMetadata,
       model.Location.ToLocation(), "invalid declaration", 0));
+  }
+
+  private static void EmitIntegrations(SourceProductionContext context, IntegrationAvailability availability) {
+    if (availability.Di) {
+      if (availability.DiCollision) {
+        context.ReportDiagnostic(Diagnostic.Create(GeneratorDiagnostics._integrationCollision, Location.None,
+          "dependency injection type collision", 0));
+      }
+      else {
+        context.AddSource(DependencyInjectionEmitter.HINT, DependencyInjectionEmitter.Emit());
+      }
+    }
+
+    if (availability.Logging) {
+      if (availability.LoggingCollision) {
+        context.ReportDiagnostic(Diagnostic.Create(GeneratorDiagnostics._integrationCollision, Location.None,
+          "logging type collision", 0));
+      }
+      else {
+        context.AddSource(LoggingEmitter.HINT, LoggingEmitter.Emit());
+      }
+    }
   }
 }

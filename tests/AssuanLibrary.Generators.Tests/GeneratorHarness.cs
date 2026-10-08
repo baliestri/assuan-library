@@ -8,14 +8,17 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace AssuanLibrary.Generators.Tests;
 
 internal static class GeneratorHarness {
-  internal static Result Compile(string source, bool includeGenerator = true) {
+  internal static Result Compile(string source, bool includeGenerator = true,
+  params MetadataReference[] extraReferences) {
     var parse = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
     var runtime = (string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")
                   ?? throw new InvalidOperationException("Trusted platform assemblies are unavailable.");
     var references = runtime.Split(Path.PathSeparator)
-      .Select(path => MetadataReference.CreateFromFile(path))
+      .Where(path => !Path.GetFileName(path).StartsWith("Microsoft.Extensions.", StringComparison.OrdinalIgnoreCase))
+      .Select(MetadataReference (path) => MetadataReference.CreateFromFile(path))
       .ToList();
     references.Add(MetadataReference.CreateFromFile(typeof(AssuanCommandHandlerAttribute).Assembly.Location));
+    references.AddRange(extraReferences);
     var compilation = CSharpCompilation.Create("GeneratorConsumer",
       [CSharpSyntaxTree.ParseText(source, parse)], references,
       new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));

@@ -13,6 +13,7 @@ internal static class GeneratorDiagnostics {
   internal static readonly DiagnosticDescriptor _invalidGroup = Create("ASG008", "Invalid command group or inconsistent state");
   internal static readonly DiagnosticDescriptor _invalidOptionSignature = Create("ASG009", "Invalid option handler signature");
   internal static readonly DiagnosticDescriptor _invalidOptionMetadata = Create("ASG010", "Invalid or duplicate option name or missing group");
+  internal static readonly DiagnosticDescriptor _integrationCollision = Create("ASG011", "Generated integration type conflicts with consumer type");
 
   private static DiagnosticDescriptor Create(string id, string title)
     => new(id, title, "{0} at byte {1}", "AssuanLibrary", DiagnosticSeverity.Error, true);

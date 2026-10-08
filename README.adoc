@@ -16,7 +16,7 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Serial client transactions, borrowed events, and bounded response collection
 * [x] Interactive client inquiries and greeting callbacks
 * [x] Incremental server handler registration and OPTION routing (solution analyzer reference)
-* [ ] Optional DI/Logging generation and analyzer NuGet packaging
+* [x] Conditional DI/Logging generation and analyzer in the main local NuGet package
 * [ ] Selectable examples in one console application
 * [ ] Complete public documentation, NuGet README, `llms.txt`, and `llms-full.txt`
 * [ ] CI/CD and release 2.0.0
@@ -31,6 +31,7 @@ See link:docs/server.md[the concurrent server guide] for admission, shutdown and
 See link:docs/client-transactions.md[the client transactions guide] for streaming responses and opt-in collection.
 See link:docs/client-inquiries.md[the client inquiry guide] for END/CAN, manual greetings and callbacks.
 See link:docs/generators.md[the generators guide] for command groups and OPTION routing.
+See link:docs/integrations.md[the optional integrations guide] for generated DI/Logging and single-package installation.
 
 [source,csharp]
 ----
@@ -58,7 +59,7 @@ dotnet build AssuanLibrary.slnx -c Release
 dotnet test --project tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj -c Release
 ----
 
-The solution selects the Microsoft.Testing.Platform runner in `global.json` for its xUnit v3 projects. The separate generator test project is currently empty; it will receive tests with the generator stage.
+The solution selects the Microsoft.Testing.Platform runner in `global.json` for its xUnit v3 projects. Run generator tests separately with `dotnet test --project tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj -c Release`.
 
 == Contribution and license
 

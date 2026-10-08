@@ -1,6 +1,6 @@
 # Incremental server handler generation
 
-`AssuanLibrary.Generators` removes repeated **server registration and OPTION dispatch** code. Public annotations live in `AssuanLibrary.Attributes` in the main library; the generator targets `netstandard2.0`, references Roslyn but not the runtime library, and currently runs from analyzer references in the solution. NuGet packaging of the analyzer belongs to a later stage.
+`AssuanLibrary.Generators` removes repeated **server registration and OPTION dispatch** code. Public annotations live in `AssuanLibrary.Attributes` in the main library; the generator targets `netstandard2.0`, references Roslyn but not the runtime library. An installed `AssuanLibrary` NuGet package includes it automatically as an analyzer; local project-reference consumers can use an explicit analyzer reference as the solution tests do.
 
 ```csharp
 using AssuanLibrary.Attributes;
@@ -62,4 +62,4 @@ Classes must be top-level `partial` classes, static or nonstatic. Annotated comm
 | `ASG009` | Invalid option handler signature or state accessibility |
 | `ASG010` | Invalid/duplicate option name or option handler outside a group |
 
-There are **no literal attributes**. For Assuan command or canonical S-expression bytes use normal C# byte literals (`u8`) and the runtime `ProtocolCommand` or `SExpressionParser` APIs. The Rust `command!`/`sexpr!` expression macros do not translate into useful class attributes in C#. Only the consumer test project currently references the generator as an analyzer; automatic analyzer inclusion in the main library package, DI and logging helpers remain separate work.
+There are **no literal attributes**. For Assuan command or canonical S-expression bytes use normal C# byte literals (`u8`) and the runtime `ProtocolCommand` or `SExpressionParser` APIs. The Rust `command!`/`sexpr!` expression macros do not translate into useful class attributes in C#. The analyzer also generates [optional DI/Logging integration](integrations.md) automatically when the corresponding consumer references are available, without another attribute or a mandatory Microsoft dependency.

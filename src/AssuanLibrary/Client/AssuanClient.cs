@@ -36,7 +36,8 @@ public sealed class AssuanClient : IAsyncDisposable {
   /// <summary>Begins an owned greeting without reading or writing any bytes.</summary>
   public static ClientHandshake BeginHandshake(Stream stream, ClientOptions? options = null) {
     ArgumentNullException.ThrowIfNull(stream);
-    return new ClientHandshake(new ClientCore(stream), options ?? ClientOptions.Default);
+    var selected = options ?? ClientOptions.Default;
+    return new ClientHandshake(new ClientCore(stream, eventSink: selected.EventSink), selected);
   }
 
   /// <summary>Takes ownership of a connected stream, auto-cancels greeting inquiries and waits for a final.</summary>
@@ -61,7 +62,8 @@ public sealed class AssuanClient : IAsyncDisposable {
   TimeProvider clock, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(stream);
     ArgumentNullException.ThrowIfNull(clock);
-    await using var handshake = new ClientHandshake(new ClientCore(stream, clock), options ?? ClientOptions.Default);
+    var selected = options ?? ClientOptions.Default;
+    await using var handshake = new ClientHandshake(new ClientCore(stream, clock, selected.EventSink), selected);
     if (cancellationToken.IsCancellationRequested) {
       throw new ClientException(ClientErrorKind.Cancelled);
     }

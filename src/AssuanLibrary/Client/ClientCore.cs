@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Protocol.State;
 using AssuanLibrary.Transport;
@@ -8,12 +9,13 @@ using AssuanLibrary.Transport;
 namespace AssuanLibrary.Client;
 
 /// <summary>Owned channel and protocol state shared by one exclusive transaction at a time.</summary>
-internal sealed class ClientCore(Stream stream, TimeProvider? clock = null) {
+internal sealed class ClientCore(Stream stream, TimeProvider? clock = null, IAssuanEventSink? eventSink = null) {
   internal bool GreetingPending = true;
   internal bool IoUncertain;
   internal int TransactionActive;
   internal TimeProvider Clock { get; } = clock ?? TimeProvider.System;
-  internal AssuanChannel Channel { get; } = new(stream);
+  internal AssuanChannel Channel { get; } = new(stream, eventSink);
+  internal IAssuanEventSink? EventSink { get; } = eventSink;
   internal ClientMachine Machine { get; } = new();
   internal bool IsUsable => !IoUncertain && Machine.State == ClientState.Ready;
 

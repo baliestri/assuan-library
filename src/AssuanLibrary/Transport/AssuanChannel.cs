@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Security.Cryptography;
+using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Protocol;
 
 namespace AssuanLibrary.Transport;
@@ -14,6 +15,7 @@ namespace AssuanLibrary.Transport;
 /// </remarks>
 public sealed class AssuanChannel : IAsyncDisposable {
   private readonly byte[] _ahead = new byte[ProtocolLineBuffer.MAX_LINE_BYTES];
+  private readonly IAssuanEventSink? _eventSink;
   private readonly ProtocolLineBuffer _frame = new();
   private readonly Stream _stream;
   private readonly byte[] _write = new byte[ProtocolLineBuffer.MAX_LINE_BYTES];
@@ -24,9 +26,11 @@ public sealed class AssuanChannel : IAsyncDisposable {
   private int _pendingWriteIo;
   private int _receivedLease;
 
-  /// <summary>Takes ownership of a connected duplex byte stream without reading or writing it.</summary>
-  public AssuanChannel(Stream stream)
-    => _stream = stream ?? throw new ArgumentNullException(nameof(stream));
+  /// <summary>Takes ownership of a duplex stream with an optional payload-free observer.</summary>
+  public AssuanChannel(Stream stream, IAssuanEventSink? eventSink = null) {
+    _stream = stream ?? throw new ArgumentNullException(nameof(stream));
+    _eventSink = eventSink;
+  }
 
   /// <summary>Whether bytes for a later line have already been read from the stream.</summary>
   public bool HasBufferedInput => Volatile.Read(ref _closed) == 0 && _pending != 0;
@@ -130,7 +134,9 @@ public sealed class AssuanChannel : IAsyncDisposable {
     }
     catch (Exception error) {
       Close();
-      throw Classify(error, cancellationToken);
+      var typed = Classify(error, cancellationToken);
+      ReportIoFailure(AssuanEventId.ReadFailed, typed);
+      throw typed;
     }
     finally {
       EndOperation();
@@ -141,6 +147,8 @@ public sealed class AssuanChannel : IAsyncDisposable {
   public async Task ReadLineAsync(TimeSpan timeout, CancellationToken cancellationToken = default) {
     if (!await ReadLineOrEofAsync(timeout, cancellationToken).ConfigureAwait(false)) {
       Close();
+      AssuanEventDispatch.Report(_eventSink, AssuanComponent.Transport, AssuanEventId.ReadFailed,
+        AssuanOutcome.Failure);
       throw new TransportException(TransportErrorKind.Framing, protocolCause: ProtocolErrorKind.UnexpectedEof);
     }
   }
@@ -197,7 +205,9 @@ public sealed class AssuanChannel : IAsyncDisposable {
     }
     catch (Exception error) {
       Close();
-      throw Classify(error, cancellationToken);
+      var typed = Classify(error, cancellationToken);
+      ReportIoFailure(AssuanEventId.WriteFailed, typed);
+      throw typed;
     }
     finally {
       EndOperation();
@@ -331,4 +341,12 @@ public sealed class AssuanChannel : IAsyncDisposable {
     ObjectDisposedException => new TransportException(TransportErrorKind.Closed),
     var _ => new TransportException(TransportErrorKind.Io, error)
   };
+
+  private void ReportIoFailure(AssuanEventId id, TransportException error) {
+    AssuanEventDispatch.Report(_eventSink, AssuanComponent.Transport, id, error.Kind switch {
+      TransportErrorKind.Timeout => AssuanOutcome.Timeout,
+      TransportErrorKind.Cancelled => AssuanOutcome.Cancelled,
+      var _ => AssuanOutcome.Failure
+    });
+  }
 }

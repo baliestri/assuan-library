@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Protocol.State;
 using AssuanLibrary.Transport;
@@ -105,6 +106,8 @@ public sealed class ClientTransaction : IAsyncDisposable {
     Interlocked.Exchange(ref _core.TransactionActive, 0);
 
     if (_remoteCode.HasValue) {
+      AssuanEventDispatch.Report(_core.EventSink, AssuanComponent.Client, AssuanEventId.RemoteFinal,
+        AssuanOutcome.RemoteError);
       throw new ClientException(ClientErrorKind.Remote, _remoteCode);
     }
   }

@@ -3,6 +3,7 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Protocol.State;
 using AssuanLibrary.Transport;
@@ -33,7 +34,7 @@ public sealed class ServerSession<TState> : IAsyncDisposable {
     _registry.Freeze();
     _state = state;
     _peer = accepted.PeerIdentity;
-    _channel = new AssuanChannel(accepted.Stream);
+    _channel = new AssuanChannel(accepted.Stream, options.EventSink);
     Control = new SessionControl(RequestStop);
   }
 
@@ -249,6 +250,9 @@ public sealed class ServerSession<TState> : IAsyncDisposable {
       if (deadline.Remaining == TimeSpan.Zero) {
         throw new ServerException(ServerErrorKind.Timeout);
       }
+
+      AssuanEventDispatch.Report(_options.EventSink, AssuanComponent.Server, AssuanEventId.FinalResponse,
+        error is null ? AssuanOutcome.Success : AssuanOutcome.RemoteError, written);
     }
     finally { CryptographicOperations.ZeroMemory(_outputBuffer); }
   }

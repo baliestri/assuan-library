@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Client;
@@ -9,7 +10,8 @@ namespace AssuanLibrary.Client;
 public sealed class ClientOptions {
   /// <summary>Rejects zero, negative or unrepresentable budgets before I/O.</summary>
   public ClientOptions(TimeSpan? connectTimeout = null, TimeSpan? greetingTimeout = null,
-  TimeSpan? commandTimeout = null, TimeSpan? inquiryTimeout = null, int maxInquiryBytes = 1024 * 1024) {
+  TimeSpan? commandTimeout = null, TimeSpan? inquiryTimeout = null, int maxInquiryBytes = 1024 * 1024,
+  IAssuanEventSink? eventSink = null) {
     ConnectTimeout = Validate(connectTimeout ?? TimeSpan.FromSeconds(10));
     GreetingTimeout = Validate(greetingTimeout ?? TimeSpan.FromSeconds(120));
     CommandTimeout = Validate(commandTimeout ?? TimeSpan.FromSeconds(300));
@@ -19,6 +21,7 @@ public sealed class ClientOptions {
     }
 
     MaxInquiryBytes = maxInquiryBytes;
+    EventSink = eventSink;
   }
 
   /// <summary>Default connect, greeting, command and reserved inquiry budgets.</summary>
@@ -38,6 +41,9 @@ public sealed class ClientOptions {
 
   /// <summary>Maximum cumulative raw bytes sent during one inquiry; defaults to one MiB.</summary>
   public int MaxInquiryBytes { get; }
+
+  /// <summary>Optional payload-free diagnostic observer.</summary>
+  public IAssuanEventSink? EventSink { get; }
 
   private static TimeSpan Validate(TimeSpan value) {
     try { _ = new TransportDeadline(value); }

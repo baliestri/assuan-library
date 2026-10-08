@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;
@@ -10,7 +11,8 @@ public sealed class ServerOptions {
   /// <summary>Validates all limits before a session writes to the connection.</summary>
   public ServerOptions(TimeSpan? greetingTimeout = null, TimeSpan? commandTimeout = null,
   TimeSpan? inquiryTimeout = null, TimeSpan? idleTimeout = null, TimeSpan? closedTimeout = null,
-  int maxInquiryBytes = 1024 * 1024, int maxSessions = 128, TimeSpan? shutdownGracePeriod = null) {
+  int maxInquiryBytes = 1024 * 1024, int maxSessions = 128, TimeSpan? shutdownGracePeriod = null,
+  IAssuanEventSink? eventSink = null) {
     GreetingTimeout = Check(greetingTimeout ?? TimeSpan.FromSeconds(120));
     CommandTimeout = Check(commandTimeout ?? TimeSpan.FromSeconds(300));
     InquiryTimeout = Check(inquiryTimeout ?? TimeSpan.FromSeconds(120));
@@ -27,6 +29,7 @@ public sealed class ServerOptions {
 
     MaxSessions = maxSessions;
     ShutdownGracePeriod = Check(shutdownGracePeriod ?? TimeSpan.FromSeconds(30));
+    EventSink = eventSink;
   }
 
   /// <summary>The standard per-session limits.</summary>
@@ -55,6 +58,9 @@ public sealed class ServerOptions {
 
   /// <summary>One shared grace period after the host stops accepting connections.</summary>
   public TimeSpan ShutdownGracePeriod { get; }
+
+  /// <summary>Optional payload-free diagnostic observer; null avoids event creation.</summary>
+  public IAssuanEventSink? EventSink { get; }
 
   private static TimeSpan Check(TimeSpan timeout) {
     try { _ = new TransportDeadline(timeout); }

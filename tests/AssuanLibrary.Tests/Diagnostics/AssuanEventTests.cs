@@ -14,16 +14,16 @@ namespace AssuanLibrary.Tests.Diagnostics;
 public sealed class AssuanEventTests {
   [Fact]
   public async Task ServerEmitsOnlyNumericAndEnumCommandOutcomesEvenWhenSinkThrows() {
-    var sink = new RecordingSink { Throw = true };
+    var sink = new RecordingSink { _throw = true };
     await using var stream = new SessionDuplexStream("NOP secret-marker\nBYE\n"u8.ToArray());
     var session = new ServerSession<object>(new AcceptedConnection(stream), new object(),
       new CommandRegistry<object>(), new DefaultSessionHooks<object>(),
       new ServerOptions(eventSink: sink));
     await session.RunAsync(TestContext.Current.CancellationToken);
     Assert.Equal("OK\nOK\nOK\n"u8.ToArray(), stream.WrittenBytes);
-    Assert.Contains(sink.Events,
+    Assert.Contains(sink._events,
       item => item is { Component: AssuanComponent.Server, Id: AssuanEventId.FinalResponse, Outcome: AssuanOutcome.Success });
-    Assert.All(sink.Events, item => {
+    Assert.All(sink._events, item => {
       Assert.DoesNotContain("secret-marker", item.ToString());
       Assert.DoesNotContain("SECRET_MARKER", item.ToString());
     });
@@ -31,7 +31,7 @@ public sealed class AssuanEventTests {
 
   [Fact]
   public async Task ClientRemoteErrAndFramingFailureRemainTypedWhenSinkThrows() {
-    var sink = new RecordingSink { Throw = true };
+    var sink = new RecordingSink { _throw = true };
     var stream = new ScriptedClientStream("OK\n"u8.ToArray(), "ERR 7 SECRET_MARKER\n"u8.ToArray());
     await using (var client = await AssuanClient.FromStreamAsync(stream, new ClientOptions(eventSink: sink),
                    TestContext.Current.CancellationToken)) {
@@ -42,9 +42,9 @@ public sealed class AssuanEventTests {
       Assert.Equal(ClientErrorKind.Remote, Assert.Throws<ClientException>(tx.Finish).Kind);
     }
 
-    Assert.Contains(sink.Events,
+    Assert.Contains(sink._events,
       item => item is { Component: AssuanComponent.Client, Id: AssuanEventId.RemoteFinal, Outcome: AssuanOutcome.RemoteError });
-    Assert.All(sink.Events, item => Assert.DoesNotContain("SECRET_MARKER", item.ToString()));
+    Assert.All(sink._events, item => Assert.DoesNotContain("SECRET_MARKER", item.ToString()));
 
     var eof = new ScriptedClientStream("OK\n"u8.ToArray(), ""u8.ToArray());
     await using var other = await AssuanClient.FromStreamAsync(eof, new ClientOptions(eventSink: sink),
@@ -52,16 +52,16 @@ public sealed class AssuanEventTests {
     await using var pending = await other.CommandAsync("NOP", ReadOnlyMemory<byte>.Empty,
       PayloadSensitivity.Public, TestContext.Current.CancellationToken);
     await Assert.ThrowsAsync<ClientException>(() => pending.ReadNextAsync(TestContext.Current.CancellationToken));
-    Assert.Contains(sink.Events, item => item is { Component: AssuanComponent.Transport, Id: AssuanEventId.ReadFailed });
+    Assert.Contains(sink._events, item => item is { Component: AssuanComponent.Transport, Id: AssuanEventId.ReadFailed });
   }
 
   private sealed class RecordingSink : IAssuanEventSink {
-    internal readonly List<AssuanEvent> Events = [];
-    internal bool Throw;
+    internal readonly List<AssuanEvent> _events = [];
+    internal bool _throw;
 
     public void Emit(in AssuanEvent eventInfo) {
-      Events.Add(eventInfo);
-      if (Throw) {
+      _events.Add(eventInfo);
+      if (_throw) {
         throw new IOException("SECRET_MARKER");
       }
     }

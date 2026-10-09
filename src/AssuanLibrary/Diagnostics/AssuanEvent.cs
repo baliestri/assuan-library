@@ -4,13 +4,49 @@
 namespace AssuanLibrary.Diagnostics;
 
 /// <summary>Which layer reports a payload-free operation result.</summary>
-public enum AssuanComponent { Server, Client, Transport }
+public enum AssuanComponent {
+  /// <summary>A server-session operation.</summary>
+  Server,
+
+  /// <summary>A client transaction.</summary>
+  Client,
+
+  /// <summary>Underlying channel I/O.</summary>
+  Transport
+}
 
 /// <summary>Stable IDs for safe lifecycle observations.</summary>
-public enum AssuanEventId { FinalResponse = 1, RemoteFinal = 2, ReadFailed = 3, WriteFailed = 4 }
+public enum AssuanEventId {
+  /// <summary>A server final response was written.</summary>
+  FinalResponse = 1,
+
+  /// <summary>A client observed a remote command ERR.</summary>
+  RemoteFinal = 2,
+
+  /// <summary>Channel read or framing failed.</summary>
+  ReadFailed = 3,
+
+  /// <summary>Channel write or flush failed.</summary>
+  WriteFailed = 4
+}
 
 /// <summary>Safe category of one completed operation.</summary>
-public enum AssuanOutcome { Success, RemoteError, Timeout, Cancelled, Failure }
+public enum AssuanOutcome {
+  /// <summary>Operation completed successfully.</summary>
+  Success,
+
+  /// <summary>A final remote error was observed or sent.</summary>
+  RemoteError,
+
+  /// <summary>The deadline expired.</summary>
+  Timeout,
+
+  /// <summary>The caller cancelled the operation.</summary>
+  Cancelled,
+
+  /// <summary>An unrelated transport or framing failure occurred.</summary>
+  Failure
+}
 
 /// <summary>Only enums and a nonnegative count; never holds protocol or exception data.</summary>
 public readonly struct AssuanEvent {

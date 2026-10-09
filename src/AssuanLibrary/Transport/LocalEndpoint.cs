@@ -4,7 +4,13 @@
 namespace AssuanLibrary.Transport;
 
 /// <summary>Kind of explicit local byte-stream endpoint.</summary>
-public enum LocalEndpointKind { UnixSocket, NamedPipe }
+public enum LocalEndpointKind {
+  /// <summary>A filesystem Unix-domain socket.</summary>
+  UnixSocket,
+
+  /// <summary>A local Windows named pipe.</summary>
+  NamedPipe
+}
 
 /// <summary>A caller-supplied Unix socket or local Windows named pipe path.</summary>
 public sealed class LocalEndpoint {

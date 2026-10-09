@@ -7,7 +7,31 @@ using AssuanLibrary.Protocol;
 namespace AssuanLibrary.Server;
 
 /// <summary>Non-sensitive category of a session failure.</summary>
-public enum ServerErrorKind { InvalidOptions, Protocol, Transport, Limit, Cancelled, Timeout, Handler, Closed }
+public enum ServerErrorKind {
+  /// <summary>A configured limit or deadline is invalid.</summary>
+  InvalidOptions,
+
+  /// <summary>Wire data or session sequencing is invalid.</summary>
+  Protocol,
+
+  /// <summary>Transport I/O or admission failed.</summary>
+  Transport,
+
+  /// <summary>An inquiry resource limit was exceeded.</summary>
+  Limit,
+
+  /// <summary>Operation was cancelled.</summary>
+  Cancelled,
+
+  /// <summary>A total deadline expired.</summary>
+  Timeout,
+
+  /// <summary>Handler or hook failed.</summary>
+  Handler,
+
+  /// <summary>Session cannot be used after closure.</summary>
+  Closed
+}
 
 /// <summary>A server-session error without command or payload bytes in its diagnostics.</summary>
 public sealed class ServerException : Exception {
@@ -25,7 +49,22 @@ public sealed class ServerException : Exception {
 }
 
 /// <summary>Category of failed command-handler registration.</summary>
-public enum RegistryErrorKind { InvalidName, InvalidDescription, Reserved, Duplicate, Frozen }
+public enum RegistryErrorKind {
+  /// <summary>The command token is invalid.</summary>
+  InvalidName,
+
+  /// <summary>The public HELP description is invalid.</summary>
+  InvalidDescription,
+
+  /// <summary>The name belongs to a built-in command.</summary>
+  Reserved,
+
+  /// <summary>Another handler already owns this name.</summary>
+  Duplicate,
+
+  /// <summary>The registry has been frozen for serving.</summary>
+  Frozen
+}
 
 /// <summary>Metadata registration failed; the previous registry remains unchanged.</summary>
 public sealed class RegistryException : Exception {
@@ -36,7 +75,13 @@ public sealed class RegistryException : Exception {
 }
 
 /// <summary>Whether a handler requested a validated public remote error or failed internally.</summary>
-public enum HandlerErrorKind { Remote, Internal }
+public enum HandlerErrorKind {
+  /// <summary>A validated public error intended for the peer.</summary>
+  Remote,
+
+  /// <summary>An internal failure requiring a generic remote message.</summary>
+  Internal
+}
 
 /// <summary>A controlled handler failure. Diagnostics never interpolate remote text.</summary>
 public sealed class HandlerException : Exception {

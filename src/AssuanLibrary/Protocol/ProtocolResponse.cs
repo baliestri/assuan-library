@@ -4,7 +4,31 @@
 namespace AssuanLibrary.Protocol;
 
 /// <summary>Category of an Assuan server line, without data bytes.</summary>
-public enum ProtocolResponseKind { Ok, Err, Data, Status, Inquire, End, Comment, Empty }
+public enum ProtocolResponseKind {
+  /// <summary>Successful final response.</summary>
+  Ok,
+
+  /// <summary>Final response containing a complete remote error code.</summary>
+  Err,
+
+  /// <summary>Percent-encoded data line.</summary>
+  Data,
+
+  /// <summary>Nonfinal informational status line.</summary>
+  Status,
+
+  /// <summary>Nonfinal request for client data.</summary>
+  Inquire,
+
+  /// <summary>Partial end marker, not a final response.</summary>
+  End,
+
+  /// <summary>Comment line.</summary>
+  Comment,
+
+  /// <summary>Empty framed line.</summary>
+  Empty
+}
 
 /// <summary>A borrowed response in wire representation; D payloads remain percent-encoded.</summary>
 /// <remarks>Input excludes LF/CRLF and must remain stable while using this scoped view.</remarks>

@@ -6,7 +6,25 @@ using AssuanLibrary.Protocol;
 namespace AssuanLibrary.Client;
 
 /// <summary>Category of one borrowed response event.</summary>
-public enum ClientEventKind { Data, Status, Comment, End, Inquire, Finished }
+public enum ClientEventKind {
+  /// <summary>A percent-decoded D line.</summary>
+  Data,
+
+  /// <summary>An S line with keyword and literal arguments.</summary>
+  Status,
+
+  /// <summary>A comment line without its leading #.</summary>
+  Comment,
+
+  /// <summary>A partial END line, not the final response.</summary>
+  End,
+
+  /// <summary>An exclusive server inquiry requiring END or CAN.</summary>
+  Inquire,
+
+  /// <summary>A final OK or ERR response.</summary>
+  Finished
+}
 
 /// <summary>One response event borrowing the channel's receive buffer until disposal.</summary>
 public sealed class ClientEventLease : IDisposable {

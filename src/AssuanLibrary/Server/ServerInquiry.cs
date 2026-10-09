@@ -8,7 +8,13 @@ using AssuanLibrary.Transport;
 namespace AssuanLibrary.Server;
 
 /// <summary>How a peer terminated one inquiry; CAN does not decide the command's final response.</summary>
-public enum InquiryOutcome { Completed, Cancelled }
+public enum InquiryOutcome {
+  /// <summary>The peer sent END.</summary>
+  Completed,
+
+  /// <summary>The peer sent CAN; the handler still decides its final response.</summary>
+  Cancelled
+}
 
 /// <summary>An exclusive borrow of one decoded client data segment.</summary>
 public sealed class InquiryChunk : IDisposable {

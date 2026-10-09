@@ -9,7 +9,13 @@ using AssuanLibrary.Transport.Unix;
 namespace AssuanLibrary.Transport.Discovery;
 
 /// <summary>Kind of an existing agent's resolved local endpoint.</summary>
-public enum AgentEndpointKind { UnixSocket, NativeWindowsAgent }
+public enum AgentEndpointKind {
+  /// <summary>An existing Unix-domain socket addressed by original path bytes.</summary>
+  UnixSocket,
+
+  /// <summary>A native Windows loopback socket requiring its private nonce.</summary>
+  NativeWindowsAgent
+}
 
 /// <summary>An owned discovered address and optional private Windows handshake nonce.</summary>
 /// <remarks>Use <see cref="ConnectAsync" /> to send the native Windows nonce before reading the Assuan greeting.</remarks>

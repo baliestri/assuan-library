@@ -18,7 +18,7 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Incremental server handler registration and OPTION routing (solution analyzer reference)
 * [x] Conditional DI/Logging generation and analyzer in the main local NuGet package
 * [x] Selectable examples in one console application
-* [ ] Complete public documentation, NuGet README, `llms.txt`, and `llms-full.txt`
+* [x] Local public documentation, NuGet README, DocFX API reference, `llms.txt`, and `llms-full.txt` generation
 * [ ] CI/CD and release 2.0.0
 
 See link:docs/s-expressions.md[the S-expression guide] for usage, byte limits and buffer ownership.
@@ -32,9 +32,11 @@ See link:docs/client-transactions.md[the client transactions guide] for streamin
 See link:docs/client-inquiries.md[the client inquiry guide] for END/CAN, manual greetings and callbacks.
 See link:docs/generators.md[the generators guide] for command groups and OPTION routing.
 See link:docs/integrations.md[the optional integrations guide] for generated DI/Logging and single-package installation.
+See link:docs/guides/getting-started.md[getting started], link:docs/guides/security.md[security and ownership], and link:docs/guides/troubleshooting.md[troubleshooting] for the reviewed public documentation. The link:docs/nuget/README.md[NuGet README] is packed as `README.md` at the package root.
 
 [source,csharp]
 ----
+using System;
 using AssuanLibrary.SExpressions;
 
 var value = SExpressionParser.ParseComplete("(3:foo0:)"u8);
@@ -88,6 +90,8 @@ dotnet test --project tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj -c Re
 ----
 
 The solution selects the Microsoft.Testing.Platform runner in `global.json` for its xUnit v3 projects. Run generator tests separately with `dotnet test --project tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj -c Release`.
+
+Build the versioned public site and LLM navigation locally with the pinned DocFX tool as described in link:docs/guides/operations.md[documentation operations]. A new output version cannot replace an existing bundle; no website or package is published by this command.
 
 == Contribution and license
 

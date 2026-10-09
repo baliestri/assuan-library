@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "order": 10,
+      "title": "Getting started",
+      "source": "docs/guides/getting-started.md",
+      "destination": "guides/getting-started.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 20,
+      "title": "S-expressions",
+      "source": "docs/s-expressions.md",
+      "destination": "guides/s-expressions.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 30,
+      "title": "Protocol",
+      "source": "docs/protocol.md",
+      "destination": "guides/protocol.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 40,
+      "title": "Transport",
+      "source": "docs/transport.md",
+      "destination": "guides/transport.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 50,
+      "title": "Local IPC",
+      "source": "docs/local-ipc.md",
+      "destination": "guides/local-ipc.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 60,
+      "title": "Existing GnuPG agent",
+      "source": "docs/agent-discovery.md",
+      "destination": "guides/agent-discovery.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 70,
+      "title": "Client transactions",
+      "source": "docs/client-transactions.md",
+      "destination": "guides/client-transactions.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 80,
+      "title": "Client inquiries",
+      "source": "docs/client-inquiries.md",
+      "destination": "guides/client-inquiries.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 90,
+      "title": "Server sessions",
+      "source": "docs/server-session.md",
+      "destination": "guides/server-session.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 100,
+      "title": "Concurrent server",
+      "source": "docs/server.md",
+      "destination": "guides/server.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 110,
+      "title": "Handler generation",
+      "source": "docs/generators.md",
+      "destination": "guides/generators.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 120,
+      "title": "Optional integrations",
+      "source": "docs/integrations.md",
+      "destination": "guides/integrations.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 130,
+      "title": "Ownership and security",
+      "source": "docs/guides/security.md",
+      "destination": "guides/security.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 140,
+      "title": "Troubleshooting",
+      "source": "docs/guides/troubleshooting.md",
+      "destination": "guides/troubleshooting.md",
+      "includeInIndex": true,
+      "includeInFull": true,
+      "optional": false
+    },
+    {
+      "order": 150,
+      "title": "NuGet package",
+      "source": "docs/nuget/README.md",
+      "destination": "index.md",
+      "includeInIndex": true,
+      "includeInFull": false,
+      "optional": false
+    },
+    {
+      "order": 160,
+      "title": "Documentation operations",
+      "source": "docs/guides/operations.md",
+      "destination": "guides/operations.md",
+      "includeInIndex": true,
+      "includeInFull": false,
+      "optional": false
+    }
+  ]
+}

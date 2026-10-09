@@ -17,6 +17,9 @@
   <Folder Name="/Examples/">
     <Project Path="examples/AssuanLibrary.Examples/AssuanLibrary.Examples.csproj" />
   </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tools/AssuanLibrary.Docs/AssuanLibrary.Docs.csproj" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/AssuanLibrary.GpgconfFixture/AssuanLibrary.GpgconfFixture.csproj" />
     <Project Path="tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj" />

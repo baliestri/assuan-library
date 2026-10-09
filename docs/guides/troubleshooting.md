@@ -1,0 +1,11 @@
+# Troubleshooting Assuan connections
+
+**Connection succeeds but greeting fails.** Distinguish a rejected greeting (`GreetingRejected` and full unsigned remote code) from timeout, framing and I/O categories. A greeting inquiry receives `CAN` by default and still requires a final line. For interactive greetings, use a manual `ClientHandshake` or a callback that completes each inquiry before returning.
+
+**Windows agent port accepts TCP but the agent does not respond.** A native GnuPG socket file includes a 16-byte nonce. Connecting to `ResolvedAgentEndpoint.TcpEndpoint` alone skips this handshake; call `ResolvedAgentEndpoint.ConnectAsync`, or pass it to `AssuanClient.ConnectAsync`. Choose a trusted explicit `gpgconf` executable and homedir rather than relying on an unverified search path.
+
+**Unix socket bind or cleanup fails.** Check that the listener parent is private and owned by the current user; connecting to someone else's agent uses different policy. `DisposeAsync()` only closes the listener. A changed inode/path is preserved by `Cleanup()` rather than removed. Do not delete a replacement socket blindly.
+
+**A second command fails or shutdown waits.** A transaction owns one client connection until it observes a final response and calls `Finish()` (or is safely disposed after final). Open another connection for concurrent commands. A server reserves capacity before each accept; a handler that ignores its cancellation token can keep its state and permit after the shared shutdown grace. Inspect `PendingSessionCount` and await `WhenDrainedAsync` with an independently chosen wait token; cancelling that wait does not abandon the work.
+
+**Optional DI/Logging methods are absent.** When the main package is installed, its analyzer is loaded automatically. The consumer must reference the concrete `Microsoft.Extensions.DependencyInjection` package for DI helpers or `Microsoft.Extensions.Logging.Abstractions` for the logger sink; transitively present DI abstractions alone do not enable DI generation. A local project reference needs the explicit analyzer project reference used by the solution's tests. No marker attribute is required. Compiler diagnostic `ASG011` reports a collision with a generated integration type.

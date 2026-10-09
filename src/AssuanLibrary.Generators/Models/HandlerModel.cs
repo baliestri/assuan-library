@@ -56,8 +56,8 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
     var location = new SourceLocation(attr.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ??
                                       method.Locations[0]);
     var supported = type.ContainingType is null && type is {
-                      Arity: 0, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or Microsoft.CodeAnalysis.Accessibility.Internal
-                    } &&
+      Arity: 0, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or Microsoft.CodeAnalysis.Accessibility.Internal
+    } &&
                     type.DeclaringSyntaxReferences.All(reference => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
                                                                     declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     var error = !supported ? "ASG001" : null;

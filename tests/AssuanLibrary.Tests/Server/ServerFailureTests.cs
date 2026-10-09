@@ -67,9 +67,9 @@ public sealed class ServerFailureTests {
     var acceptor = new LateAcceptor();
     var states = 0;
     var server = new AssuanServer<object>(() => {
-        Interlocked.Increment(ref states);
-        return new object();
-      },
+      Interlocked.Increment(ref states);
+      return new object();
+    },
       ServerOptions.Default);
     using var stop = new CancellationTokenSource();
     var serving = server.ServeAsync(acceptor, stop.Token);
@@ -92,9 +92,9 @@ public sealed class ServerFailureTests {
     var acceptor = new StopDuringAccept(stop, stream, fail);
     var states = 0;
     var server = new AssuanServer<object>(() => {
-        Interlocked.Increment(ref states);
-        return new object();
-      },
+      Interlocked.Increment(ref states);
+      return new object();
+    },
       ServerOptions.Default);
     if (fail) {
       var error = await Assert.ThrowsAsync<ServerException>(() => server.ServeAsync(acceptor, stop.Token));

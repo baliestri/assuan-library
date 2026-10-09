@@ -12,9 +12,9 @@ public sealed class ConcurrentServerTests {
   public async Task ConfigurationClosesAtFirstServeAndCannotBeReused() {
     var constructed = 0;
     var server = new AssuanServer<object>(() => {
-        Interlocked.Increment(ref constructed);
-        return new object();
-      },
+      Interlocked.Increment(ref constructed);
+      return new object();
+    },
       ServerOptions.Default);
     server.Register(new NoopHandler());
     server.SetHooks(new DefaultSessionHooks<object>());
@@ -75,9 +75,9 @@ public sealed class ConcurrentServerTests {
     var second = new SessionDuplexStream("BYE\n"u8.ToArray());
     var constructed = 0;
     var server = new AssuanServer<object>(() => {
-        Interlocked.Increment(ref constructed);
-        return new object();
-      },
+      Interlocked.Increment(ref constructed);
+      return new object();
+    },
       new ServerOptions(maxSessions: 2));
     server.Register(new WaitingHandler(entered, release));
     using var stop = new CancellationTokenSource();

@@ -52,8 +52,8 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
     var ns = type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString();
     var access = type.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public ? "public" : "internal";
     var supported = type.ContainingType is null && type is {
-                      Arity: 0, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or Microsoft.CodeAnalysis.Accessibility.Internal
-                    } &&
+      Arity: 0, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or Microsoft.CodeAnalysis.Accessibility.Internal
+    } &&
                     type.DeclaringSyntaxReferences.All(reference => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
                                                                     declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     var methods = type.GetMembers().OfType<IMethodSymbol>().Select(method => (Method: method,

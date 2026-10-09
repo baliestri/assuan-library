@@ -16,6 +16,7 @@ internal sealed class SExpressionExample : IExample {
     }
 
     token.ThrowIfCancellationRequested();
+    // <snippet:sexpressions>
     var view = SExpressionParser.ParseComplete("(3:foo0:)"u8);
     var children = 0;
     foreach (var child in view.Children) {
@@ -24,6 +25,7 @@ internal sealed class SExpressionExample : IExample {
 
     var owned = view.ToOwned();
     output.WriteLine($"sexpressions: children={children}, canonical-bytes={SExpressionWriter.ToCanonical(owned).Length}");
+    // </snippet:sexpressions>
     return Task.FromResult(0);
   }
 }

@@ -20,6 +20,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="JetBrains.Annotations" />
+    <!-- Compile public documentation snippets against the installed API shape. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="Shouldly" />
@@ -28,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\examples\AssuanLibrary.Examples\AssuanLibrary.Examples.csproj" />
+    <ProjectReference Include="..\..\tools\AssuanLibrary.Docs\AssuanLibrary.Docs.csproj" />
     <ProjectReference Include="..\AssuanLibrary.GpgconfFixture\AssuanLibrary.GpgconfFixture.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\AssuanLibrary\AssuanLibrary.csproj" />
     <ProjectReference Include="..\..\src\AssuanLibrary.Generators\AssuanLibrary.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

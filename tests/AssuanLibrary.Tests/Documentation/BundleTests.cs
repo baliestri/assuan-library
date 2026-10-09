@@ -24,8 +24,10 @@ public sealed class BundleTests {
     var full = File.ReadAllText(Path.Combine(first, "llms-full.txt"));
     Assert.Contains("Getting started", full);
     Assert.DoesNotContain("Documentation operations", full);
+    Assert.DoesNotContain("Continuous integration", full);
     Assert.Contains("```csharp", full);
     Assert.Contains("/2.0.0/", File.ReadAllText(Path.Combine(first, "llms.txt")));
+    Assert.Contains("Continuous integration", File.ReadAllText(Path.Combine(first, "llms.txt")));
     Assert.Contains("/tree/v2.0.0/examples/AssuanLibrary.Examples",
       File.ReadAllText(Path.Combine(first, "llms.txt")));
     Assert.True(File.Exists(Path.Combine(root, "examples", "AssuanLibrary.Examples", "SExpressionExample.cs")));

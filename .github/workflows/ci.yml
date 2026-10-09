@@ -1,0 +1,193 @@
+name: .NET CI
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact lowercase commit SHA to validate
+        required: true
+        type: string
+    outputs:
+      source_sha:
+        description: Commit validated by every required job
+        value: ${{ jobs.gate.outputs.source_sha }}
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  NUGET_PACKAGES: ${{ github.workspace }}/artifacts/nuget-cache
+  DOTNET_CLI_HOME: ${{ github.workspace }}/artifacts/dotnet-home
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.select.outputs.source_sha }}
+    steps:
+      - name: Validate the requested commit before checkout
+        id: select
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CALL_SHA: ${{ inputs.source_sha }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          $sha = if ($env:EVENT_NAME -eq 'workflow_call') { $env:CALL_SHA } else { $env:EVENT_SHA }
+          if ($sha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid source SHA.' }
+          "source_sha=$sha" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.select.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm event selection and checkout
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CALL_SHA: ${{ inputs.source_sha }}
+          EVENT_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+        run: |
+          $selected = & ./scripts/ci/Resolve-SourceSha.ps1 -EventName $env:EVENT_NAME -SourceSha $env:CALL_SHA -EventSha $env:EVENT_SHA
+          if ($selected -cne $env:SOURCE_SHA) { throw 'Selected SHA changed.' }
+          & ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+
+  matrix:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm checkout
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - name: Restore locked dependencies
+        run: dotnet restore AssuanLibrary.slnx --locked-mode
+      - name: Build runtime, generator, examples and tests
+        run: dotnet build AssuanLibrary.slnx -c Release --no-restore
+      - name: Run platform and package-consumer tests
+        run: dotnet test AssuanLibrary.slnx -c Release --no-restore -- --filter-not-namespace AssuanLibrary.Tests.Documentation
+
+  docs:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm checkout
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet restore AssuanLibrary.slnx --locked-mode
+      - run: dotnet build AssuanLibrary.slnx -c Release --no-restore
+      - name: Inspect NuGet README, API links, snippets and deterministic bundles
+        run: dotnet test --project tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj -c Release --no-restore -- --filter-namespace AssuanLibrary.Tests.Documentation
+      - name: Exercise all four installed-package consumers
+        run: dotnet test --project tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj -c Release --no-restore -- --filter-class '*PackageConsumerTests'
+      - name: Build two fresh versioned documentation bundles
+        shell: pwsh
+        run: |
+          dotnet run --project tools/AssuanLibrary.Docs -c Release --no-restore -- build --version 2.0.0 --base-url https://baliestri.github.io/assuan-library/ --output artifacts/ci-docs/one
+          if ($LASTEXITCODE -ne 0) { throw 'First documentation build failed.' }
+          dotnet run --project tools/AssuanLibrary.Docs -c Release --no-restore -- build --version 2.0.0 --base-url https://baliestri.github.io/assuan-library/ --output artifacts/ci-docs/two
+          if ($LASTEXITCODE -ne 0) { throw 'Second documentation build failed.' }
+          $first = 'artifacts/ci-docs/one/2.0.0'
+          $second = 'artifacts/ci-docs/two/2.0.0'
+          $left = @(Get-ChildItem -LiteralPath $first -File -Recurse | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath((Resolve-Path $first).Path, $_.FullName)
+            "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+          } | Sort-Object)
+          $right = @(Get-ChildItem -LiteralPath $second -File -Recurse | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath((Resolve-Path $second).Path, $_.FullName)
+            "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+          } | Sort-Object)
+          if (Compare-Object $left $right) { throw 'Documentation bundles differ.' }
+
+  format:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm checkout
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet restore AssuanLibrary.slnx --locked-mode
+      - name: Verify source formatting
+        run: dotnet format AssuanLibrary.slnx --verify-no-changes --no-restore
+
+  workflows:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm checkout
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+      - name: Lint all workflow YAML with a digest-pinned read-only image
+        shell: pwsh
+        run: ./scripts/ci/Verify-Workflows.ps1 -Repository $env:GITHUB_WORKSPACE -ContainerImage 'rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667'
+
+  gate:
+    if: always()
+    needs: [prepare, matrix, docs, format, workflows]
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.check.outputs.source_sha }}
+    steps:
+      - name: Reject an absent or invalid selected commit
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: |
+          if ($env:SOURCE_SHA -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Required source SHA is unavailable.' }
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Validate every required result against the checked-out SHA
+        id: check
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          & ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+          $needs = $env:NEEDS_JSON | ConvertFrom-Json -AsHashtable
+          $required = @('prepare', 'matrix', 'docs', 'format', 'workflows')
+          $results = @{}
+          foreach ($job in $required) { $results[$job] = $needs[$job].result }
+          & ./scripts/ci/Assert-Gate.ps1 -Sha $env:SOURCE_SHA -RequiredJobsJson (ConvertTo-Json -InputObject $required -Compress) -ResultsJson (ConvertTo-Json -InputObject $results -Compress) -OutputFile $env:GITHUB_OUTPUT

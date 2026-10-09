@@ -144,6 +144,15 @@
       "includeInIndex": true,
       "includeInFull": false,
       "optional": false
+    },
+    {
+      "order": 170,
+      "title": "Continuous integration",
+      "source": "docs/guides/continuous-integration.md",
+      "destination": "guides/continuous-integration.md",
+      "includeInIndex": true,
+      "includeInFull": false,
+      "optional": false
     }
   ]
 }

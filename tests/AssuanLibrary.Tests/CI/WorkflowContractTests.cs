@@ -71,4 +71,29 @@ public sealed class WorkflowContractTests {
     Assert.True(File.Exists(Path.Combine(_repository, "docs", "guides", "continuous-integration.md")));
     Assert.True(File.Exists(Path.Combine(_repository, "scripts", "ci", "Verify-Workflows.ps1")));
   }
+
+  [Fact]
+  public void InteropWorkflowRequiresRealGnuPgOnEveryHostedPlatform() {
+    var yaml = File.ReadAllText(Path.Combine(_repository, ".github", "workflows", "interop.yml"));
+    Assert.Contains("workflow_call:", yaml);
+    Assert.Contains("source_sha:", yaml);
+    Assert.Contains("required: true", yaml);
+    Assert.Contains("os: [ubuntu-latest, windows-latest, macos-latest]", yaml);
+    Assert.Contains("ASSUAN_GNUPG_REQUIRED: '1'", yaml);
+    Assert.Contains("--filter-namespace AssuanLibrary.Tests.Interop", yaml);
+    Assert.Contains("ASSUAN_GPGCONF_PATH", yaml);
+    Assert.Contains("ASSUAN_GPG_AGENT_PATH", yaml);
+    Assert.Contains("ASSUAN_GPG_CONNECT_AGENT_PATH", yaml);
+    Assert.Contains("persist-credentials: false", yaml);
+    Assert.Contains("if: always()", yaml);
+    Assert.Contains("needs: [prepare, real]", yaml);
+    Assert.Contains("Assert-Gate.ps1", yaml);
+    Assert.DoesNotContain("secrets: inherit", yaml, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("contents: write", yaml, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
+    var actions = Regex.Matches(yaml, @"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)");
+    Assert.NotEmpty(actions);
+    Assert.All(actions.Cast<Match>(), action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+    Assert.Equal(3, Regex.Matches(yaml, "Assert-CheckoutSha\\.ps1").Count);
+  }
 }

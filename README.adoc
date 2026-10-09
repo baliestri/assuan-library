@@ -21,47 +21,53 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Local public documentation, NuGet README, DocFX API reference, `llms.txt`, and `llms-full.txt` generation
 * [ ] CI/CD and release 2.0.0
 
-See link:docs/s-expressions.md[the S-expression guide] for usage, byte limits and buffer ownership.
+See link:docs/guides/getting-started.md[getting started] for a client/server walkthrough and selectable examples.
+See link:docs/client-transactions.md[the client transactions guide] for streaming responses and opt-in collection.
+See link:docs/server-session.md[the server session guide] for handlers, hooks, inquiries and buffer lifetimes.
 See link:docs/protocol.md[the protocol guide] for Assuan wire parsing, framing and secret storage.
 See link:docs/transport.md[the transport guide] for TCP, custom streams and channel ownership.
 See link:docs/local-ipc.md[the local IPC guide] for Unix socket and Windows named pipe policies.
 See link:docs/agent-discovery.md[the agent discovery guide] for `gpgconf`, binary paths and the Windows nonce.
-See link:docs/server-session.md[the server session guide] for handlers, hooks, inquiries and buffer lifetimes.
 See link:docs/server.md[the concurrent server guide] for admission, shutdown and pending sessions.
-See link:docs/client-transactions.md[the client transactions guide] for streaming responses and opt-in collection.
 See link:docs/client-inquiries.md[the client inquiry guide] for END/CAN, manual greetings and callbacks.
 See link:docs/generators.md[the generators guide] for command groups and OPTION routing.
 See link:docs/integrations.md[the optional integrations guide] for generated DI/Logging and single-package installation.
-See link:docs/guides/getting-started.md[getting started], link:docs/guides/security.md[security and ownership], and link:docs/guides/troubleshooting.md[troubleshooting] for the reviewed public documentation. The link:docs/nuget/README.md[NuGet README] is packed as `README.md` at the package root.
+See link:docs/s-expressions.md[the S-expression guide] for canonical binary values and ownership.
+See link:docs/guides/security.md[security and ownership] and link:docs/guides/troubleshooting.md[troubleshooting] for operational boundaries. The link:docs/nuget/README.md[NuGet README] is packed as `README.md` at the package root.
+
+With the `tcp-server` example listening on loopback port 9000, a client can send a public Assuan command and read its decoded response:
 
 [source,csharp]
 ----
 using System;
-using AssuanLibrary.SExpressions;
+using System.Net;
+using AssuanLibrary.Client;
 
-var value = SExpressionParser.ParseComplete("(3:foo0:)"u8);
-foreach (var child in value.Children) {
-  Console.WriteLine(child.AtomBytes.Length);
+await using var client = await AssuanClient.ConnectAsync(new IPEndPoint(IPAddress.Loopback, 9000));
+await using var transaction = await client.CommandAsync("ECHO", "hello"u8.ToArray());
+while (await transaction.ReadNextAsync() is { } response) {
+  using (response) {
+    if (response.Kind == ClientEventKind.Data)
+      Console.WriteLine(Convert.ToHexString(response.PayloadBytes.Span));
+  }
 }
-
-var owned = value.ToOwned();
-byte[] canonical = SExpressionWriter.ToCanonical(owned);
+transaction.Finish();
 ----
 
 Until 2.0.0 is published, reference `src/AssuanLibrary/AssuanLibrary.csproj` directly from a .NET 10 project to use the implemented functionality. The published 1.x package has a different API.
 
 == Examples and installation
 
-Run the single console application to list available scenarios or select one without external services:
+Run the single console application to list available scenarios. Its first menu entry runs an Assuan server and client over in-memory streams without an external service, and displays a fixed public binary response:
 
 [source,shell]
 ----
 dotnet run --project examples/AssuanLibrary.Examples -- --list
-dotnet run --project examples/AssuanLibrary.Examples -- --example sexpressions
 dotnet run --project examples/AssuanLibrary.Examples -- --example custom-transport
+dotnet run --project examples/AssuanLibrary.Examples -- --example sexpressions
 ----
 
-For a loopback TCP demonstration, run these in separate terminals with the same explicit port. Stop the server with Ctrl+C. This demonstration does not authenticate a TCP peer.
+For a loopback TCP demonstration, run these in separate terminals with the same explicit port. The client verifies that `ECHO sample` returns `sample`. Stop the server with Ctrl+C. This demonstration does not authenticate a TCP peer.
 
 [source,shell]
 ----

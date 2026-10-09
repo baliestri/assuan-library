@@ -18,17 +18,31 @@ internal sealed class TcpClientExample : IExample {
 
     await using var client = await AssuanClient.ConnectAsync(new IPEndPoint(IPAddress.Loopback, port),
       cancellationToken: token);
-    var count = 0;
-    await using (var tx = await client.CommandAsync("ECHO", "sample"u8.ToArray(), PayloadSensitivity.Public, token)) {
+    var request = "sample"u8.ToArray();
+    var reply = new byte[request.Length];
+    var received = 0;
+    await using (var tx = await client.CommandAsync("ECHO", request, PayloadSensitivity.Public, token)) {
       while (await tx.ReadNextAsync(token) is { } item) {
         using (item) {
-          if (item.Kind == ClientEventKind.Data) {
-            count += item.PayloadBytes.Length;
+          if (item.Kind != ClientEventKind.Data) {
+            continue;
           }
+
+          if (item.PayloadBytes.Length > (reply.Length - received)) {
+            throw new InvalidOperationException("ECHO returned more data than requested.");
+          }
+
+          item.PayloadBytes.Span.CopyTo(reply.AsSpan(received));
+          received += item.PayloadBytes.Length;
         }
       }
 
       tx.Finish();
+    }
+
+    if (received != request.Length ||
+        !reply.AsSpan().SequenceEqual(request)) {
+      throw new InvalidOperationException("ECHO response differed from the request.");
     }
 
     await using (var bye = await client.CommandAsync("BYE", ReadOnlyMemory<byte>.Empty,
@@ -42,7 +56,7 @@ internal sealed class TcpClientExample : IExample {
       bye.Finish();
     }
 
-    await output.WriteLineAsync($"tcp-client: data-bytes={count}");
+    await output.WriteLineAsync("tcp-client: ECHO sample -> sample (verified)");
     return 0;
   }
 }

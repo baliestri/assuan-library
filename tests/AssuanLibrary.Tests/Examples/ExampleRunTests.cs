@@ -14,15 +14,17 @@ namespace AssuanLibrary.Tests.Examples;
 
 public sealed class ExampleRunTests {
   [Theory]
-  [InlineData("sexpressions", "canonical-bytes=")]
-  [InlineData("custom-transport", "decoded-bytes=2")]
-  public async Task SelfContainedExamplesCompleteWithoutExposingBinaryPayload(string name, string expected) {
+  [InlineData("sexpressions", "atom[1]=0x666F6F")]
+  [InlineData("custom-transport", "BINARY reply=0x00FF")]
+  public async Task SelfContainedExamplesShowPublicResultsWithoutExposingSecrets(string name, string expected) {
     await using var output = new StringWriter();
     await using var error = new StringWriter();
     var code = await ExampleCatalog.RunAsync(["--example", name], new StringReader(""), output, error,
       TestContext.Current.CancellationToken);
     Assert.Equal(0, code);
     Assert.Contains(expected, output.ToString());
+    Assert.Contains(name == "sexpressions" ? "canonical=0x28333A666F6F303A29" : "BYE completed",
+      output.ToString());
     Assert.DoesNotContain("SECRET_MARKER", output.ToString());
     Assert.Empty(error.ToString());
   }
@@ -64,12 +66,13 @@ public sealed class ExampleRunTests {
           CultureInfo.InvariantCulture)
       ], new StringReader(""), clientOutput, clientError, stop.Token);
       Assert.Equal(0, code);
-      Assert.Contains("data-bytes=6", clientOutput.ToString());
+      Assert.Contains("ECHO sample -> sample (verified)", clientOutput.ToString());
       Assert.Empty(clientError.ToString());
     }
     finally { await stop.CancelAsync(); }
 
     Assert.Equal(0, await serving.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+    Assert.Contains("ECHO handler ready", serverOutput.ToString());
     Assert.Contains("pending sessions=0", serverOutput.ToString());
     Assert.Empty(serverError.ToString());
   }
@@ -121,7 +124,7 @@ public sealed class ExampleRunTests {
       listener.Cleanup();
     }
 
-    Assert.Contains("version-bytes=4", output.ToString());
+    Assert.Contains("GnuPG agent version 2.51", output.ToString());
     Assert.DoesNotContain(fixture.Home, output.ToString());
     Assert.Empty(error.ToString());
   }

@@ -1,8 +1,8 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the MIT License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Text;
 using AssuanLibrary.Client;
-using AssuanLibrary.Protocol;
 using AssuanLibrary.Transport.Discovery;
 
 namespace AssuanLibrary.Examples;
@@ -44,18 +44,17 @@ internal sealed class AgentInfoExample : IExample {
 
     using var resolved = await new AgentLocator(executable, homedir).ResolveAsync(token);
     await using var client = await AssuanClient.ConnectAsync(resolved, cancellationToken: token);
-    await using var tx = await client.CommandAsync("GETINFO", "version"u8.ToArray(), PayloadSensitivity.Public, token);
-    var count = 0;
-    while (await tx.ReadNextAsync(token) is { } item) {
-      using (item) {
-        if (item.Kind == ClientEventKind.Data) {
-          count += item.PayloadBytes.Length;
-        }
-      }
+    var response = await client.CollectAsync("GETINFO", "version"u8.ToArray(),
+      new CollectLimits(64, 8), token);
+    var version = response.Data;
+    if (version.Length is 0 or > 64 ||
+        version[0] is < (byte)'0' or > (byte)'9' ||
+        version.Any(value => !char.IsAsciiLetterOrDigit((char)value) &&
+                             (char)value is not ('.' or '-' or '+' or '_'))) {
+      throw new InvalidOperationException("The agent returned an invalid version.");
     }
 
-    tx.Finish();
-    await output.WriteLineAsync($"agent-info: version-bytes={count}");
+    await output.WriteLineAsync($"agent-info: GnuPG agent version {Encoding.ASCII.GetString(version)}");
     return 0;
   }
 }

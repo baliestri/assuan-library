@@ -7,7 +7,7 @@ namespace AssuanLibrary.Examples;
 
 internal sealed class SExpressionExample : IExample {
   public string Name => "sexpressions";
-  public string Description => "Parse and copy canonical binary S-expressions";
+  public string Description => "Inspect atoms and round-trip a canonical binary S-expression";
 
   public Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, CancellationToken token) {
     if (args.Length != 0) {
@@ -18,13 +18,15 @@ internal sealed class SExpressionExample : IExample {
     token.ThrowIfCancellationRequested();
     // <snippet:sexpressions>
     var view = SExpressionParser.ParseComplete("(3:foo0:)"u8);
-    var children = 0;
+    var index = 0;
     foreach (var child in view.Children) {
-      ++children;
+      ++index;
+      output.WriteLine($"sexpressions: atom[{index}]=" +
+                       (child.AtomBytes.IsEmpty ? "<empty>" : "0x" + Convert.ToHexString(child.AtomBytes)));
     }
 
     var owned = view.ToOwned();
-    output.WriteLine($"sexpressions: children={children}, canonical-bytes={SExpressionWriter.ToCanonical(owned).Length}");
+    output.WriteLine($"sexpressions: canonical=0x{Convert.ToHexString(SExpressionWriter.ToCanonical(owned))}");
     // </snippet:sexpressions>
     return Task.FromResult(0);
   }

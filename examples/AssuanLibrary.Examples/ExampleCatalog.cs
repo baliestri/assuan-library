@@ -17,11 +17,11 @@ internal interface IExample {
 /// <summary>One no-I/O catalog of selectable demonstrations.</summary>
 public static class ExampleCatalog {
   private static readonly IExample[] _entries = [
-    new SExpressionExample(),
+    new CustomTransportExample(),
     new TcpServerExample(),
     new TcpClientExample(),
-    new CustomTransportExample(),
-    new AgentInfoExample()
+    new AgentInfoExample(),
+    new SExpressionExample()
   ];
 
   /// <summary>Dispatches a named example or an interactive menu; returns a process exit code.</summary>

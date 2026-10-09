@@ -9,7 +9,7 @@ namespace AssuanLibrary.Examples;
 
 internal sealed class CustomTransportExample : IExample {
   public string Name => "custom-transport";
-  public string Description => "Run a server and client over an in-memory duplex stream";
+  public string Description => "Exchange a public binary response between an in-memory server and client";
 
   public async Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, CancellationToken token) {
     if (args.Length != 0) {
@@ -25,26 +25,16 @@ internal sealed class CustomTransportExample : IExample {
     var serving = host.ServeAsync(acceptor, stop.Token);
     try {
       await using var client = await AssuanClient.FromStreamAsync(clientSide, cancellationToken: token);
-      await using (var transaction = await client.CommandAsync("BINARY", ReadOnlyMemory<byte>.Empty,
-                     PayloadSensitivity.Secret, token)) {
-        var received = 0;
-        while (await transaction.ReadNextAsync(token) is { } item) {
-          using (item) {
-            if (item.Kind == ClientEventKind.Data) {
-              received += item.ExposeSecret().Length;
-            }
-          }
-        }
-
-        transaction.Finish();
-        await output.WriteLineAsync($"custom-transport: decoded-bytes={received}");
-      }
+      var response = await client.CollectAsync("BINARY", ReadOnlyMemory<byte>.Empty,
+        new CollectLimits(maxBytes: 16, maxEvents: 4), token);
+      await output.WriteLineAsync($"custom-transport: BINARY reply=0x{Convert.ToHexString(response.Data)}");
 
       await using var bye = await client.CommandAsync("BYE", ReadOnlyMemory<byte>.Empty,
         PayloadSensitivity.Public, token);
       using (var final = AssertFinal(await bye.ReadNextAsync(token))) { }
 
       bye.Finish();
+      await output.WriteLineAsync("custom-transport: BYE completed");
       return 0;
     }
     finally {

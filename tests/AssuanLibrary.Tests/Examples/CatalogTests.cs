@@ -49,13 +49,14 @@ public sealed class CatalogTests {
   }
 
   [Fact]
-  public async Task InteractiveMenuCanSelectTheSamePrimitiveExample() {
+  public async Task InteractiveMenuStartsWithTheSelfContainedAssuanExchange() {
     await using var output = new StringWriter();
     await using var error = new StringWriter();
     var code = await ExampleCatalog.RunAsync([], new StringReader("1\n"), output, error,
       TestContext.Current.CancellationToken);
     Assert.Equal(0, code);
-    Assert.Contains("sexpressions", output.ToString());
+    Assert.StartsWith("1. custom-transport", output.ToString());
+    Assert.Contains("BINARY reply=0x00FF", output.ToString());
     Assert.Empty(error.ToString());
   }
 }

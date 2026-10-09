@@ -30,7 +30,7 @@ internal sealed class TcpServerExample : IExample {
     var host = new AssuanServer<TcpExampleState>(() => new TcpExampleState(), ServerOptions.Default);
     TcpExampleHandlers.RegisterHandlers(host);
     host.SetHooks(new DefaultSessionHooks<TcpExampleState>()); // Loopback-only demonstration; no TCP peer authentication.
-    await output.WriteLineAsync($"tcp-server: listening on 127.0.0.1:{port} (no TCP authentication)");
+    await output.WriteLineAsync($"tcp-server: ECHO handler ready on 127.0.0.1:{port} (no TCP authentication)");
     await host.ServeAsync(listener, token);
     await output.WriteLineAsync($"tcp-server: pending sessions={host.PendingSessionCount}");
     if (host.PendingSessionCount != 0) {

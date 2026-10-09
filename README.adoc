@@ -17,7 +17,7 @@ AssuanLibrary is an asynchronous .NET library for applications that communicate 
 * [x] Interactive client inquiries and greeting callbacks
 * [x] Incremental server handler registration and OPTION routing (solution analyzer reference)
 * [x] Conditional DI/Logging generation and analyzer in the main local NuGet package
-* [ ] Selectable examples in one console application
+* [x] Selectable examples in one console application
 * [ ] Complete public documentation, NuGet README, `llms.txt`, and `llms-full.txt`
 * [ ] CI/CD and release 2.0.0
 
@@ -47,6 +47,34 @@ byte[] canonical = SExpressionWriter.ToCanonical(owned);
 ----
 
 Until 2.0.0 is published, reference `src/AssuanLibrary/AssuanLibrary.csproj` directly from a .NET 10 project to use the implemented functionality. The published 1.x package has a different API.
+
+== Examples and installation
+
+Run the single console application to list available scenarios or select one without external services:
+
+[source,shell]
+----
+dotnet run --project examples/AssuanLibrary.Examples -- --list
+dotnet run --project examples/AssuanLibrary.Examples -- --example sexpressions
+dotnet run --project examples/AssuanLibrary.Examples -- --example custom-transport
+----
+
+For a loopback TCP demonstration, run these in separate terminals with the same explicit port. Stop the server with Ctrl+C. This demonstration does not authenticate a TCP peer.
+
+[source,shell]
+----
+dotnet run --project examples/AssuanLibrary.Examples -- --example tcp-server --port 9000
+dotnet run --project examples/AssuanLibrary.Examples -- --example tcp-client --port 9000
+----
+
+To query an *existing* GnuPG agent, supply a trusted `gpgconf` executable. Add `--homedir <path>` deliberately; if omitted, `gpgconf` uses its configured default. The example does not start an agent or display secrets.
+
+[source,shell]
+----
+dotnet run --project examples/AssuanLibrary.Examples -- --example agent-info --gpgconf <path>
+----
+
+When released, `dotnet add package AssuanLibrary --version 2.0.0` will install the runtime and analyzer in one package. Version 2.0.0 is **breaking** relative to the published 1.x API; it is not published yet. Streams, event leases and secret buffers require explicit disposal. Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
 
 == Build and test
 

@@ -6,6 +6,8 @@ param(
   [string] $RequiredJobsJson,
   [Parameter(Mandatory = $true)]
   [string] $ResultsJson,
+  [AllowEmptyString()]
+  [string] $UpstreamShasJson,
   [string] $OutputFile
 )
 
@@ -36,6 +38,31 @@ foreach ($job in $required) {
       $results[$job] -cne 'success') {
     [Console]::Error.WriteLine('A required gate job did not succeed.')
     exit 1
+  }
+}
+
+if ($PSBoundParameters.ContainsKey('UpstreamShasJson')) {
+  try {
+    $upstream = ConvertFrom-Json -InputObject $UpstreamShasJson -AsHashtable -NoEnumerate
+  }
+  catch {
+    [Console]::Error.WriteLine('Invalid upstream gate outputs.')
+    exit 1
+  }
+
+  if ($upstream -isnot [System.Collections.IDictionary]) {
+    [Console]::Error.WriteLine('Invalid upstream gate outputs.')
+    exit 1
+  }
+
+  foreach ($job in $required) {
+    if (-not $upstream.Contains($job) -or
+        $upstream[$job] -isnot [string] -or
+        $upstream[$job] -cnotmatch '\A[0-9a-f]{40}\z' -or
+        $upstream[$job] -cne $Sha) {
+      [Console]::Error.WriteLine('An upstream gate validated a different commit.')
+      exit 1
+    }
   }
 }
 

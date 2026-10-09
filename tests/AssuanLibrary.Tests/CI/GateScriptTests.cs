@@ -72,6 +72,49 @@ public sealed class GateScriptTests {
       "-RequiredJobsJson", "[]", "-ResultsJson", "{}")).ExitCode);
   }
 
+  [Theory]
+  [InlineData("[\"prepare\",\"matrix\",\"docs\",\"format\",\"workflows\"]")]
+  [InlineData("[\"prepare\",\"real\"]")]
+  public async Task EveryRequiredJobBlocksTheGateUnlessSuccessful(string requiredJson) {
+    var jobs = JsonSerializer.Deserialize<string[]>(requiredJson)!;
+    foreach (var job in jobs) {
+      foreach (var state in new[] { "failure", "cancelled", "skipped" }) {
+        var results = jobs.ToDictionary(name => name, name => name == job ? state : "success");
+        var rejected = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", _validSha,
+          "-RequiredJobsJson", requiredJson, "-ResultsJson", JsonSerializer.Serialize(results));
+        Assert.NotEqual(0, rejected.ExitCode);
+        Assert.DoesNotContain(_validSha, rejected.Output);
+      }
+
+      var missing = jobs.Where(name => name != job).ToDictionary(name => name, _ => "success");
+      Assert.NotEqual(0, (await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", _validSha,
+        "-RequiredJobsJson", requiredJson, "-ResultsJson", JsonSerializer.Serialize(missing))).ExitCode);
+    }
+  }
+
+  [Fact]
+  public async Task FutureReleaseCanRejectGreenGatesFromDifferentCommits() {
+    const string REQUIRED = "[\"ci\",\"interop\"]";
+    const string SUCCEEDED = "{\"ci\":\"success\",\"interop\":\"success\"}";
+    var matching = JsonSerializer.Serialize(new Dictionary<string, string> {
+      ["ci"] = _validSha, ["interop"] = _validSha
+    });
+    var approved = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", _validSha,
+      "-RequiredJobsJson", REQUIRED, "-ResultsJson", SUCCEEDED, "-UpstreamShasJson", matching);
+    Assert.Equal(0, approved.ExitCode);
+    Assert.Equal(_validSha, approved.Output.Trim());
+
+    var different = JsonSerializer.Serialize(new Dictionary<string, string> {
+      ["ci"] = _validSha, ["interop"] = new string('b', 40)
+    });
+    foreach (var outputs in new[] { different, "{\"ci\":\"" + _validSha + "\"}" }) {
+      var rejected = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", _validSha,
+        "-RequiredJobsJson", REQUIRED, "-ResultsJson", SUCCEEDED, "-UpstreamShasJson", outputs);
+      Assert.NotEqual(0, rejected.ExitCode);
+      Assert.DoesNotContain(_validSha, rejected.Output);
+    }
+  }
+
   [Fact]
   public async Task SuccessfulGatePublishesOnlyTheValidatedSha() {
     var parent = Path.Combine(_repository, "artifacts", "ci-script-tests", Guid.NewGuid().ToString("N"));

@@ -2,6 +2,8 @@
 
 `ci.yml` validates one exact, lowercase 40-character commit SHA. A direct push, pull request or manual run uses the event SHA; a reusable-workflow call requires `source_sha`. Every build job checks out that commit without persisted checkout credentials and verifies `HEAD` before running checks. The final gate publishes the SHA only when preparation, the three-OS matrix, documentation, formatting and workflow validation all succeed. CI has read-only repository access and does not publish a package or a website.
 
+`interop.yml` selects and verifies the same kind of SHA independently. Its final gate rejects a failed, cancelled, skipped or missing platform matrix. A future release must compare **both** gate outputs with its prepared commit, not treat two green result labels as proof of matching source. `Assert-Gate.ps1` accepts `-UpstreamShasJson` for that explicit three-way comparison.
+
 ## Reproduce the checks locally
 
 Use the repository's pinned .NET 10 SDK. Set `NUGET_PACKAGES` and `DOTNET_CLI_HOME` to absolute paths under this checkout's ignored `artifacts/` directory, then run from the repository root:

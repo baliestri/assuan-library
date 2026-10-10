@@ -1,0 +1,292 @@
+name: Release AssuanLibrary
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version to prepare (first release must be 2.0.0)
+        required: true
+        type: string
+
+concurrency:
+  group: assuan-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  NUGET_PACKAGES: ${{ github.workspace }}/artifacts/nuget-cache
+  DOTNET_CLI_HOME: ${{ github.workspace }}/artifacts/dotnet-home
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      prepared_sha: ${{ steps.candidate.outputs.prepared_sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: develop
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Reject a moved branch or an existing NuGet version
+        shell: pwsh
+        env:
+          EVENT_SHA: ${{ github.sha }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if ($env:RELEASE_VERSION -cne '2.0.0' -or $env:EVENT_SHA -cnotmatch '\A[0-9a-f]{40}\z') {
+            throw 'Only the first stable 2.0.0 candidate is supported.'
+          }
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:EVENT_SHA -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Event checkout differs from develop.' }
+          $uri = 'https://api.nuget.org/v3-flatcontainer/assuanlibrary/2.0.0/assuanlibrary.2.0.0.nupkg'
+          $result = Invoke-WebRequest -Uri $uri -Method Head -SkipHttpErrorCheck
+          if ($result.StatusCode -ne 404) { throw 'NuGet version exists or its absence cannot be confirmed.' }
+      - name: Preview and prepare exactly one release commit
+        id: candidate
+        shell: pwsh
+        env:
+          EVENT_SHA: ${{ github.sha }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          ASSUAN_RELEASE_PREPARE: '1'
+        run: |
+          $preview = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Prepare-Version.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -ExpectedSha $env:EVENT_SHA -DryRun
+          if ($LASTEXITCODE -ne 0) { throw 'Release preview failed.' }
+          $prepared = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Prepare-Version.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -ExpectedSha $env:EVENT_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Release preparation failed.' }
+          git switch -c 'release/v2.0.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Release branch could not be created.' }
+          git add -- CHANGELOG.md README.adoc docs/guides/getting-started.md src/AssuanLibrary/AssuanLibrary.csproj
+          if ($LASTEXITCODE -ne 0) { throw 'Release edits could not be staged.' }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 1) { throw 'Release preparation produced no staged changes.' }
+          git -c 'user.name=github-actions[bot]' -c 'user.email=41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore(release): prepare for 2.0.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Release preparation commit failed.' }
+          $sha = (git rev-parse HEAD).Trim()
+          if ($sha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Prepared SHA is invalid.' }
+          git push origin 'HEAD:refs/heads/release/v2.0.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Release branch push failed; inspect before retry.' }
+          $remote = git ls-remote origin refs/heads/release/v2.0.0
+          if ($LASTEXITCODE -ne 0 -or $remote -cnotmatch ('\A' + $sha + '\s+refs/heads/release/v2\.0\.0\z')) {
+            throw 'Remote release branch does not match the prepared commit.'
+          }
+          "prepared_sha=$sha" >> $env:GITHUB_OUTPUT
+
+  ci:
+    needs: prepare
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      source_sha: ${{ needs.prepare.outputs.prepared_sha }}
+
+  interop:
+    needs: prepare
+    permissions:
+      contents: read
+    uses: ./.github/workflows/interop.yml
+    with:
+      source_sha: ${{ needs.prepare.outputs.prepared_sha }}
+
+  build:
+    needs: [prepare, ci, interop]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.prepared_sha }}
+          persist-credentials: false
+      - name: Require both gates to identify this checkout
+        shell: pwsh
+        env:
+          PREPARED_SHA: ${{ needs.prepare.outputs.prepared_sha }}
+          CI_SHA: ${{ needs.ci.outputs.source_sha }}
+          INTEROP_SHA: ${{ needs.interop.outputs.source_sha }}
+        run: |
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:PREPARED_SHA -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact checkout differs from prepared SHA.' }
+          $outputs = @{ ci = $env:CI_SHA; interop = $env:INTEROP_SHA } | ConvertTo-Json -Compress
+          $gates = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-Gate.ps1 -Sha $env:PREPARED_SHA -RequiredJobsJson '["ci","interop"]' -ResultsJson '{"ci":"success","interop":"success"}' -UpstreamShasJson $outputs
+          if ($LASTEXITCODE -ne 0) { throw 'Release gates validated different commits.' }
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet restore AssuanLibrary.slnx --locked-mode
+      - run: dotnet build AssuanLibrary.slnx -c Release --no-restore
+      - name: Pack the only NuGet package
+        run: dotnet pack src/AssuanLibrary/AssuanLibrary.csproj -c Release --no-build --no-restore -p:PackageVersion=2.0.0 -o artifacts/release-candidate
+      - name: Build and compare two documentation bundles
+        shell: pwsh
+        run: |
+          foreach ($output in @('artifacts/release-docs/one', 'artifacts/release-docs/two')) {
+            dotnet run --project tools/AssuanLibrary.Docs -c Release --no-restore -- build --version 2.0.0 --base-url https://baliestri.github.io/assuan-library/ --output $output
+            if ($LASTEXITCODE -ne 0) { throw 'Documentation generation failed.' }
+          }
+          $leftRoot = 'artifacts/release-docs/one/2.0.0'
+          $rightRoot = 'artifacts/release-docs/two/2.0.0'
+          $left = @(Get-ChildItem $leftRoot -File -Recurse | ForEach-Object {
+            $name = [IO.Path]::GetRelativePath((Resolve-Path $leftRoot).Path, $_.FullName)
+            "${name}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+          } | Sort-Object)
+          $right = @(Get-ChildItem $rightRoot -File -Recurse | ForEach-Object {
+            $name = [IO.Path]::GetRelativePath((Resolve-Path $rightRoot).Path, $_.FullName)
+            "${name}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+          } | Sort-Object)
+          if (Compare-Object $left $right) { throw 'Documentation bundles differ.' }
+      - name: Bind and verify the original artifacts
+        shell: pwsh
+        env:
+          PREPARED_SHA: ${{ needs.prepare.outputs.prepared_sha }}
+          CI_SHA: ${{ needs.ci.outputs.source_sha }}
+          INTEROP_SHA: ${{ needs.interop.outputs.source_sha }}
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          $candidate = Join-Path $root 'artifacts/release-candidate'
+          $package = Join-Path $candidate 'AssuanLibrary.2.0.0.nupkg'
+          $built = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Build-ReleaseArtifacts.ps1 -Root $root -PreparedSha $env:PREPARED_SHA -PackagePath $package -BundlePath (Join-Path $root 'artifacts/release-docs/one/2.0.0') -OutputDirectory $candidate
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact assembly failed.' }
+          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $root -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -DocsArchive (Join-Path $candidate 'docs-v2.0.0.zip') -ChecksumPath (Join-Path $candidate 'docs-v2.0.0.sha256') -ManifestPath (Join-Path $candidate 'release-artifacts.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact verification failed.' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-v2.0.0-${{ needs.prepare.outputs.prepared_sha }}
+          path: |
+            artifacts/release-candidate/AssuanLibrary.2.0.0.nupkg
+            artifacts/release-candidate/docs-v2.0.0.zip
+            artifacts/release-candidate/docs-v2.0.0.sha256
+            artifacts/release-candidate/release-artifacts.json
+          if-no-files-found: error
+
+  promote:
+    needs: [prepare, ci, interop, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.prepared_sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Recheck branch, main ancestry and tag before atomic promotion
+        shell: pwsh
+        env:
+          PREPARED_SHA: ${{ needs.prepare.outputs.prepared_sha }}
+        run: |
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:PREPARED_SHA -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Promotion checkout differs from prepared SHA.' }
+          $remote = git ls-remote origin refs/heads/main refs/heads/release/v2.0.0 refs/tags/v2.0.0
+          if ($LASTEXITCODE -ne 0) { throw 'Release refs could not be inspected.' }
+          $refs = @{}
+          foreach ($line in $remote) { $parts = $line -split '\s+', 2; $refs[$parts[1]] = $parts[0] }
+          if ($refs['refs/heads/release/v2.0.0'] -cne $env:PREPARED_SHA -or
+              $refs.ContainsKey('refs/tags/v2.0.0') -or -not $refs['refs/heads/main'] -or
+              $refs['refs/heads/main'] -ceq $env:PREPARED_SHA) {
+            throw 'Release branch, main or tag changed before promotion.'
+          }
+          git merge-base --is-ancestor $refs['refs/heads/main'] $env:PREPARED_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Main cannot advance to the prepared commit.' }
+          git tag v2.0.0 $env:PREPARED_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Release tag could not be prepared.' }
+          git push --atomic origin "$($env:PREPARED_SHA):refs/heads/main" 'refs/tags/v2.0.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Atomic promotion failed; inspect refs before retry.' }
+
+  publish:
+    needs: [prepare, ci, interop, build, promote]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      actions: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.prepared_sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-v2.0.0-${{ needs.prepare.outputs.prepared_sha }}
+          path: artifacts/release-download
+      - name: Verify downloaded bytes and all gate SHAs before publication
+        shell: pwsh
+        env:
+          PREPARED_SHA: ${{ needs.prepare.outputs.prepared_sha }}
+          CI_SHA: ${{ needs.ci.outputs.source_sha }}
+          INTEROP_SHA: ${{ needs.interop.outputs.source_sha }}
+          NUGET_USERNAME: ${{ vars.NUGET_USERNAME }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_USERNAME)) { throw 'NuGet trusted-publishing owner is not configured.' }
+          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $env:GITHUB_WORKSPACE -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath artifacts/release-download/AssuanLibrary.2.0.0.nupkg -DocsArchive artifacts/release-download/docs-v2.0.0.zip -ChecksumPath artifacts/release-download/docs-v2.0.0.sha256 -ManifestPath artifacts/release-download/release-artifacts.json
+          if ($LASTEXITCODE -ne 0) { throw 'Downloaded artifact verification failed.' }
+      - name: Obtain a short-lived NuGet key by OIDC
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_USERNAME }}
+      - name: Publish the already verified package exactly once
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'NuGet OIDC credential was not issued.' }
+          dotnet nuget push artifacts/release-download/AssuanLibrary.2.0.0.nupkg --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet upload outcome requires manual registry inspection; do not retry automatically.' }
+      - name: Confirm registry identity before creating a GitHub Release
+        shell: pwsh
+        run: |
+          $uri = 'https://api.nuget.org/v3-flatcontainer/assuanlibrary/2.0.0/assuanlibrary.2.0.0.nupkg'
+          $found = $false
+          for ($attempt = 0; $attempt -lt 20; $attempt++) {
+            $probe = Invoke-WebRequest -Uri $uri -Method Head -SkipHttpErrorCheck
+            if ($probe.StatusCode -eq 200) { $found = $true; break }
+            if ($probe.StatusCode -ne 404) { throw 'NuGet registry response requires manual inspection.' }
+            Start-Sleep -Seconds 15
+          }
+          if (-not $found) { throw 'NuGet version visibility requires manual inspection.' }
+          [IO.Directory]::CreateDirectory('artifacts/registry') | Out-Null
+          Invoke-WebRequest -Uri $uri -OutFile artifacts/registry/AssuanLibrary.2.0.0.nupkg
+          Import-Module ./scripts/release/Artifacts.psm1
+          Assert-RegistryPackage -OriginalPath artifacts/release-download/AssuanLibrary.2.0.0.nupkg -RegistryPath artifacts/registry/AssuanLibrary.2.0.0.nupkg
+      - name: Create the GitHub Release with the original documentation assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v2.0.0 --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'An existing GitHub Release requires asset comparison before continuing.' }
+          gh release create v2.0.0 artifacts/release-download/docs-v2.0.0.zip artifacts/release-download/docs-v2.0.0.sha256 --verify-tag --title 'AssuanLibrary 2.0.0' --notes 'AssuanLibrary 2.0.0 replaces the published 1.x API. See the new guides and versioned documentation for the .NET 10 client/server library.'
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation requires manual inspection.' }
+          gh workflow run docs.yml --ref main
+          if ($LASTEXITCODE -ne 0) { throw 'Pages dispatch failed; use the original release assets for recovery.' }
+
+  sync:
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.prepared_sha }}
+          persist-credentials: true
+      - name: Advance develop only when it remains a fast-forward
+        shell: pwsh
+        env:
+          PREPARED_SHA: ${{ needs.prepare.outputs.prepared_sha }}
+        run: |
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:PREPARED_SHA -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Develop synchronization checkout differs from prepared SHA.' }
+          git push origin "$($env:PREPARED_SHA):refs/heads/develop"
+          if ($LASTEXITCODE -ne 0) { throw 'Develop changed; published release remains intact for human integration.' }

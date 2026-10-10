@@ -73,6 +73,28 @@ function Assert-ReleaseDocsArchive {
   finally { $archive.Dispose() }
 }
 
+function Assert-RegistryPackage {
+  param([string] $OriginalPath, [string] $RegistryPath, [string] $Version = '2.0.0')
+  Assert-ReleasePackage $OriginalPath $Version
+  Assert-ReleasePackage $RegistryPath $Version
+  $original = [IO.Compression.ZipFile]::OpenRead($OriginalPath)
+  $published = [IO.Compression.ZipFile]::OpenRead($RegistryPath)
+  try {
+    foreach ($name in @('lib/net10.0/AssuanLibrary.dll', 'lib/net10.0/AssuanLibrary.xml',
+      'analyzers/dotnet/cs/AssuanLibrary.Generators.dll', 'README.md')) {
+      $first = $original.GetEntry($name).Open()
+      $second = $published.GetEntry($name).Open()
+      try {
+        $before = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($first))
+        $after = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($second))
+        if ($before -cne $after) { throw 'Published package content differs from the validated artifact.' }
+      }
+      finally { $first.Dispose(); $second.Dispose() }
+    }
+  }
+  finally { $original.Dispose(); $published.Dispose() }
+}
+
 function Assert-ReleaseArtifacts {
   param([string] $PreparedSha, [string] $PackagePath, [string] $DocsArchive,
     [string] $ChecksumPath, [string] $ManifestPath)
@@ -147,5 +169,5 @@ function New-ReleaseArtifacts {
   return Assert-ReleaseArtifacts $PreparedSha $PackagePath $zip $checksum $manifest
 }
 
-Export-ModuleMember -Function Assert-ReleasePackage, Assert-ReleaseDocsArchive,
+Export-ModuleMember -Function Assert-ReleasePackage, Assert-RegistryPackage, Assert-ReleaseDocsArchive,
   Assert-ReleaseArtifacts, New-ReleaseArtifacts

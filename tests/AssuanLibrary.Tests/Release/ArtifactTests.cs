@@ -84,6 +84,27 @@ public sealed class ArtifactTests {
     Assert.NotEqual(0, (await fixture.BuildAsync("first")).ExitCode);
   }
 
+  [Fact]
+  public async Task RegistrySigningMayAddEntriesButCannotChangeRequiredPackageBytes() {
+    using var fixture = new ArtifactFixture();
+    var registry = Path.Combine(fixture.OutputRoot, "registry", "AssuanLibrary.2.0.0.nupkg");
+    Directory.CreateDirectory(Path.GetDirectoryName(registry)!);
+    File.Copy(fixture.PackagePath, registry);
+    await using (var archive = ZipFile.Open(registry, ZipArchiveMode.Update)) {
+      await using var signature = archive.CreateEntry(".signature.p7s").Open();
+      signature.Write("registry signature"u8);
+    }
+
+    Assert.Equal(0, (await fixture.CompareRegistryAsync(registry)).ExitCode);
+    await using (var archive = ZipFile.Open(registry, ZipArchiveMode.Update)) {
+      archive.GetEntry("README.md")!.Delete();
+      await using var readme = archive.CreateEntry("README.md").Open();
+      readme.Write("different content"u8);
+    }
+
+    Assert.NotEqual(0, (await fixture.CompareRegistryAsync(registry)).ExitCode);
+  }
+
   private sealed class ArtifactFixture : IDisposable {
     private readonly ReleaseFixture _git = new();
 
@@ -210,6 +231,26 @@ public sealed class ArtifactTests {
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Build-ReleaseArtifacts.ps1"),
                  "-Root", _git.Root, "-PreparedSha", _git.Head, "-PackagePath", PackagePath,
                  "-BundlePath", bundle, "-OutputDirectory", Path.Combine(OutputRoot, name)
+               }) {
+        start.ArgumentList.Add(argument);
+      }
+
+      using var process = Process.Start(start)!;
+      var stdout = process.StandardOutput.ReadToEndAsync();
+      var stderr = process.StandardError.ReadToEndAsync();
+      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+      return (process.ExitCode, await stdout + await stderr);
+    }
+
+    internal async Task<(int ExitCode, string Output)> CompareRegistryAsync(string registryPath) {
+      var start = new ProcessStartInfo("pwsh") {
+        WorkingDirectory = ReleaseFixture.ToolsRoot, UseShellExecute = false,
+        RedirectStandardOutput = true, RedirectStandardError = true
+      };
+      foreach (var argument in new[] {
+                 "-NoProfile", "-NonInteractive", "-File",
+                 Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Compare-RegistryPackage.ps1"),
+                 "-OriginalPath", PackagePath, "-RegistryPath", registryPath
                }) {
         start.ArgumentList.Add(argument);
       }

@@ -50,23 +50,31 @@ public sealed class UnixAgentPathTests {
   }
 
   [Fact]
-  public async Task InvalidUtf8PathBytesReachTheExactRawUnixSocket() {
-    if (OperatingSystem.IsWindows()) {
-      return;
-    }
-
+  public async Task InvalidUtf8PathBytesRemainLiteralDuringUnixDiscovery() {
     if (!OperatingSystem.IsLinux() &&
         !OperatingSystem.IsMacOS()) {
       return;
     }
 
     using var fixture = new AgentFixture();
-    byte[] rawPath = [
-      .. Encoding.UTF8.GetBytes(fixture.Home + "/"),
-      (byte)'s', (byte)'o', (byte)'c', (byte)'k', (byte)'e', (byte)'t', 0xff, (byte)'%', (byte)'2', (byte)'0'
-    ];
+    var rawPath = InvalidUtf8SocketPath(fixture.Home);
     File.WriteAllBytes(Path.Combine(fixture.Home, "output.bin"), [.. rawPath, (byte)'\n']);
-    var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+    using var resolved = await new AgentLocator(fixture.Executable, fixture.Home)
+      .ResolveAsync(TestContext.Current.CancellationToken);
+    Assert.Equal(AgentEndpointKind.UnixSocket, resolved.Kind);
+    Assert.Equal(rawPath, resolved.UnixPathBytes.ToArray());
+  }
+
+  [Fact]
+  public async Task InvalidUtf8PathBytesReachTheExactRawLinuxSocket() {
+    // macOS preserves gpgconf's raw bytes above but its native bind rejects
+    // a filesystem socket pathname containing malformed UTF-8.
+    if (!OperatingSystem.IsLinux()) return;
+
+    using var fixture = new AgentFixture();
+    var rawPath = InvalidUtf8SocketPath(fixture.Home);
+    File.WriteAllBytes(Path.Combine(fixture.Home, "output.bin"), [.. rawPath, (byte)'\n']);
+    using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
     UnixNative.BindRawSocket(listener, rawPath);
     try {
       listener.Listen();
@@ -102,4 +110,9 @@ public sealed class UnixAgentPathTests {
       UnixNative.UnlinkRawFixturePath(rawPath);
     }
   }
+
+  private static byte[] InvalidUtf8SocketPath(string home) => [
+    .. Encoding.UTF8.GetBytes(home + "/"),
+    (byte)'s', (byte)'o', (byte)'c', (byte)'k', (byte)'e', (byte)'t', 0xff, (byte)'%', (byte)'2', (byte)'0'
+  ];
 }

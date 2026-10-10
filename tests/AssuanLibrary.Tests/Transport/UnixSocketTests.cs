@@ -2,12 +2,28 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Net.Sockets;
+using System.Text;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Unix;
 
 namespace AssuanLibrary.Tests.Transport;
 
 public sealed class UnixSocketTests {
+  [Fact]
+  public void FixtureSocketFitsTheHostedMacOsPathBudget() {
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
+    using var fixture = new UnixFixture();
+    var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+    var relative = Path.GetRelativePath(repository, Path.Combine(fixture.Root, "privé-漢", "socket"))
+      .Replace('\\', '/');
+    var hosted = "/Users/runner/work/assuan-library/assuan-library/" + relative;
+    Assert.InRange(Encoding.UTF8.GetByteCount(hosted), 1, 103);
+  }
+
   [Fact]
   public async Task NonAsciiDirectoryAndSocketNamesReachNativeUnixCallsAsUtf8() {
     if (OperatingSystem.IsWindows()) {

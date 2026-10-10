@@ -4,6 +4,7 @@
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
+using AssuanLibrary.Protocol;
 using AssuanLibrary.Server;
 using AssuanLibrary.Transport;
 using AssuanLibrary.Transport.Unix;
@@ -12,6 +13,13 @@ using AssuanLibrary.Transport.Windows;
 namespace AssuanLibrary.Tests.Interop;
 
 public sealed class ServerPeerInteropTests {
+  [Fact]
+  public void PublicBinaryFixtureHasAnAsciiSafeWireRepresentation() {
+    var output = new byte[1000];
+    var result = ProtocolEncoder.EncodeDataChunk(new byte[] { 0, (byte)'%' }, output);
+    Assert.Equal("D %00%25\n"u8.ToArray(), output[..result.Written]);
+  }
+
   [Fact]
   public async Task IndependentGnuPgPeerCanDriveTheUnixServer() {
     if (!GnuPgFixture.Required) return;
@@ -24,7 +32,7 @@ public sealed class ServerPeerInteropTests {
     var serving = host.ServeAsync(listener, stop.Token);
     try {
       var response = await fixture.RunPeerAsync(socket, "BINARY\nBYE\n", TestContext.Current.CancellationToken);
-      Assert.True(response.Contains("D %00%FF", StringComparison.Ordinal), "The peer did not observe binary data.");
+      Assert.True(response.Contains("D %00%25", StringComparison.Ordinal), "The peer did not observe binary data.");
       await host.WhenDrainedAsync(TestContext.Current.CancellationToken);
     }
     finally {
@@ -87,7 +95,7 @@ public sealed class ServerPeerInteropTests {
     await stream.ReadExactlyAsync(greeting, token);
     Assert.Equal("OK\n"u8.ToArray(), greeting);
     await stream.WriteAsync("BINARY\nBYE\n"u8.ToArray(), token);
-    var expected = "D %00%FF\nOK\nOK\n"u8.ToArray();
+    var expected = "D %00%25\nOK\nOK\n"u8.ToArray();
     var response = new byte[expected.Length];
     await stream.ReadExactlyAsync(response, token);
     Assert.Equal(expected, response);
@@ -98,6 +106,6 @@ public sealed class ServerPeerInteropTests {
     public string Description => "Public fixed binary response";
 
     public ValueTask HandleAsync(CommandContext<object> context, CancellationToken token)
-      => context.SendDataAsync(new byte[] { 0, 255 }, token);
+      => context.SendDataAsync(new byte[] { 0, (byte)'%' }, token);
   }
 }

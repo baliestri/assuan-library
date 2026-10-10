@@ -79,31 +79,47 @@ jobs:
         with:
           global-json-file: global.json
       - name: Provision one GnuPG installation and record its version
+        timeout-minutes: 6
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           switch ($env:RUNNER_OS) {
             'Linux' {
               sudo apt-get update -qq
               if ($LASTEXITCODE -ne 0) { throw 'GnuPG package index failed.' }
               sudo apt-get install -y gnupg
+              if ($LASTEXITCODE -ne 0) { throw 'GnuPG provisioning failed.' }
+              $bin = '/usr/bin'
             }
-            'macOS' { brew install gnupg }
+            'macOS' {
+              brew install gnupg
+              if ($LASTEXITCODE -ne 0) { throw 'GnuPG provisioning failed.' }
+              $prefix = & brew --prefix gnupg
+              if ($LASTEXITCODE -ne 0) { throw 'GnuPG installation prefix is unavailable.' }
+              $bin = Join-Path $prefix.Trim() 'bin'
+            }
             'Windows' {
-              choco install gnupg --yes --no-progress
-              $chocolatey = if ($env:ChocolateyInstall) { $env:ChocolateyInstall } else { 'C:\ProgramData\chocolatey' }
-              $env:PATH = (Join-Path $chocolatey 'bin') + [IO.Path]::PathSeparator + $env:PATH
+              Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+              $scoopRoot = Join-Path $env:RUNNER_TEMP 'assuan-scoop'
+              $installer = Join-Path $env:RUNNER_TEMP 'install-scoop.ps1'
+              Invoke-WebRequest -Uri 'https://get.scoop.sh' -OutFile $installer
+              & $installer -RunAsAdmin -ScoopDir $scoopRoot
+              if ($LASTEXITCODE -ne 0) { throw 'Scoop installation failed.' }
+              $scoop = Join-Path $scoopRoot 'shims\scoop.ps1'
+              & $scoop install main/gnupg
+              if ($LASTEXITCODE -ne 0) { throw 'GnuPG provisioning failed.' }
+              $bin = Join-Path $scoopRoot 'apps\gnupg\current\bin'
             }
             default { throw 'Unsupported runner OS.' }
           }
-          if ($LASTEXITCODE -ne 0) { throw 'GnuPG provisioning failed.' }
           $suffix = if ($IsWindows) { '.exe' } else { '' }
           $tools = @{}
           foreach ($name in @('gpgconf', 'gpg-agent', 'gpg-connect-agent')) {
-            $command = Get-Command "$name$suffix" -CommandType Application -ErrorAction Stop
-            $tools[$name] = (Get-Item -LiteralPath $command.Source).FullName
-          }
-          if (@($tools.Values | ForEach-Object { Split-Path -Parent $_ } | Select-Object -Unique).Count -ne 1) {
-            throw 'GnuPG tools came from different installations.'
+            $path = Join-Path $bin "$name$suffix"
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw 'A required GnuPG executable is unavailable.'
+            }
+            $tools[$name] = $path
           }
           $versionLines = & $tools['gpgconf'] --version
           $banner = $versionLines | Select-Object -First 1

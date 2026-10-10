@@ -48,7 +48,7 @@ internal sealed class GnuPgFixture : IAsyncDisposable {
   internal GnuPgFixture(GnuPgTools tools) {
     Tools = tools;
     var root = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
-    Home = Path.Combine(root, "artifacts", "interop-tests", Guid.NewGuid().ToString("N")[..12]);
+    Home = Path.Combine(root, "artifacts", "g", Guid.NewGuid().ToString("N")[..12]);
     Directory.CreateDirectory(Home);
     if (!OperatingSystem.IsWindows()) {
       File.SetUnixFileMode(Home, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

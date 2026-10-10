@@ -84,6 +84,9 @@ public sealed class WorkflowContractTests {
     Assert.Contains("ASSUAN_GPGCONF_PATH", yaml);
     Assert.Contains("ASSUAN_GPG_AGENT_PATH", yaml);
     Assert.Contains("ASSUAN_GPG_CONNECT_AGENT_PATH", yaml);
+    Assert.Contains("scoop install main/gnupg", yaml);
+    Assert.Contains("apps\\gnupg\\current\\bin", yaml);
+    Assert.DoesNotContain("choco install", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.Contains("persist-credentials: false", yaml);
     Assert.Contains("if: always()", yaml);
     Assert.Contains("needs: [prepare, real]", yaml);

@@ -153,6 +153,15 @@
       "includeInIndex": true,
       "includeInFull": false,
       "optional": false
+    },
+    {
+      "order": 180,
+      "title": "Release operations",
+      "source": "docs/guides/releasing.md",
+      "destination": "guides/releasing.md",
+      "includeInIndex": true,
+      "includeInFull": false,
+      "optional": false
     }
   ]
 }

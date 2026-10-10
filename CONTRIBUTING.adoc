@@ -1,142 +1,44 @@
-= Contributing
+= Contributing to AssuanLibrary
 
-Thanks for taking the time to contribute to *AssuanLibrary*.
+Thanks for contributing to the binary-safe Assuan client/server library. Version 2.0 is a complete API break from the published 1.x package; use the current guides and examples rather than adapting a 1.x snippet by name alone.
 
-This repository contains a .NET implementation of the *Assuan* protocol with multiple transports (TCP, Windows Named Pipes, Unix Domain Sockets), plus a small sample app and a test suite.
+== Before starting
 
-== Quick links
+Search existing issues and pull requests, and discuss substantial protocol or API changes before implementing them. Report security vulnerabilities through a private GitHub Security Advisory when available, or contact the maintainer listed in link:LICENSE.md[LICENSE.md]; do not post secrets or private agent paths in a public issue.
 
-* Repo: https://github.com/baliestri/assuan-library
-* License: link:LICENSE.md[MIT]
+== Checkout and project layout
 
-== Ways to contribute
+The solution is `AssuanLibrary.slnx`, with a .NET *10.0.400* SDK pin in `global.json`:
 
-* Report bugs and regressions
-* Propose features or protocol/transport improvements
-* Improve docs and samples
-* Add tests (especially for protocol edge cases)
-* Add transports or platform fixes
+* `src/AssuanLibrary/` — the main `net10.0` runtime and public XML documentation.
+* `src/AssuanLibrary.Generators/` — the `netstandard2.0` incremental analyzer included in the main NuGet package.
+* `examples/AssuanLibrary.Examples/` — one selectable console; start with `custom-transport` for an in-memory client/server exchange.
+* `tests/` — runtime, generator, package-consumer, documentation, CI and release-fixture tests.
+* `tools/AssuanLibrary.Docs/` and `docs/site/` — pinned DocFX bundle generation and the reviewed guide manifest.
 
-== Before you start
+`Directory.Packages.props` centrally selects NuGet versions; each project has a `packages.lock.json`. Use an SDK matching `global.json`. Keep local package caches, downloaded tools and generated output in ignored `artifacts/` within this checkout.
 
-* Please search existing issues/PRs first to avoid duplicates.
-* For significant changes, open an issue first so we can align on approach.
+== Build, test and format
 
-== Development prerequisites
-
-* *.NET SDK*: the solution includes projects targeting *`netstandard2.0`* (library) and *`net10.0`* (tests/sample). Install an SDK that supports `net10.0`.
-* Git
-
-Optional but helpful:
-
-* JetBrains Rider / Visual Studio / VS Code
-
-== Solution layout
-
-* `AssuanLibrary/` — main library (`netstandard2.0`)
-* `AssuanLibrary.Extensions.DependencyInjection/` — Microsoft DI helpers (`netstandard2.0`)
-* `AssuanLibrary.Sample/` — sample console app (`net10.0`)
-* `AssuanLibrary.Tests/` — test suite (`net10.0`, xUnit)
-
-The repo uses *central package management* via `Directory.Packages.props`.
-
-== Build, test, and run
-
-From the repo root:
+Set `NUGET_PACKAGES` and `DOTNET_CLI_HOME` to absolute paths under this checkout's `artifacts/`, then run from the repository root:
 
 [source,shell]
 ----
-# restore packages
-dotnet restore .\AssuanLibrary.sln
-
-# build (warnings are treated as errors)
-dotnet build .\AssuanLibrary.sln -c Release
-
-# run tests
-dotnet test .\AssuanLibrary.Tests\AssuanLibrary.Tests.csproj -c Release
+dotnet restore AssuanLibrary.slnx --locked-mode
+dotnet build AssuanLibrary.slnx -c Release --no-restore
+dotnet test AssuanLibrary.slnx -c Release --no-restore
+dotnet format AssuanLibrary.slnx --verify-no-changes --no-restore
+dotnet run --project examples/AssuanLibrary.Examples -- --example custom-transport
 ----
 
-== Platform notes
+Warnings are errors. Windows runs named-pipe, current-user DACL and native agent-nonce tests; Linux and macOS run Unix peer-credential and cleanup tests. The separate hosted Interop gate requires real GnuPG tools on all three operating systems. A local deterministic fixture is useful for regressions but is not proof of real-agent interoperability or macOS coverage.
 
-Some behavior and/or tests may be platform-specific:
+The repository entrance remains `README.adoc`; the NuGet package displays `docs/nuget/README.md`, packed as `README.md` at the package root. Keep public XML comments, guides, compiled examples and tests aligned when changing an API. The documentation tool builds a fresh versioned DocFX/`llms.txt`/`llms-full.txt` bundle; see link:docs/guides/operations.md[documentation operations]. It never overwrites an existing version directory.
 
-* *Windows Named Pipes*: only available on Windows.
-* *Unix Domain Sockets*: expected to work on Linux and likely macOS (macOS isn’t heavily tested).
+== Changes and pull requests
 
-If you add transport-specific tests, please guard them with OS checks so the suite remains portable.
+Use focused Conventional Commits, such as `feat(client): add a response operation`, `fix(transport): reject an invalid endpoint`, or `docs(server): clarify handler lifetime`. Mark a breaking change with `!` and explain its impact. `git-cliff` uses these commits to generate `CHANGELOG.md`; do not manually rewrite historical 1.x entries.
 
-== Coding standards
+Pull requests should explain the motivation, cover changed behavior with relevant tests, update user-facing documentation and pass the locked restore, Release build/test, format and workflow checks. Avoid printing command payloads, secrets, nonce bytes or private homedir paths in tests and diagnostics. TCP authentication is application policy; examples on loopback do not add it implicitly.
 
-* *Nullable reference types* are enabled.
-* Warnings are treated as errors (`TreatWarningsAsErrors=true`). Please keep builds warning-free.
-* Follow the repo’s formatting and style rules in `.editorconfig`.
-* Prefer small, focused commits and PRs.
-
-=== Public API changes
-
-If you change public API surface:
-
-* keep it source/binary compatible when possible
-* add/adjust tests
-* update docs/samples if the external behavior changes
-
-== Commit messages (important)
-
-This repo is set up for *Conventional Commits* and changelog generation via `git-cliff` (`cliff.toml`).
-
-Please use messages like:
-
-* `feat(protocol): support XYZ`
-* `fix(client): handle empty response collections`
-* `doc: improve readme examples`
-* `test(server): add handshake regression test`
-
-Use `!` for breaking changes (and explain in the body):
-
-* `feat!: change default session lifecycle`
-
-== Pull request guidelines
-
-A PR should:
-
-* explain _why_ the change is needed (problem statement)
-* include tests for bug fixes and new behavior
-* keep formatting consistent with existing code
-* pass `dotnet build` and `dotnet test`
-
-If your PR affects multiple areas (protocol + transport + server loop), consider splitting it into smaller PRs.
-
-== Reporting bugs
-
-When filing a bug, include:
-
-* what you expected vs what happened
-* a minimal repro (code snippet or small repo)
-* OS + .NET SDK version
-* relevant logs/exception stack traces
-* transport in use (TCP / Named Pipes / UDS)
-
-== Feature requests
-
-Feature requests are welcome. To make them actionable, include:
-
-* a concrete use case
-* expected protocol semantics (if applicable)
-* compatibility concerns (is it breaking?)
-
-== Security
-
-If you believe you’ve found a security vulnerability, please *do not open a public issue*.
-
-Prefer GitHub Security Advisories (if enabled for the repo). Otherwise, contact the maintainer (see the email in link:LICENSE.md[LICENSE.md]).
-
-== Release / changelog notes (maintainers)
-
-Changelog generation is configured by `cliff.toml` and expects Conventional Commits.
-
-Typical flow:
-
-* tag releases as `vX.Y.Z`
-* generate/update changelog with `git-cliff`
-
-(Exact commands depend on your local tooling.)
+Maintainers should use link:docs/guides/releasing.md[the release and recovery guide] for the protected 2.0.0 workflow. A local build or passing fixture does not authorize a tag, NuGet upload or Pages deployment.

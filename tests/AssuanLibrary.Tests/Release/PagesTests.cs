@@ -18,7 +18,8 @@ public sealed class PagesTests {
     fixture.Add("v2.0.0");
     fixture.Add("v3.0.0", true, createAssets: false);
     fixture.Add("v3.1.0-rc.1", prerelease: true, createAssets: false);
-    Assert.Equal(0, (await fixture.AssembleAsync()).ExitCode);
+    var assembled = await fixture.AssembleAsync();
+    Assert.True(assembled.ExitCode == 0, assembled.Output);
     Assert.True(File.Exists(Path.Combine(fixture.Site, "2.0.0", "index.html")));
     Assert.True(File.Exists(Path.Combine(fixture.Site, "2.1.0", "llms.txt")));
     Assert.Contains("2.1.0", File.ReadAllText(Path.Combine(fixture.Site, "index.html")));
@@ -61,7 +62,8 @@ public sealed class PagesTests {
     using var fixture = new PagesFixture();
     fixture.Add("v2.10.0");
     fixture.Add("v2.9.0");
-    Assert.Equal(0, (await fixture.AssembleAsync()).ExitCode);
+    var assembled = await fixture.AssembleAsync();
+    Assert.True(assembled.ExitCode == 0, assembled.Output);
     Assert.Contains("2.10.0", File.ReadAllText(Path.Combine(fixture.Site, "index.html")));
     Assert.Equal(File.ReadAllText(Path.Combine(fixture.Site, "2.10.0", "llms.txt")),
       File.ReadAllText(Path.Combine(fixture.Site, "llms.txt")));
@@ -71,7 +73,8 @@ public sealed class PagesTests {
   public async Task AFailedRerunDoesNotReplaceAnExistingSite() {
     using var fixture = new PagesFixture();
     fixture.Add("v2.0.0");
-    Assert.Equal(0, (await fixture.AssembleAsync()).ExitCode);
+    var assembled = await fixture.AssembleAsync();
+    Assert.True(assembled.ExitCode == 0, assembled.Output);
     var original = File.ReadAllBytes(Path.Combine(fixture.Site, "index.html"));
     fixture.Add("v2.1.0", corruptChecksum: true);
     Assert.NotEqual(0, (await fixture.AssembleAsync()).ExitCode);
@@ -124,7 +127,8 @@ public sealed class PagesTests {
 
     internal async Task<(int ExitCode, string Output)> AssembleAsync() {
       var manifest = Path.Combine(_root, "releases.json");
-      File.WriteAllText(manifest, JsonSerializer.Serialize(_releases));
+      File.WriteAllText(manifest, JsonSerializer.Serialize(_releases,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
       var start = new ProcessStartInfo("pwsh") {
         WorkingDirectory = ReleaseFixture.ToolsRoot, UseShellExecute = false,
         RedirectStandardOutput = true, RedirectStandardError = true

@@ -98,6 +98,19 @@ public sealed partial class WorkflowTests {
     Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
   }
 
+  [Fact]
+  public void LocalReleaseRunnerCannotPublishOrAdvanceRefs() {
+    var script = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Test-Release.ps1"));
+    Assert.Contains("artifacts/release-tests", script);
+    Assert.Contains("--locked-mode", script);
+    Assert.Contains("--verify-no-changes", script);
+    Assert.Contains("Verify-Workflows.ps1", script);
+    Assert.DoesNotContain("git push", script, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("nuget push", script, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("gh release create", script, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("gh workflow run", script, StringComparison.OrdinalIgnoreCase);
+  }
+
   [GeneratedRegex("id-token: write")]
   private static partial Regex IdTokenWriteRegex();
 

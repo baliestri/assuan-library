@@ -33,3 +33,5 @@ Pages begins at `/2.0.0/`. Its independent workflow verifies archived bundles fr
 | Package/site published, `develop` sync failed | Leave the published release intact and resolve the branch integration with a human review. |
 
 Local release tests use disposable Git repositories and fake registry/GitHub responses under `artifacts/release-tests/`. They cannot prove the account's OIDC policy, protected environments, branch permissions, hosted macOS or real GnuPG success. Actual publication requires a separate explicit maintainer authorization.
+
+Run the complete local check from this checkout with `pwsh -NoProfile -File scripts/release/Test-Release.ps1 -Root <absolute-repository-path>`. It performs locked restore, Release build/tests, formatting, actionlint, package inspection and two equivalent documentation builds, then exercises safe mocked recovery transitions. The JSON result identifies the checkout HEAD and ignored dry-run output directory; it is **not** a prepared release SHA or an authorization to dispatch `release.yml`. A failed dry-run leaves only its own ignored diagnostic files for inspection.

@@ -12,6 +12,16 @@ namespace AssuanLibrary.Tests.Transport;
 
 public sealed class UnixAgentPathTests {
   [Fact]
+  public void DiscoveryFixtureSocketFitsTheHostedMacOsPathBudget() {
+    if (OperatingSystem.IsWindows()) return;
+    using var fixture = new AgentFixture();
+    var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+    var relative = Path.GetRelativePath(repository, fixture.SocketFile).Replace('\\', '/');
+    var hosted = "/Users/runner/work/assuan-library/assuan-library/" + relative;
+    Assert.InRange(Encoding.UTF8.GetByteCount(hosted), 1, 103);
+  }
+
+  [Fact]
   public async Task LiteralPercentPathConnectsWithoutDecodingOrConsumingGreeting() {
     if (OperatingSystem.IsWindows()) {
       return;

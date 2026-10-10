@@ -10,7 +10,9 @@ internal sealed class AgentFixture : IDisposable {
 
   internal AgentFixture(string mode = "success", byte[]? output = null) {
     _repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-    Home = Path.Combine(_repository, "artifacts", "discovery-tests", "gpg home %20 " + Guid.NewGuid().ToString("N"));
+    // Keep the deliberate space/percent sequence while fitting a Unix socket
+    // below macOS's 103-byte native path budget in hosted workspaces.
+    Home = Path.Combine(_repository, "artifacts", "a", "h %20 " + Guid.NewGuid().ToString("N")[..8]);
     Directory.CreateDirectory(Home);
     File.WriteAllText(Path.Combine(Home, "mode.txt"), mode);
     File.WriteAllBytes(Path.Combine(Home, "output.bin"), output ?? Encoding.UTF8.GetBytes(SocketFile + "\n"));

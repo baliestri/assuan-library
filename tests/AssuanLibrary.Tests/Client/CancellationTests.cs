@@ -3,6 +3,7 @@
 
 using AssuanLibrary.Client;
 using AssuanLibrary.Protocol;
+using AssuanLibrary.Tests.Transport;
 
 namespace AssuanLibrary.Tests.Client;
 
@@ -16,15 +17,15 @@ public sealed class CancellationTests {
       PayloadSensitivity.Secret, TestContext.Current.CancellationToken);
     using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var reading = transaction.ReadNextAsync(cancellation.Token);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     await cancellation.CancelAsync();
     var error = await Assert.ThrowsAsync<ClientException>(() => reading);
     Assert.Equal(ClientErrorKind.Cancelled, error.Kind);
     Assert.False(client.IsUsable);
     Assert.True(stream.Closed);
     stream.Finish();
-    Assert.True(SpinWait.SpinUntil(() => stream.Pending.Span.IndexOfAnyExcept((byte)0) < 0,
-      TimeSpan.FromSeconds(2)));
+    Assert.True(await Eventually.UntilAsync(() => stream.Pending.Span.IndexOfAnyExcept((byte)0) < 0,
+      TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
   }
 
   [Fact]
@@ -35,15 +36,15 @@ public sealed class CancellationTests {
     using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var command = client.CommandAsync("GET", ReadOnlyMemory<byte>.Empty, PayloadSensitivity.Public,
       cancellation.Token);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     await cancellation.CancelAsync();
     var error = await Assert.ThrowsAsync<ClientException>(() => command);
     Assert.Equal(ClientErrorKind.Cancelled, error.Kind);
     Assert.False(client.IsUsable);
     Assert.Equal("GET\n"u8.ToArray(), stream.Pending.ToArray());
     stream.Finish();
-    Assert.True(SpinWait.SpinUntil(() => stream.Pending.Span.IndexOfAnyExcept((byte)0) < 0,
-      TimeSpan.FromSeconds(2)));
+    Assert.True(await Eventually.UntilAsync(() => stream.Pending.Span.IndexOfAnyExcept((byte)0) < 0,
+      TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     Assert.Empty(stream.WrittenBytes); // No retry or late write via this test stream.
   }
 

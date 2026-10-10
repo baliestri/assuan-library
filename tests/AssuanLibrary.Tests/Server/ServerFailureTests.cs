@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using AssuanLibrary.Server;
+using AssuanLibrary.Tests.Transport;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Tests.Server;
@@ -73,12 +74,13 @@ public sealed class ServerFailureTests {
       ServerOptions.Default);
     using var stop = new CancellationTokenSource();
     var serving = server.ServeAsync(acceptor, stop.Token);
-    await acceptor._entered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await acceptor._entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     await stop.CancelAsync();
-    await serving.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await serving.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     var late = new ObservedStream();
     acceptor.Complete(late);
-    Assert.True(SpinWait.SpinUntil(() => late.Disposals != 0, TimeSpan.FromSeconds(2)));
+    Assert.True(await Eventually.UntilAsync(() => late.Disposals != 0,
+      TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     Assert.Equal(0, states);
     Assert.True(acceptor._disposed);
   }

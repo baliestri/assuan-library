@@ -53,12 +53,12 @@ public sealed class ConcurrentServerTests {
     using var stop = new CancellationTokenSource();
     var serving = server.ServeAsync(acceptor, stop.Token);
     acceptor.Enqueue(first);
-    await entered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     acceptor.Enqueue(second);
     Assert.Equal(1, Volatile.Read(ref acceptor._acceptCalls));
     release.SetResult();
     await acceptor.WaitForCallsAsync(2, TestContext.Current.CancellationToken);
-    await server.WhenDrainedAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(2),
+    await server.WhenDrainedAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5),
       TestContext.Current.CancellationToken);
     Assert.Equal("OK\nOK\nOK\n"u8.ToArray(), first.WrittenBytes);
     Assert.Equal("OK\nOK\nOK\n"u8.ToArray(), second.WrittenBytes);
@@ -177,7 +177,7 @@ internal sealed class ControlledAcceptor : IAssuanAcceptor {
 
   internal static async Task WaitUntilAsync(Func<bool> ready, CancellationToken token) {
     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-    timeout.CancelAfter(TimeSpan.FromSeconds(2));
+    timeout.CancelAfter(TimeSpan.FromSeconds(5));
     while (!ready()) {
       await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
     }

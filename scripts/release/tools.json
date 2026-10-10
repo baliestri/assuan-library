@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "gitCliff": {
+    "version": "2.14.2",
+    "repository": "orhun/git-cliff",
+    "tag": "v2.14.2",
+    "archives": {
+      "win-x64": {
+        "name": "git-cliff-2.14.2-x86_64-pc-windows-msvc.zip",
+        "sha256": "6ece2112b3f4af462190ecbea4aeb1315fff6af415629b597f84319073c31131"
+      },
+      "linux-x64": {
+        "name": "git-cliff-2.14.2-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "24f397c733add5390fdceee3a2088588ab0d5f944ce00d34cb7029b888cf2db4"
+      },
+      "osx-arm64": {
+        "name": "git-cliff-2.14.2-aarch64-apple-darwin.tar.gz",
+        "sha256": "a0be97e237d440d34c5e508ec21d070b2c85cbb8be48a46a56f9a4e8bd247f05"
+      },
+      "osx-x64": {
+        "name": "git-cliff-2.14.2-x86_64-apple-darwin.tar.gz",
+        "sha256": "4e647d2deb152aca1e987f225cf42b080b991dd98f3bce4027ef95446d982ac3"
+      }
+    }
+  },
+  "typos": {
+    "version": "1.50.3",
+    "repository": "crate-ci/typos",
+    "tag": "v1.50.3",
+    "archives": {
+      "win-x64": {
+        "name": "typos-v1.50.3-x86_64-pc-windows-msvc.zip",
+        "sha256": "b59f149d84e86aab535d52db029fa8d3ac5ecba9ae5c7f19cf07acb5aa0caaaf"
+      },
+      "linux-x64": {
+        "name": "typos-v1.50.3-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "aca6b5d546307092b8d0a8e0a89dd80f9da51f2f7617c5e45c5607c1684ffbf2"
+      },
+      "osx-arm64": {
+        "name": "typos-v1.50.3-aarch64-apple-darwin.tar.gz",
+        "sha256": "844d4121fb47a95604aa5566843bb9e3d6078040b3c8f22367709f563038f2c5"
+      },
+      "osx-x64": {
+        "name": "typos-v1.50.3-x86_64-apple-darwin.tar.gz",
+        "sha256": "7cc75e42fff1e3b66928de325b3ea1ec7e23ce35ffaa3561fdb0ede8e7275f6f"
+      }
+    }
+  }
+}

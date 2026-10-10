@@ -535,3 +535,9 @@ publish.zip
 playwright.zip
 .env
 .docker/*-data/
+
+# Release automation sources and tests are not build output.
+!scripts/release/
+!scripts/release/**
+!tests/AssuanLibrary.Tests/Release/
+!tests/AssuanLibrary.Tests/Release/**

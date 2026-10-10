@@ -70,4 +70,35 @@ public sealed class VersionTests {
     var project = File.ReadAllText(Path.Combine(fixture.Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"));
     Assert.Contains("<Version>2.0.0</Version>", project);
   }
+
+  [Fact]
+  public async Task ResumeRequiresTheExactExistingPreparedBranchWithoutReplacingIt() {
+    using var fixture = new ReleaseFixture();
+    Assert.Equal(0, (await fixture.PrepareAsync(dryRun: false)).ExitCode);
+    fixture.Git("switch", "-c", "release/v2.0.0");
+    fixture.Git("add", "CHANGELOG.md", "README.adoc", "docs/guides/getting-started.md",
+      "src/AssuanLibrary/AssuanLibrary.csproj");
+    fixture.Git("commit", "-m", "chore(release): prepare for 2.0.0");
+    fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.0"); // Disposable bare fixture only.
+    var prepared = fixture.Head;
+    Assert.Equal(0, (await fixture.ResumeAsync(prepared)).ExitCode);
+    Assert.NotEqual(0, (await fixture.ResumeAsync(new string('a', 40))).ExitCode);
+    Assert.Equal(prepared, fixture.Head);
+
+    fixture.Git("switch", "-c", "advance");
+    File.WriteAllText(Path.Combine(fixture.Root, "reviewed-fix.txt"), "new candidate\n");
+    fixture.Git("add", "reviewed-fix.txt");
+    fixture.Git("commit", "-m", "fix(ci): correct reusable SHA selection");
+    fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.0"); // Disposable bare fixture only.
+    fixture.Git("switch", "release/v2.0.0");
+    Assert.NotEqual(0, (await fixture.ResumeAsync(prepared)).ExitCode);
+  }
+
+  [Fact]
+  public async Task ResumeRejectsAnUnpreparedBranchEvenWhenItsShaMatches() {
+    using var fixture = new ReleaseFixture();
+    fixture.Git("switch", "-c", "release/v2.0.0");
+    fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.0"); // Disposable bare fixture only.
+    Assert.NotEqual(0, (await fixture.ResumeAsync(fixture.Head)).ExitCode);
+  }
 }

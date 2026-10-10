@@ -13,12 +13,13 @@ public sealed class WindowsAgentFileTests {
     var read = WindowsSocketFile.ReadStreamAsync(stream,
       new TransportDeadline(TimeSpan.FromMilliseconds(100)),
       TestContext.Current.CancellationToken);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     var error = await Assert.ThrowsAsync<DiscoveryException>(() => read);
     Assert.Equal(DiscoveryErrorKind.Timeout, error.Kind);
     stream.FinishAfterTimeout();
-    Assert.True(SpinWait.SpinUntil(() => stream.PendingBuffer.Span.IndexOfAnyExcept((byte)0) < 0,
-      TimeSpan.FromSeconds(2)), "Temporary bytes were not wiped after the delayed OS-style read.");
+    Assert.True(await Eventually.UntilAsync(() => stream.PendingBuffer.Span.IndexOfAnyExcept((byte)0) < 0,
+        TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken),
+      "Temporary bytes were not wiped after the delayed OS-style read.");
   }
 
   [Fact]

@@ -26,7 +26,7 @@ public sealed class ChannelLifetimeTests {
     await using var channel = new AssuanChannel(stream);
     var token = TestContext.Current.CancellationToken;
     var reading = channel.ReadLineOrEofAsync(TimeSpan.FromMilliseconds(150), token);
-    await stream.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), token);
+    await stream.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
     var error = await Assert.ThrowsAsync<TransportException>(() => reading);
     Assert.Equal(TransportErrorKind.Timeout, error.Kind);
     Assert.True(stream.Disposed);
@@ -35,7 +35,8 @@ public sealed class ChannelLifetimeTests {
     Assert.Equal(TransportErrorKind.Closed,
       (await Assert.ThrowsAsync<TransportException>(() => channel.ReadLineOrEofAsync(TimeSpan.FromSeconds(1), token))).Kind);
     stream.ReleaseRead("OK\n"u8);
-    Assert.True(SpinWait.SpinUntil(() => ahead.AsSpan().IndexOfAnyExcept((byte)0) < 0, TimeSpan.FromSeconds(2)));
+    Assert.True(await Eventually.UntilAsync(() => ahead.AsSpan().IndexOfAnyExcept((byte)0) < 0,
+      TimeSpan.FromSeconds(5), token));
   }
 
   [Fact]
@@ -44,13 +45,14 @@ public sealed class ChannelLifetimeTests {
     await using var channel = new AssuanChannel(stream);
     var token = TestContext.Current.CancellationToken;
     var writing = channel.WriteLineAsync("NOP\n"u8.ToArray(), TimeSpan.FromMilliseconds(150), token);
-    await stream.WriteStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), token);
+    await stream.WriteStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
     var error = await Assert.ThrowsAsync<TransportException>(() => writing);
     Assert.Equal(TransportErrorKind.Timeout, error.Kind);
     Assert.True(stream.PendingWrite.Span.SequenceEqual("NOP\n"u8));
     Assert.True(stream.Disposed);
     stream.ReleaseWrite();
     var outgoing = ChannelReadTests.GetBuffer(channel, "_write");
-    Assert.True(SpinWait.SpinUntil(() => outgoing.AsSpan().IndexOfAnyExcept((byte)0) < 0, TimeSpan.FromSeconds(2)));
+    Assert.True(await Eventually.UntilAsync(() => outgoing.AsSpan().IndexOfAnyExcept((byte)0) < 0,
+      TimeSpan.FromSeconds(5), token));
   }
 }

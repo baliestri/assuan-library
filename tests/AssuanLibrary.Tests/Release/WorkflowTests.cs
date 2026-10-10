@@ -45,7 +45,7 @@ public sealed partial class WorkflowTests {
 
   [Fact]
   public void ManualReleaseUsesMatchingGatesAndOneProtectedOidcPublication() {
-    var yaml = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, ".github", "workflows", "release.yml"));
+    var yaml = ReadWorkflow("release.yml");
     Assert.Contains("workflow_dispatch:", yaml);
     Assert.Contains("cancel-in-progress: false", yaml);
     Assert.Contains("./.github/workflows/ci.yml", yaml);
@@ -78,7 +78,7 @@ public sealed partial class WorkflowTests {
 
   [Fact]
   public void PagesWorkflowBuildsReadOnlyAndDeploysWithSeparatePermissions() {
-    var yaml = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, ".github", "workflows", "docs.yml"));
+    var yaml = ReadWorkflow("docs.yml");
     Assert.Contains("workflow_dispatch:", yaml);
     Assert.Contains("workflow_call:", yaml);
     Assert.Contains("cancel-in-progress: false", yaml);
@@ -113,6 +113,10 @@ public sealed partial class WorkflowTests {
 
   [GeneratedRegex("id-token: write")]
   private static partial Regex IdTokenWriteRegex();
+
+  private static string ReadWorkflow(string name)
+    => File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, ".github", "workflows", name))
+      .Replace("\r\n", "\n", StringComparison.Ordinal);
 
   [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)")]
   private static partial Regex UsesRegex();

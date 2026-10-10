@@ -62,9 +62,10 @@ public sealed class HandlerTests {
   [InlineData("private static System.Threading.Tasks.ValueTask EchoAsync", "private static System.Threading.Tasks.Task EchoAsync")]
   [InlineData("private static System.Threading.Tasks.ValueTask EchoAsync", "private System.Threading.Tasks.ValueTask EchoAsync")]
   [InlineData("System.Threading.CancellationToken ct", "int ct")]
-  [InlineData("EchoAsync(\n", "EchoAsync<T>(\n")]
+  [InlineData("EchoAsync(", "EchoAsync<T>(")]
   public void InvalidHandlerSignatureIsDiagnosedWithoutGeneratedAdapter(string original, string replacement) {
     var source = VALID.Replace(original, replacement);
+    Assert.NotEqual(VALID, source);
     var result = GeneratorHarness.Compile(source);
     Assert.Contains(result.GeneratorDiagnostics, diagnostic => diagnostic.Id == "ASG006");
     Assert.Empty(result.GeneratedSources);

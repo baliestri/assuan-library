@@ -54,7 +54,7 @@ while (await transaction.ReadNextAsync() is { } response) {
 transaction.Finish();
 ----
 
-Until 2.0.0 is published, reference `src/AssuanLibrary/AssuanLibrary.csproj` directly from a .NET 10 project to use the implemented functionality. The published 1.x package has a different API.
+For development from a source checkout, reference `src/AssuanLibrary/AssuanLibrary.csproj` directly from a .NET 10 project to use the implemented functionality. The published 1.x package has a different API.
 
 == Examples and installation
 
@@ -82,7 +82,7 @@ To query an *existing* GnuPG agent, supply a trusted `gpgconf` executable. Add `
 dotnet run --project examples/AssuanLibrary.Examples -- --example agent-info --gpgconf <path>
 ----
 
-When released, `dotnet add package AssuanLibrary --version 2.0.0` will install the runtime and analyzer in one package. Version 2.0.0 is **breaking** relative to the published 1.x API; it is not published yet. Streams, event leases and secret buffers require explicit disposal. Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
+`dotnet add package AssuanLibrary --version 2.0.0` installs the runtime and analyzer in one package. Version 2.0.0 is **breaking** relative to the published 1.x API. Streams, event leases and secret buffers require explicit disposal. Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
 
 == Build and test
 

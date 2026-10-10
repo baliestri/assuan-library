@@ -1,5 +1,86 @@
 # Assuan Library .NET Changelog
 
+## [2.0.0](https://github.com/baliestri/assuan-library/compare/v1.2.0..v2.0.0) - 2026-10-10
+
+### ⛰️  Features
+
+- *(client)* Handle interactive inquiries and greetings - ([e5e75bd](https://github.com/baliestri/assuan-library/commit/e5e75bd13de0672d45152cf6a104f3685126ee5d))
+- *(client)* Add streaming transactions and bounded collection - ([2581029](https://github.com/baliestri/assuan-library/commit/2581029e38289976c8824136b623af10e94241e7))
+- *(diagnostics)* Add payload-free Assuan events - ([c0d029f](https://github.com/baliestri/assuan-library/commit/c0d029fb2fb641482278a2214e642a175819f691))
+- *(docs)* Build versioned API and llms bundles - ([951de17](https://github.com/baliestri/assuan-library/commit/951de17e549237a5ce753a0c5e0194c08e359eb1))
+- *(examples)* Show verified Assuan exchanges - ([223731e](https://github.com/baliestri/assuan-library/commit/223731e37fc268e71c119a926bec4615426dc17d))
+- *(examples)* Add selectable Assuan scenarios - ([4ee0c66](https://github.com/baliestri/assuan-library/commit/4ee0c66da090e35a783efc7dc6391d8f0e98116d))
+- *(generators)* Generate conditional DI and Logging helpers - ([940ab9e](https://github.com/baliestri/assuan-library/commit/940ab9ee384ee5f9743eb88632273fd652c74652))
+- *(generators)* Add typed command groups and option routes - ([2d80f59](https://github.com/baliestri/assuan-library/commit/2d80f595569a4a62a01eb75611a53688509b191c))
+- *(protocol)* Add bounded wire primitives and state machines - ([0afae1f](https://github.com/baliestri/assuan-library/commit/0afae1fae06412acae1f7c9212c784c58012d00d))
+- *(server)* Supervise bounded concurrent sessions - ([c6735e6](https://github.com/baliestri/assuan-library/commit/c6735e606d240010a0d45108e813bbabb38483fc))
+- *(server)* Implement serial Assuan sessions - ([ef685aa](https://github.com/baliestri/assuan-library/commit/ef685aa87523f5bb4dd5578a245051d7da78a613))
+- *(sexpr)* Implement bounded canonical expressions - ([e8fcb0b](https://github.com/baliestri/assuan-library/commit/e8fcb0b020d5d1c7677ab1a925eaad566eeec8e2))
+- *(transport)* Discover GnuPG sockets with gpgconf - ([2a6386c](https://github.com/baliestri/assuan-library/commit/2a6386ce01989cf041e51151963e3869275e6dda))
+- *(transport)* Add secure Unix and Windows local IPC - ([3f8b194](https://github.com/baliestri/assuan-library/commit/3f8b194ac7c7a82b5cae6a677474b07ee0fb1b1b))
+- *(transport)* Add bounded TCP and custom byte channels - ([a78dc1b](https://github.com/baliestri/assuan-library/commit/a78dc1bb476e1e3ba4703ba1727ee3a10ad8ac7e))
+
+### 🐛 Bug Fixes
+
+- *(interop)* Use short Unix paths and reliable GnuPG provisioning - ([42e63cd](https://github.com/baliestri/assuan-library/commit/42e63cd0f23962d4e580d344aff83a8de21b3d55))
+
+### 🚜 Refactor
+
+- *(test)* Normalize diagnostics sink fixture naming - ([222675b](https://github.com/baliestri/assuan-library/commit/222675bb145521db03fa101f3d6df94dceb3f00a))
+- *(test)* Use async cleanup in Windows pipe tests - ([9230729](https://github.com/baliestri/assuan-library/commit/9230729a435f46910a710b8e914b0128692b90fa))
+
+### 📚 Documentation
+
+- *(api)* Document public enum members - ([91cd995](https://github.com/baliestri/assuan-library/commit/91cd9952d3b44b794fc2dda474600f4682602b69))
+- *(client)* Document inquiry and greeting lifecycles - ([7d460b0](https://github.com/baliestri/assuan-library/commit/7d460b04bf9af0b57dd6c2abdd9e6d471115fe24))
+- *(client)* Document transaction lifecycle and collection - ([28a40fb](https://github.com/baliestri/assuan-library/commit/28a40fb4b7b32d6db4178a04b2966666d662822f))
+- *(examples)* Lead with client-server walkthroughs - ([540ba7a](https://github.com/baliestri/assuan-library/commit/540ba7ad744ca7dea8a6765fb514516193ed21de))
+- *(examples)* Document 2.0 usage and scenarios - ([74c3e7f](https://github.com/baliestri/assuan-library/commit/74c3e7f42d28c83f2a847cd124088e2e3069b903))
+- *(generators)* Explain automatic optional integrations - ([d3578fd](https://github.com/baliestri/assuan-library/commit/d3578fd0807ee7fe03d221a7063b925762fd753b))
+- *(generators)* Explain explicit handler and option routing - ([210919a](https://github.com/baliestri/assuan-library/commit/210919ae7028fc81ff0804211b191b6fdf180aaf))
+- *(package)* Add NuGet presentation and consumer guides - ([50c99ae](https://github.com/baliestri/assuan-library/commit/50c99aefe4a9c637c41fe4c76179ac2a5127971a))
+- *(protocol)* Document wire primitives and update status - ([444f30f](https://github.com/baliestri/assuan-library/commit/444f30f7bcc53d03af9ac1b5c118ca0f5e5dff72))
+- *(readme)* Describe the library and feature status - ([553126a](https://github.com/baliestri/assuan-library/commit/553126abe2a0fff64591155a3b3e557dfdfb967f))
+- *(server)* Explain concurrent serving and shutdown - ([2d07a58](https://github.com/baliestri/assuan-library/commit/2d07a581f6cded42ed888961d3ee1347ea37200c))
+- *(server)* Document serial sessions and inquiries - ([fa28b1a](https://github.com/baliestri/assuan-library/commit/fa28b1a64c23e7160620f9371002e6e03f55f492))
+- *(transport)* Document GnuPG socket discovery - ([01e5746](https://github.com/baliestri/assuan-library/commit/01e5746197498acc68a6fd3fd80770c8d70f4b00))
+- *(transport)* Document local IPC policies - ([b618a7e](https://github.com/baliestri/assuan-library/commit/b618a7e450c521bb43cded9f35214eb1fb45d10a))
+- *(transport)* Explain TCP and custom stream usage - ([55ba6dc](https://github.com/baliestri/assuan-library/commit/55ba6dc6deafe6e6aa3c1e5c10273e8c5e8d59d3))
+- Update contributing and release operations - ([5a95ad8](https://github.com/baliestri/assuan-library/commit/5a95ad8ccbe7e9341fb218a566bd96928c61225f))
+
+### 🎨 Styling
+
+- Satisfy repository formatting gate - ([d7b027c](https://github.com/baliestri/assuan-library/commit/d7b027ca26572cd00381dea2a3de8b5fc4ecdf10))
+
+### 🧪 Testing
+
+- *(build)* Configure the Microsoft.Testing.Platform runner - ([5334115](https://github.com/baliestri/assuan-library/commit/5334115d65776bb7cbe8f2a9a8704e1021b224af))
+- *(ci)* Make generator and release checks platform-neutral - ([676bd37](https://github.com/baliestri/assuan-library/commit/676bd37f05ccf688f828dbff2b3d1ab1671dc20f))
+- *(docs)* Verify package, links, snippets and bundles - ([79bed01](https://github.com/baliestri/assuan-library/commit/79bed0177de5d34107100db0754af91bfab8749f))
+- *(release)* Verify recovery without remote publication - ([437ab6f](https://github.com/baliestri/assuan-library/commit/437ab6f86d24a5ca82f1fec7792ef0eb9bbead15))
+- *(transport)* Separate raw Unix discovery from Linux socket binding - ([5b5c294](https://github.com/baliestri/assuan-library/commit/5b5c294bb8617b13ffff85c1981228e09b59279c))
+- *(transport)* Keep agent discovery sockets within Unix limits - ([96c241c](https://github.com/baliestri/assuan-library/commit/96c241c8d5495c74b8364db6e5b95f9f6fd05cb3))
+- *(transport)* Await deferred buffer cleanup without busy spinning - ([4faab3c](https://github.com/baliestri/assuan-library/commit/4faab3ca66de2162aa698ce87f86f1dbb962ae57))
+- Stabilize cancellation and server completion waits - ([67b319d](https://github.com/baliestri/assuan-library/commit/67b319dc0e4a46c739fabb41e1c038275f8b45cd))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docs)* Deploy verified versioned release bundles - ([d36fcf2](https://github.com/baliestri/assuan-library/commit/d36fcf264d4b1acdef0d06ee5e0eaef556fd8370))
+- *(release)* Include main history before 2.0.0 - ([f39e0d2](https://github.com/baliestri/assuan-library/commit/f39e0d293e28d9975d84c117ba7ceb11df1bbb24))
+- *(release)* Gate and publish one validated NuGet package - ([d48dd1a](https://github.com/baliestri/assuan-library/commit/d48dd1a6525ebe46b6c2152ba1dfa8ffe2030f69))
+- Verify required jobs and upstream SHA provenance - ([53543bf](https://github.com/baliestri/assuan-library/commit/53543bfbf5fc76cda83bd97534a13ac33abb9b65))
+- Require real GnuPG interoperability on three OSes - ([ea88468](https://github.com/baliestri/assuan-library/commit/ea8846835daf9ed899c1c51a120dd176c368b628))
+- Validate .NET package and docs on three platforms - ([2e25fa0](https://github.com/baliestri/assuan-library/commit/2e25fa030e78665937cc5942c42b6cc2dc5c21aa))
+- Validate exact commit gates - ([bab6189](https://github.com/baliestri/assuan-library/commit/bab618941fd70292d2aaaff522c59d3f024b30d8))
+- Begin library rewrite - ([6e09e35](https://github.com/baliestri/assuan-library/commit/6e09e350031e0f310e5d34ed5f3fd1439137c423))
+
+### Build
+
+- *(generators)* Bundle analyzer in main NuGet package - ([9654e39](https://github.com/baliestri/assuan-library/commit/9654e394347c6e66a7cf2adbb1dfff3cfce0b377))
+- *(release)* Verify immutable package and docs artifacts - ([e4612f2](https://github.com/baliestri/assuan-library/commit/e4612f26f083d57b519e304747766915d06ec434))
+- *(release)* Prepare version and generated changelog - ([f11801d](https://github.com/baliestri/assuan-library/commit/f11801d6f036428bec17484c5b682aee8cfd53a0))
+- Pin SDK and lock package restoration - ([d1de820](https://github.com/baliestri/assuan-library/commit/d1de820997f824c72a2d6b2ac7f17eb1dfad8bf7))
+
 ## [1.2.0](https://github.com/baliestri/assuan-library/compare/v1.1.1..v1.2.0) - 2026-08-15
 
 ### 🐛 Bug Fixes

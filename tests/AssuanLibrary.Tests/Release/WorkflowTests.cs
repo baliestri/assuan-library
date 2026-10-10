@@ -76,6 +76,28 @@ public sealed partial class WorkflowTests {
     Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
   }
 
+  [Fact]
+  public void PagesWorkflowBuildsReadOnlyAndDeploysWithSeparatePermissions() {
+    var yaml = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, ".github", "workflows", "docs.yml"));
+    Assert.Contains("workflow_dispatch:", yaml);
+    Assert.Contains("workflow_call:", yaml);
+    Assert.Contains("cancel-in-progress: false", yaml);
+    Assert.Contains("Collect-Pages.ps1", yaml);
+    Assert.Contains("Assemble-Pages.ps1", yaml);
+    Assert.Contains("upload-pages-artifact@", yaml);
+    Assert.Contains("deploy-pages@", yaml);
+    var deployStart = yaml.IndexOf("\n  deploy:\n", StringComparison.Ordinal);
+    Assert.DoesNotContain("pages: write", yaml[..deployStart]);
+    Assert.DoesNotContain("id-token: write", yaml[..deployStart]);
+    Assert.Contains("pages: write", yaml[deployStart..]);
+    Assert.Contains("id-token: write", yaml[deployStart..]);
+    Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("dotnet pack", yaml, StringComparison.OrdinalIgnoreCase);
+    var actions = UsesRegex().Matches(yaml);
+    Assert.NotEmpty(actions);
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+  }
+
   [GeneratedRegex("id-token: write")]
   private static partial Regex IdTokenWriteRegex();
 

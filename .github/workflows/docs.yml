@@ -1,0 +1,92 @@
+name: Versioned release documentation
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact lowercase commit SHA containing this assembler
+        required: true
+        type: string
+
+concurrency:
+  group: assuan-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.select.outputs.source_sha }}
+    steps:
+      - name: Select a full immutable source SHA
+        id: select
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CALL_SHA: ${{ inputs.source_sha }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          $sha = if ($env:EVENT_NAME -eq 'workflow_call') { $env:CALL_SHA } else { $env:EVENT_SHA }
+          if ($sha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid documentation source SHA.' }
+          "source_sha=$sha" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.select.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm checkout
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+        run: |
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Documentation checkout differs from the selected SHA.' }
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Confirm checkout
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: |
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Pages assembler checkout differs from the selected SHA.' }
+      - name: Collect only original stable GitHub Release bundles
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $manifest = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Collect-Pages.ps1 -Root $env:GITHUB_WORKSPACE -Repository $env:GITHUB_REPOSITORY -ManifestPath artifacts/pages-input/releases.json
+          if ($LASTEXITCODE -ne 0) { throw 'Stable release asset collection failed.' }
+      - name: Verify archives and assemble a fresh versioned site
+        shell: pwsh
+        run: |
+          $site = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Assemble-Pages.ps1 -Root $env:GITHUB_WORKSPACE -ManifestPath artifacts/pages-input/releases.json -OutputDirectory artifacts/pages-site
+          if ($LASTEXITCODE -ne 0) { throw 'Pages assembly failed.' }
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: artifacts/pages-site
+
+  deploy:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

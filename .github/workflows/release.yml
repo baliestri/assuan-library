@@ -7,6 +7,11 @@ on:
         description: Stable version to prepare (first release must be 2.0.0)
         required: true
         type: string
+      resume_sha:
+        description: Existing prepared release branch SHA to resume after inspection
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: assuan-release
@@ -27,11 +32,11 @@ jobs:
     permissions:
       contents: write
     outputs:
-      prepared_sha: ${{ steps.candidate.outputs.prepared_sha }}
+      prepared_sha: ${{ steps.candidate.outputs.prepared_sha || steps.resume.outputs.prepared_sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: develop
+          ref: ${{ inputs.resume_sha != '' && 'release/v2.0.0' || 'develop' }}
           fetch-depth: 0
           persist-credentials: true
       - name: Reject a moved branch or an existing NuGet version
@@ -39,16 +44,23 @@ jobs:
         env:
           EVENT_SHA: ${{ github.sha }}
           RELEASE_VERSION: ${{ inputs.version }}
+          RESUME_SHA: ${{ inputs.resume_sha }}
         run: |
           if ($env:RELEASE_VERSION -cne '2.0.0' -or $env:EVENT_SHA -cnotmatch '\A[0-9a-f]{40}\z') {
             throw 'Only the first stable 2.0.0 candidate is supported.'
           }
-          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:EVENT_SHA -Repository $env:GITHUB_WORKSPACE
-          if ($LASTEXITCODE -ne 0) { throw 'Event checkout differs from develop.' }
+          $selected = if ($env:RESUME_SHA) { $env:RESUME_SHA } else { $env:EVENT_SHA }
+          $checked = & pwsh -NoProfile -NonInteractive -File ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $selected -Repository $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Checkout differs from the selected commit.' }
+          if ($env:RESUME_SHA) {
+            $candidate = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Assert-ResumeCandidate.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -ResumeSha $env:RESUME_SHA
+            if ($LASTEXITCODE -ne 0) { throw 'Explicit release candidate cannot be resumed.' }
+          }
           $uri = 'https://api.nuget.org/v3-flatcontainer/assuanlibrary/2.0.0/assuanlibrary.2.0.0.nupkg'
           $result = Invoke-WebRequest -Uri $uri -Method Head -SkipHttpErrorCheck
           if ($result.StatusCode -ne 404) { throw 'NuGet version exists or its absence cannot be confirmed.' }
       - name: Preview and prepare exactly one release commit
+        if: inputs.resume_sha == ''
         id: candidate
         shell: pwsh
         env:
@@ -77,6 +89,18 @@ jobs:
             throw 'Remote release branch does not match the prepared commit.'
           }
           "prepared_sha=$sha" >> $env:GITHUB_OUTPUT
+      - name: Reuse only the exact inspected release candidate
+        if: inputs.resume_sha != ''
+        id: resume
+        shell: pwsh
+        env:
+          RESUME_SHA: ${{ inputs.resume_sha }}
+        run: |
+          $candidate = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Assert-ResumeCandidate.ps1 -Root $env:GITHUB_WORKSPACE -Version 2.0.0 -ResumeSha $env:RESUME_SHA
+          if ($LASTEXITCODE -ne 0 -or $candidate.Trim() -cne $env:RESUME_SHA) {
+            throw 'Release branch changed while resuming.'
+          }
+          "prepared_sha=$env:RESUME_SHA" >> $env:GITHUB_OUTPUT
 
   ci:
     needs: prepare

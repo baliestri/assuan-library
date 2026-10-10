@@ -41,6 +41,30 @@ public sealed class GateScriptTests {
   }
 
   [Fact]
+  public async Task ReusableInputOverridesTheCallerDispatchShaOnlyWhenPresent() {
+    var candidate = new string('b', 40);
+    var reusable = await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_dispatch",
+      "-EventSha", _validSha, "-CallInputsJson", "{\"source_sha\":\"" + candidate + "\"}");
+    Assert.Equal(0, reusable.ExitCode);
+    Assert.Equal(candidate, reusable.Output.Trim());
+
+    var direct = await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_dispatch",
+      "-EventSha", _validSha, "-CallInputsJson", "{}");
+    Assert.Equal(0, direct.ExitCode);
+    Assert.Equal(_validSha, direct.Output.Trim());
+
+    foreach (var value in new[] { "", "main", new string('B', 40) }) {
+      var rejected = await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_dispatch",
+        "-EventSha", _validSha, "-CallInputsJson", "{\"source_sha\":\"" + value + "\"}");
+      Assert.NotEqual(0, rejected.ExitCode);
+      Assert.DoesNotContain(_validSha, rejected.Output);
+    }
+
+    Assert.NotEqual(0, (await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_call",
+      "-EventSha", _validSha, "-CallInputsJson", "{}")).ExitCode);
+  }
+
+  [Fact]
   public async Task CheckoutRequiresTheExactSelectedCommit() {
     var head = await RunAsync("git", "rev-parse", "HEAD");
     Assert.Equal(0, head.ExitCode);
@@ -105,7 +129,7 @@ public sealed class GateScriptTests {
     Assert.Equal(_validSha, approved.Output.Trim());
 
     var different = JsonSerializer.Serialize(new Dictionary<string, string> {
-      ["ci"] = _validSha, ["interop"] = new string('b', 40)
+      ["ci"] = _validSha, ["interop"] = new('b', 40)
     });
     foreach (var outputs in new[] { different, "{\"ci\":\"" + _validSha + "\"}" }) {
       var rejected = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", _validSha,

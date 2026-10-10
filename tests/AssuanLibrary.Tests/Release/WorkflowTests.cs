@@ -47,6 +47,10 @@ public sealed partial class WorkflowTests {
   public void ManualReleaseUsesMatchingGatesAndOneProtectedOidcPublication() {
     var yaml = ReadWorkflow("release.yml");
     Assert.Contains("workflow_dispatch:", yaml);
+    Assert.Contains("resume_sha:", yaml);
+    Assert.Contains("steps.resume.outputs.prepared_sha", yaml);
+    Assert.Contains("if: inputs.resume_sha != ''", yaml);
+    Assert.Contains("Assert-ResumeCandidate.ps1", yaml);
     Assert.Contains("cancel-in-progress: false", yaml);
     Assert.Contains("./.github/workflows/ci.yml", yaml);
     Assert.Contains("./.github/workflows/interop.yml", yaml);
@@ -81,6 +85,8 @@ public sealed partial class WorkflowTests {
     var yaml = ReadWorkflow("docs.yml");
     Assert.Contains("workflow_dispatch:", yaml);
     Assert.Contains("workflow_call:", yaml);
+    Assert.Contains("CALL_INPUTS:", yaml);
+    Assert.Contains("$call.Contains('source_sha')", yaml);
     Assert.Contains("cancel-in-progress: false", yaml);
     Assert.Contains("Collect-Pages.ps1", yaml);
     Assert.Contains("Assemble-Pages.ps1", yaml);

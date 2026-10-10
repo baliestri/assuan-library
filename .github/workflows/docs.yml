@@ -27,11 +27,14 @@ jobs:
         shell: pwsh
         env:
           EVENT_NAME: ${{ github.event_name }}
-          CALL_SHA: ${{ inputs.source_sha }}
+          CALL_INPUTS: ${{ toJSON(inputs) }}
           EVENT_SHA: ${{ github.sha }}
         run: |
-          $sha = if ($env:EVENT_NAME -eq 'workflow_call') { $env:CALL_SHA } else { $env:EVENT_SHA }
-          if ($sha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid documentation source SHA.' }
+          $call = $env:CALL_INPUTS | ConvertFrom-Json -AsHashtable -NoEnumerate
+          if ($null -eq $call) { $call = @{} }
+          if ($call -isnot [System.Collections.IDictionary]) { throw 'Invalid reusable workflow inputs.' }
+          $sha = if ($call.Contains('source_sha')) { $call['source_sha'] } else { $env:EVENT_SHA }
+          if ($sha -isnot [string] -or $sha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid documentation source SHA.' }
           "source_sha=$sha" >> $env:GITHUB_OUTPUT
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

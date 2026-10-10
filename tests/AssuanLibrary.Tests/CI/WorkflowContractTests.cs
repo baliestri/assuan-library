@@ -8,7 +8,7 @@ using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.CI;
 
-public sealed class WorkflowContractTests {
+public sealed partial class WorkflowContractTests {
   private static readonly string _repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
 
   [Fact]
@@ -49,6 +49,9 @@ public sealed class WorkflowContractTests {
     Assert.Contains("contents: read", yaml);
     Assert.Contains("persist-credentials: false", yaml);
     Assert.Contains("Assert-CheckoutSha.ps1", yaml);
+    Assert.Contains("CALL_INPUTS:", yaml);
+    Assert.Contains("-CallInputsJson", yaml);
+    Assert.Contains("$call.Contains('source_sha')", yaml);
     Assert.Contains("Assert-Gate.ps1", yaml);
     Assert.Contains("if: always()", yaml);
     Assert.Contains("needs: [prepare, matrix, docs, format, workflows]", yaml);
@@ -61,7 +64,7 @@ public sealed class WorkflowContractTests {
     Assert.DoesNotContain("contents: write", yaml, StringComparison.OrdinalIgnoreCase);
     var actions = Regex.Matches(yaml, @"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)");
     Assert.NotEmpty(actions);
-    Assert.All(actions.Cast<Match>(), action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
     Assert.Equal(6, Regex.Matches(yaml, "Assert-CheckoutSha\\.ps1").Count);
     Assert.Equal(6, Regex.Matches(yaml, @"(?m)^\s*-\s*uses:\s*actions/checkout@").Count);
   }
@@ -80,6 +83,9 @@ public sealed class WorkflowContractTests {
     Assert.Contains("required: true", yaml);
     Assert.Contains("os: [ubuntu-latest, windows-latest, macos-latest]", yaml);
     Assert.Contains("ASSUAN_GNUPG_REQUIRED: '1'", yaml);
+    Assert.Contains("CALL_INPUTS:", yaml);
+    Assert.Contains("-CallInputsJson", yaml);
+    Assert.Contains("$call.Contains('source_sha')", yaml);
     Assert.Contains("--filter-namespace AssuanLibrary.Tests.Interop", yaml);
     Assert.Contains("ASSUAN_GPGCONF_PATH", yaml);
     Assert.Contains("ASSUAN_GPG_AGENT_PATH", yaml);
@@ -94,9 +100,15 @@ public sealed class WorkflowContractTests {
     Assert.DoesNotContain("secrets: inherit", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("contents: write", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
-    var actions = Regex.Matches(yaml, @"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)");
+    var actions = UsesRegex().Matches(yaml);
     Assert.NotEmpty(actions);
-    Assert.All(actions.Cast<Match>(), action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
-    Assert.Equal(3, Regex.Matches(yaml, "Assert-CheckoutSha\\.ps1").Count);
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+    Assert.Equal(3, CmdletRegex().Count(yaml));
   }
+
+  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)")]
+  private static partial Regex UsesRegex();
+
+  [GeneratedRegex("Assert-CheckoutSha\\.ps1")]
+  private static partial Regex CmdletRegex();
 }

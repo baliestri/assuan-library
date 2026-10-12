@@ -1,5 +1,15 @@
 # Assuan Library .NET Changelog
 
+## [2.0.1](https://github.com/baliestri/assuan-library/compare/v2.0.0..v2.0.1) - 2026-10-12
+
+### 🐛 Bug Fixes
+
+- *(release)* Restore package metadata and support 2.x patches - ([02a1ade](https://github.com/baliestri/assuan-library/commit/02a1ade2d01d028f8611ba1edc79b41000a98af7))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ide)* Set project name - ([5385aa1](https://github.com/baliestri/assuan-library/commit/5385aa14eaab13d6b60f660a597514b8e90f5222))
+
 ## [2.0.0](https://github.com/baliestri/assuan-library/compare/v1.2.0..v2.0.0) - 2026-10-10
 
 ### ⛰️  Features

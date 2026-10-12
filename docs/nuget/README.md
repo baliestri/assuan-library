@@ -12,7 +12,7 @@
 ## Install
 
 ```shell
-dotnet add package AssuanLibrary --version 2.0.0
+dotnet add package AssuanLibrary --version 2.0.1
 ```
 
 The package targets **`net10.0`**. Version 2.0 replaces the published 1.x API; 1.x code and examples are not source-compatible.
@@ -44,6 +44,6 @@ One client connection handles one transaction at a time. Dispose each event befo
 
 ## Learn more
 
-- [Getting started](https://baliestri.github.io/assuan-library/2.0.0/guides/getting-started.html) and [client transactions](https://baliestri.github.io/assuan-library/2.0.0/guides/client-transactions.html)
-- [Server sessions](https://baliestri.github.io/assuan-library/2.0.0/guides/server-session.html), [GnuPG agent discovery](https://baliestri.github.io/assuan-library/2.0.0/guides/agent-discovery.html), and [ownership and security](https://baliestri.github.io/assuan-library/2.0.0/guides/security.html)
-- [Public API reference](https://baliestri.github.io/assuan-library/2.0.0/api/toc.html) and [selectable client/server examples](https://github.com/baliestri/assuan-library/tree/v2.0.0/examples/AssuanLibrary.Examples)
+- [Getting started](https://baliestri.github.io/assuan-library/2.0.1/guides/getting-started.html) and [client transactions](https://baliestri.github.io/assuan-library/2.0.1/guides/client-transactions.html)
+- [Server sessions](https://baliestri.github.io/assuan-library/2.0.1/guides/server-session.html), [GnuPG agent discovery](https://baliestri.github.io/assuan-library/2.0.1/guides/agent-discovery.html), and [ownership and security](https://baliestri.github.io/assuan-library/2.0.1/guides/security.html)
+- [Public API reference](https://baliestri.github.io/assuan-library/2.0.1/api/toc.html) and [selectable client/server examples](https://github.com/baliestri/assuan-library/tree/v2.0.1/examples/AssuanLibrary.Examples)

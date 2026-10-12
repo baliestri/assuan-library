@@ -82,7 +82,7 @@ To query an *existing* GnuPG agent, supply a trusted `gpgconf` executable. Add `
 dotnet run --project examples/AssuanLibrary.Examples -- --example agent-info --gpgconf <path>
 ----
 
-`dotnet add package AssuanLibrary --version 2.0.0` installs the runtime and analyzer in one package. Version 2.0.0 is **breaking** relative to the published 1.x API. Streams, event leases and secret buffers require explicit disposal. Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
+`dotnet add package AssuanLibrary --version 2.0.1` installs the runtime and analyzer in one package. Version 2.0.0 is **breaking** relative to the published 1.x API. Streams, event leases and secret buffers require explicit disposal. Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
 
 == Build and test
 

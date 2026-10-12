@@ -9,7 +9,7 @@ namespace AssuanLibrary.Tests.Release;
 internal sealed class ReleaseFixture : IDisposable {
   private readonly string _parent;
 
-  internal ReleaseFixture(bool versionProperty = true) {
+  internal ReleaseFixture(bool versionProperty = true, bool patchRelease = false) {
     _parent = Path.Combine(ToolsRoot, "artifacts", "release-tests", Guid.NewGuid().ToString("N"));
     Root = Path.Combine(_parent, "candidate");
     var origin = Path.Combine(_parent, "origin.git");
@@ -34,11 +34,22 @@ internal sealed class ReleaseFixture : IDisposable {
     Git("commit", "-m", "chore: retain historical release");
     Git("tag", "v1.2.0");
     Git("tag", "vv1.1.0");
+    if (patchRelease) {
+      File.WriteAllText(Path.Combine(Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"),
+        "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework><Version>2.0.0</Version></PropertyGroup></Project>\n");
+      File.WriteAllText(Path.Combine(Root, "CHANGELOG.md"),
+        "# Assuan Library .NET Changelog\n\n## [2.0.0] - published\n\nExisting release.\n\n" +
+        HistoricalChangelog["# Assuan Library .NET Changelog\n\n".Length..]);
+      Git("add", ".");
+      Git("commit", "-m", "chore(release): publish 2.0.0");
+      Git("tag", "v2.0.0");
+    }
+
     var mainSha = Head;
     Git("switch", "-c", "develop");
-    File.WriteAllText(Path.Combine(Root, "feature.txt"), "Version two.\n");
+    File.WriteAllText(Path.Combine(Root, "feature.txt"), patchRelease ? "Patch metadata.\n" : "Version two.\n");
     Git("add", "feature.txt");
-    Git("commit", "-m", "feat!: replace the published 1.x API");
+    Git("commit", "-m", patchRelease ? "fix(package): restore metadata" : "feat!: replace the published 1.x API");
     GitIn(_parent, "init", "--bare", origin);
     Git("remote", "add", "origin", origin);
     Git("push", "origin", "main", "develop", "--tags"); // Only the disposable bare fixture under artifacts.
@@ -75,10 +86,10 @@ internal sealed class ReleaseFixture : IDisposable {
     return await RunAsync("pwsh", ToolsRoot, arguments.ToArray());
   }
 
-  internal Task<(int ExitCode, string Output)> ResumeAsync(string sha)
+  internal Task<(int ExitCode, string Output)> ResumeAsync(string sha, string version = "2.0.0")
     => RunAsync("pwsh", ToolsRoot, "-NoProfile", "-NonInteractive", "-File",
       Path.Combine(ToolsRoot, "scripts", "release", "Assert-ResumeCandidate.ps1"),
-      "-Root", Root, "-Version", "2.0.0", "-ResumeSha", sha);
+      "-Root", Root, "-Version", version, "-ResumeSha", sha);
 
   private static string GitIn(string directory, params string[] arguments) {
     var result = RunAsync("git", directory, arguments).GetAwaiter().GetResult();

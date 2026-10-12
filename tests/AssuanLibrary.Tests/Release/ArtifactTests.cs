@@ -16,12 +16,27 @@ public sealed class ArtifactTests {
     Assert.Equal(0, (await fixture.VerifyAsync()).ExitCode);
   }
 
+  [Fact]
+  public async Task PatchArtifactsUseTheSelectedVersionThroughout() {
+    using var fixture = new ArtifactFixture("2.0.1");
+    Assert.Equal(0, (await fixture.VerifyAsync()).ExitCode);
+    Assert.Equal(0, (await fixture.BuildAsync("patch")).ExitCode);
+    File.WriteAllText(fixture.ManifestPath,
+      File.ReadAllText(fixture.ManifestPath).Replace("\"version\":\"2.0.1\"", "\"version\":\"2.0.0\""));
+    Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
+  }
+
   [Theory]
   [InlineData("WrongId")]
   [InlineData("WrongVersion")]
   [InlineData("MissingAnalyzer")]
   [InlineData("DuplicateAnalyzer")]
   [InlineData("MissingReadme")]
+  [InlineData("MissingLicense")]
+  [InlineData("DuplicateLicense")]
+  [InlineData("MissingAuthor")]
+  [InlineData("WrongRepository")]
+  [InlineData("MissingDescription")]
   [InlineData("MandatoryExtensions")]
   public async Task RejectsInvalidNuGetPackageBeforeAnyPublication(string defect) {
     using var fixture = new ArtifactFixture();
@@ -107,13 +122,15 @@ public sealed class ArtifactTests {
 
   private sealed class ArtifactFixture : IDisposable {
     private readonly ReleaseFixture _git = new();
+    private readonly string _version;
 
-    internal ArtifactFixture() {
+    internal ArtifactFixture(string version = "2.0.0") {
+      _version = version;
       var directory = Path.Combine(_git.Root, "artifacts", "candidate");
       Directory.CreateDirectory(directory);
-      PackagePath = Path.Combine(directory, "AssuanLibrary.2.0.0.nupkg");
-      DocsPath = Path.Combine(directory, "docs-v2.0.0.zip");
-      ChecksumPath = Path.Combine(directory, "docs-v2.0.0.sha256");
+      PackagePath = Path.Combine(directory, $"AssuanLibrary.{version}.nupkg");
+      DocsPath = Path.Combine(directory, $"docs-v{version}.zip");
+      ChecksumPath = Path.Combine(directory, $"docs-v{version}.sha256");
       ManifestPath = Path.Combine(directory, "release-artifacts.json");
       WritePackage();
       WriteDocs();
@@ -134,11 +151,19 @@ public sealed class ArtifactTests {
       File.Delete(PackagePath);
       using var archive = ZipFile.Open(PackagePath, ZipArchiveMode.Create);
       var id = defect == "WrongId" ? "DifferentLibrary" : "AssuanLibrary";
-      var version = defect == "WrongVersion" ? "1.0.0" : "2.0.0";
+      var version = defect == "WrongVersion" ? "1.0.0" : _version;
       var dependency = defect == "MandatoryExtensions"
         ? "<dependency id=\"Microsoft.Extensions.Logging.Abstractions\" version=\"10.0.0\" />"
         : "";
+      var authors = defect == "MissingAuthor" ? "" : "<authors>Bruno Sales</authors>";
+      var description = defect == "MissingDescription" ? "" : "<description>Binary-safe asynchronous Assuan clients and servers.</description>";
+      var repository = defect == "WrongRepository" ? "https://example.invalid" : "https://github.com/baliestri/assuan-library";
       Add(archive, "AssuanLibrary.nuspec", $"<package><metadata><id>{id}</id><version>{version}</version>" +
+                                           $"{authors}{description}<copyright>Copyright (c) 2026 Bruno Sales</copyright>" +
+                                           $"<projectUrl>https://github.com/baliestri/assuan-library</projectUrl>" +
+                                           $"<tags>assuan gpg gpgme gnupg</tags><readme>README.md</readme>" +
+                                           $"<license type=\"file\">LICENSE.md</license>" +
+                                           $"<repository type=\"git\" url=\"{repository}\" />" +
                                            $"<dependencies><group targetFramework=\"net10.0\">{dependency}</group></dependencies></metadata></package>");
       Add(archive, "lib/net10.0/AssuanLibrary.dll", "runtime");
       Add(archive, "lib/net10.0/AssuanLibrary.xml", "<doc/>");
@@ -152,14 +177,21 @@ public sealed class ArtifactTests {
       if (defect != "MissingReadme") {
         Add(archive, "README.md", "# AssuanLibrary\n");
       }
+
+      if (defect != "MissingLicense") {
+        Add(archive, "LICENSE.md", "MIT License\n");
+        if (defect == "DuplicateLicense") {
+          Add(archive, "LICENSE.md", "duplicate");
+        }
+      }
     }
 
     internal void WriteDocs(string? additionalPath = null, bool symlink = false, string? missingPath = null) {
       File.Delete(DocsPath);
       using var archive = ZipFile.Open(DocsPath, ZipArchiveMode.Create);
       foreach (var path in new[] {
-                 "2.0.0/site/index.html", "2.0.0/site/api/toc.html",
-                 "2.0.0/llms.txt", "2.0.0/llms-full.txt", "2.0.0/metadata.json"
+                 $"{_version}/site/index.html", $"{_version}/site/api/toc.html",
+                 $"{_version}/llms.txt", $"{_version}/llms-full.txt", $"{_version}/metadata.json"
                }) {
         if (path != missingPath) {
           Add(archive, path, path);
@@ -176,9 +208,9 @@ public sealed class ArtifactTests {
 
     internal void RefreshHashes() {
       var docsHash = Hash(DocsPath);
-      File.WriteAllText(ChecksumPath, docsHash + "  docs-v2.0.0.zip\n");
+      File.WriteAllText(ChecksumPath, docsHash + $"  docs-v{_version}.zip\n");
       File.WriteAllText(ManifestPath, JsonSerializer.Serialize(new {
-        version = "2.0.0",
+        version = _version,
         sourceSha = _git.Head,
         packageName = Path.GetFileName(PackagePath),
         packageSha256 = Hash(PackagePath),
@@ -196,7 +228,7 @@ public sealed class ArtifactTests {
       foreach (var argument in new[] {
                  "-NoProfile", "-NonInteractive", "-File",
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Verify-Release.ps1"),
-                 "-Root", _git.Root, "-PreparedSha", preparedSha ?? _git.Head,
+                 "-Root", _git.Root, "-Version", _version, "-PreparedSha", preparedSha ?? _git.Head,
                  "-CiSha", ciSha ?? _git.Head, "-InteropSha", interopSha ?? _git.Head,
                  "-PackagePath", PackagePath, "-DocsArchive", DocsPath,
                  "-ChecksumPath", ChecksumPath, "-ManifestPath", ManifestPath
@@ -212,7 +244,7 @@ public sealed class ArtifactTests {
     }
 
     internal async Task<(int ExitCode, string Output)> BuildAsync(string name) {
-      var bundle = Path.Combine(_git.Root, "artifacts", "bundles", name, "2.0.0");
+      var bundle = Path.Combine(_git.Root, "artifacts", "bundles", name, _version);
       foreach (var path in new[] {
                  "site/index.html", "site/api/toc.html", "llms.txt",
                  "llms-full.txt", "metadata.json"
@@ -229,7 +261,7 @@ public sealed class ArtifactTests {
       foreach (var argument in new[] {
                  "-NoProfile", "-NonInteractive", "-File",
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Build-ReleaseArtifacts.ps1"),
-                 "-Root", _git.Root, "-PreparedSha", _git.Head, "-PackagePath", PackagePath,
+                 "-Root", _git.Root, "-Version", _version, "-PreparedSha", _git.Head, "-PackagePath", PackagePath,
                  "-BundlePath", bundle, "-OutputDirectory", Path.Combine(OutputRoot, name)
                }) {
         start.ArgumentList.Add(argument);
@@ -250,7 +282,7 @@ public sealed class ArtifactTests {
       foreach (var argument in new[] {
                  "-NoProfile", "-NonInteractive", "-File",
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Compare-RegistryPackage.ps1"),
-                 "-OriginalPath", PackagePath, "-RegistryPath", registryPath
+                 "-OriginalPath", PackagePath, "-RegistryPath", registryPath, "-Version", _version
                }) {
         start.ArgumentList.Add(argument);
       }

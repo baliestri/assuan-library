@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)] [string] $Root,
+  [Parameter(Mandatory = $true)] [string] $Version,
   [Parameter(Mandatory = $true)] [string] $PreparedSha,
   [Parameter(Mandatory = $true)] [string] $PackagePath,
   [Parameter(Mandatory = $true)] [string] $BundlePath,
@@ -22,7 +23,7 @@ try {
         [IO.Path]::IsPathRooted($relative)) { throw 'Release output must remain under ignored artifacts.' }
   }
   Import-Module (Join-Path $PSScriptRoot 'Artifacts.psm1') -Force
-  $built = New-ReleaseArtifacts -PreparedSha $PreparedSha -PackagePath $PackagePath `
+  $built = New-ReleaseArtifacts -Version $Version -PreparedSha $PreparedSha -PackagePath $PackagePath `
     -BundlePath $BundlePath -OutputDirectory $OutputDirectory
   $built | ConvertTo-Json -Compress
 }

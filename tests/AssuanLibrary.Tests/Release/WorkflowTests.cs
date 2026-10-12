@@ -30,7 +30,7 @@ public sealed partial class WorkflowTests {
     var guide = File.ReadAllText(Path.Combine(root, "docs", "guides", "releasing.md"));
     foreach (var value in new[] {
                "v2.0.0", "OIDC", "NuGet", "Pages", "git-cliff",
-               "prepared SHA", "recovery", "docs-v2.0.0.zip"
+               "prepared SHA", "recovery", "docs-v<version>.zip", "version=2.0.1"
              }) {
       Assert.Contains(value, guide, StringComparison.OrdinalIgnoreCase);
     }
@@ -61,7 +61,12 @@ public sealed partial class WorkflowTests {
     Assert.Contains("environment: release", yaml);
     Assert.Contains("id-token: write", yaml);
     Assert.Contains("NuGet/login@", yaml);
-    Assert.Contains("docs-v2.0.0.zip", yaml);
+    Assert.Contains("docs-v${{ inputs.version }}.zip", yaml);
+    Assert.Contains("RELEASE_VERSION: ${{ inputs.version }}", yaml);
+    Assert.Contains("-Version $env:RELEASE_VERSION", yaml);
+    Assert.Contains("git push --atomic", yaml);
+    Assert.DoesNotContain("release/v2.0.0", yaml);
+    Assert.DoesNotContain("assuanlibrary.2.0.0.nupkg", yaml);
     Assert.Contains("--atomic", yaml);
     Assert.DoesNotContain("--force", yaml);
     Assert.DoesNotContain("--skip-duplicate", yaml);

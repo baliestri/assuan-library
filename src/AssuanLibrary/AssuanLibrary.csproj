@@ -4,7 +4,17 @@
     <Version>2.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>Bruno Sales</Authors>
+    <Description>Binary-safe asynchronous Assuan client and server library for .NET 10, with TCP, Unix socket, Windows named pipe and custom stream transports, plus GnuPG agent integration.</Description>
+    <Copyright>Copyright (c) $([System.DateTime]::Now.Year) Bruno Sales &lt;me@baliestri.dev&gt;</Copyright>
+    <PackageId>AssuanLibrary</PackageId>
+    <PackageProjectUrl>https://github.com/baliestri/assuan-library</PackageProjectUrl>
+    <PackageTags>assuan; gpg; gpgme; gnupg</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/baliestri/assuan-library</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Company>baliestri</Company>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,5 +23,6 @@
     <None Include="..\AssuanLibrary.Generators\bin\$(Configuration)\netstandard2.0\AssuanLibrary.Generators.dll"
           Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false" />
     <None Include="..\..\docs\nuget\README.md" Pack="true" PackagePath="README.md" Visible="false" />
+    <None Include="..\..\LICENSE.md" Pack="true" PackagePath="LICENSE.md" Visible="false" />
   </ItemGroup>
 </Project>

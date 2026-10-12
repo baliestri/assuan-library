@@ -41,4 +41,17 @@ public sealed class ChangelogTests {
     Assert.Equal(1, changelog.Split("## [2.0.0]", StringSplitOptions.None).Length - 1);
     Assert.NotEqual(0, (await fixture.PrepareAsync(dryRun: false)).ExitCode);
   }
+
+  [Fact]
+  public async Task PatchChangelogStartsAtThePublishedTag() {
+    using var fixture = new ReleaseFixture(patchRelease: true);
+    var preview = await fixture.PrepareAsync("2.0.1");
+    Assert.Equal(0, preview.ExitCode);
+    using var proposal = JsonDocument.Parse(preview.Output);
+    var section = proposal.RootElement.GetProperty("generatedSection").GetString()!;
+    Assert.Contains("v2.0.0..v2.0.1", section);
+    Assert.DoesNotContain("replace the published 1.x API", section);
+    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);
+    Assert.Contains("## [2.0.0] - published", File.ReadAllText(Path.Combine(fixture.Root, "CHANGELOG.md")));
+  }
 }

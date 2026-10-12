@@ -20,7 +20,10 @@ try {
   $changes = Get-ReleaseVersionEdits -Root $rootPath -Version $Version
   $cacheRoot = if ($ToolsRoot) { [IO.Path]::GetFullPath($ToolsRoot) } else { $rootPath }
   $tools = & (Join-Path $PSScriptRoot 'Get-ReleaseTools.ps1') -Root $cacheRoot
-  $changelog = New-ReleaseChangelog -Root $rootPath -Version $Version -GitCliff $tools.GitCliff
+  $mainSha = (& git -C $rootPath rev-parse refs/remotes/origin/main).Trim()
+  if ($LASTEXITCODE -ne 0) { throw 'Published branch baseline is missing.' }
+  $previousTag = Get-PreviousReleaseTag -Root $rootPath -MainSha $mainSha
+  $changelog = New-ReleaseChangelog -Root $rootPath -Version $Version -GitCliff $tools.GitCliff -PreviousTag $previousTag
   $changes['CHANGELOG.md'] = $changelog.Content
 
   if (-not $DryRun) {

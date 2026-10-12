@@ -1,5 +1,5 @@
 function New-ReleaseChangelog {
-  param([string] $Root, [string] $Version, [string] $GitCliff)
+  param([string] $Root, [string] $Version, [string] $GitCliff, [string] $PreviousTag)
   $path = Join-Path $Root 'CHANGELOG.md'
   $before = [IO.File]::ReadAllText($path)
   $header = "# Assuan Library .NET Changelog`n`n"
@@ -8,7 +8,7 @@ function New-ReleaseChangelog {
     throw 'The historical changelog is invalid or this version is already present.'
   }
   $generated = & $GitCliff --repository $Root --workdir $Root --config (Join-Path $Root 'cliff.toml') `
-    --offline --tag "v$Version" --strip header 'v1.2.0..HEAD' 2>$null
+    --offline --tag "v$Version" --strip header "$PreviousTag..HEAD" 2>$null
   if ($LASTEXITCODE -ne 0) { throw 'Changelog generation failed.' }
   $section = ($generated -join "`n").Trim()
   if (-not $section.StartsWith("## [$Version]", [StringComparison]::Ordinal)) {

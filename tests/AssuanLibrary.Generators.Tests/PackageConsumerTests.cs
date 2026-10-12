@@ -20,6 +20,8 @@ public sealed class PackageConsumerTests {
       .OrderByDescending(File.GetLastWriteTimeUtc).First();
     await using var archive = ZipFile.OpenRead(package);
     Assert.Single(archive.Entries, item => item.FullName == "lib/net10.0/AssuanLibrary.dll");
+    Assert.Single(archive.Entries, item => item.FullName == "README.md");
+    Assert.Single(archive.Entries, item => item.FullName == "LICENSE.md");
     Assert.Single(archive.Entries, item => item.FullName ==
                                            "analyzers/dotnet/cs/AssuanLibrary.Generators.dll");
     Assert.DoesNotContain(archive.Entries, item => item.FullName.StartsWith("lib/", StringComparison.Ordinal) &&
@@ -27,7 +29,19 @@ public sealed class PackageConsumerTests {
                                                     item.Name.Contains("CodeAnalysis", StringComparison.Ordinal)));
     var nuspec = Assert.Single(archive.Entries, item => item.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
     await using var nuspecStream = nuspec.Open();
-    var xml = XDocument.Load(nuspecStream).ToString();
+    var document = XDocument.Load(nuspecStream);
+    var metadata = document.Root!.Element(document.Root.Name.Namespace + "metadata")!;
+    var ns = metadata.Name.Namespace;
+    Assert.Equal("Bruno Sales", metadata.Element(ns + "authors")?.Value);
+    Assert.Contains("binary-safe", metadata.Element(ns + "description")?.Value, StringComparison.OrdinalIgnoreCase);
+    Assert.Equal("README.md", metadata.Element(ns + "readme")?.Value);
+    Assert.Equal("LICENSE.md", metadata.Element(ns + "license")?.Value);
+    Assert.Equal("file", metadata.Element(ns + "license")?.Attribute("type")?.Value);
+    Assert.Equal("https://github.com/baliestri/assuan-library", metadata.Element(ns + "projectUrl")?.Value);
+    Assert.Equal("https://github.com/baliestri/assuan-library", metadata.Element(ns + "repository")?.Attribute("url")?.Value);
+    Assert.Equal("git", metadata.Element(ns + "repository")?.Attribute("type")?.Value);
+    Assert.Equal("assuan gpg gpgme gnupg", metadata.Element(ns + "tags")?.Value);
+    var xml = document.ToString();
     Assert.DoesNotContain("Microsoft.Extensions", xml);
     Assert.DoesNotContain("AssuanLibrary.Generators", xml);
     Assert.Empty(Directory.EnumerateFiles(_packageDirectory, "AssuanLibrary.Generators.*.nupkg"));

@@ -1,6 +1,13 @@
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
+function Assert-ArtifactVersion {
+  param([string] $Version)
+  if ($Version -cnotmatch '\A2\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z') {
+    throw 'Invalid stable 2.x.x artifact version.'
+  }
+}
+
 function Get-ReleaseFileHash {
   param([string] $Path)
   return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
@@ -8,6 +15,7 @@ function Get-ReleaseFileHash {
 
 function Assert-ReleasePackage {
   param([string] $Path, [string] $Version)
+  Assert-ArtifactVersion $Version
   if ([IO.Path]::GetFileName($Path) -cne "AssuanLibrary.$Version.nupkg") {
     throw 'The package filename does not match the selected release.'
   }
@@ -15,7 +23,7 @@ function Assert-ReleasePackage {
   try {
     $entries = @($archive.Entries)
     foreach ($entry in @('lib/net10.0/AssuanLibrary.dll', 'lib/net10.0/AssuanLibrary.xml',
-      'analyzers/dotnet/cs/AssuanLibrary.Generators.dll', 'README.md')) {
+      'analyzers/dotnet/cs/AssuanLibrary.Generators.dll', 'README.md', 'LICENSE.md')) {
       if (@($entries | Where-Object FullName -CEQ $entry).Count -ne 1) {
         throw 'The package is missing a required unique entry.'
       }
@@ -35,6 +43,32 @@ function Assert-ReleasePackage {
         $metadata[0].SelectSingleNode('*[local-name()="version"]').InnerText -cne $Version) {
       throw 'Package identity does not match the release.'
     }
+    $fields = @{
+      authors = 'Bruno Sales'
+      projectUrl = 'https://github.com/baliestri/assuan-library'
+      readme = 'README.md'
+      tags = 'assuan gpg gpgme gnupg'
+    }
+    foreach ($field in $fields.Keys) {
+      $node = $metadata[0].SelectSingleNode("*[local-name()='$field']")
+      if ($null -eq $node -or $node.InnerText -cne $fields[$field]) {
+        throw "Package $field metadata differs from the release."
+      }
+    }
+    foreach ($field in @('description', 'copyright')) {
+      $node = $metadata[0].SelectSingleNode("*[local-name()='$field']")
+      if ($null -eq $node -or [string]::IsNullOrWhiteSpace($node.InnerText)) {
+        throw "Package $field metadata is missing."
+      }
+    }
+    $license = $metadata[0].SelectSingleNode('*[local-name()="license"]')
+    if ($null -eq $license -or $license.InnerText -cne 'LICENSE.md' -or
+        $license.GetAttribute('type') -cne 'file') { throw 'Package license metadata is invalid.' }
+    $repository = $metadata[0].SelectSingleNode('*[local-name()="repository"]')
+    if ($null -eq $repository -or $repository.GetAttribute('type') -cne 'git' -or
+        $repository.GetAttribute('url') -cne 'https://github.com/baliestri/assuan-library') {
+      throw 'Package repository metadata is invalid.'
+    }
     foreach ($dependency in $xml.SelectNodes('//*[local-name()="dependency"]')) {
       if ($dependency.GetAttribute('id').StartsWith('Microsoft.Extensions', [StringComparison]::OrdinalIgnoreCase)) {
         throw 'The package requires an optional Microsoft.Extensions dependency.'
@@ -46,6 +80,7 @@ function Assert-ReleasePackage {
 
 function Assert-ReleaseDocsArchive {
   param([string] $Path, [string] $Version)
+  Assert-ArtifactVersion $Version
   if ([IO.Path]::GetFileName($Path) -cne "docs-v$Version.zip") {
     throw 'The documentation archive filename is invalid.'
   }
@@ -74,14 +109,15 @@ function Assert-ReleaseDocsArchive {
 }
 
 function Assert-RegistryPackage {
-  param([string] $OriginalPath, [string] $RegistryPath, [string] $Version = '2.0.0')
+  param([string] $OriginalPath, [string] $RegistryPath, [string] $Version)
+  Assert-ArtifactVersion $Version
   Assert-ReleasePackage $OriginalPath $Version
   Assert-ReleasePackage $RegistryPath $Version
   $original = [IO.Compression.ZipFile]::OpenRead($OriginalPath)
   $published = [IO.Compression.ZipFile]::OpenRead($RegistryPath)
   try {
     foreach ($name in @('lib/net10.0/AssuanLibrary.dll', 'lib/net10.0/AssuanLibrary.xml',
-      'analyzers/dotnet/cs/AssuanLibrary.Generators.dll', 'README.md')) {
+      'analyzers/dotnet/cs/AssuanLibrary.Generators.dll', 'README.md', 'LICENSE.md')) {
       $first = $original.GetEntry($name).Open()
       $second = $published.GetEntry($name).Open()
       try {
@@ -96,9 +132,9 @@ function Assert-RegistryPackage {
 }
 
 function Assert-ReleaseArtifacts {
-  param([string] $PreparedSha, [string] $PackagePath, [string] $DocsArchive,
+  param([string] $Version, [string] $PreparedSha, [string] $PackagePath, [string] $DocsArchive,
     [string] $ChecksumPath, [string] $ManifestPath)
-  $version = '2.0.0'
+  Assert-ArtifactVersion $Version
   if ($PreparedSha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid prepared SHA.' }
   foreach ($path in @($PackagePath, $DocsArchive, $ChecksumPath, $ManifestPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'A release artifact is missing.' }
@@ -124,8 +160,9 @@ function Assert-ReleaseArtifacts {
 }
 
 function New-ReleaseArtifacts {
-  param([string] $PreparedSha, [string] $PackagePath, [string] $BundlePath, [string] $OutputDirectory)
-  $version = '2.0.0'
+  param([string] $Version, [string] $PreparedSha, [string] $PackagePath, [string] $BundlePath,
+    [string] $OutputDirectory)
+  Assert-ArtifactVersion $Version
   if ($PreparedSha -cnotmatch '\A[0-9a-f]{40}\z' -or
       [IO.Path]::GetFileName($BundlePath) -cne $version -or
       -not (Test-Path -LiteralPath $BundlePath -PathType Container)) {
@@ -166,7 +203,8 @@ function New-ReleaseArtifacts {
     packageName = [IO.Path]::GetFileName($PackagePath); packageSha256 = Get-ReleaseFileHash $PackagePath;
     docsName = [IO.Path]::GetFileName($zip); docsSha256 = $docsHash }
   [IO.File]::WriteAllText($manifest, ($record | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
-  return Assert-ReleaseArtifacts $PreparedSha $PackagePath $zip $checksum $manifest
+  return Assert-ReleaseArtifacts -Version $Version -PreparedSha $PreparedSha -PackagePath $PackagePath `
+    -DocsArchive $zip -ChecksumPath $checksum -ManifestPath $manifest
 }
 
 Export-ModuleMember -Function Assert-ReleasePackage, Assert-RegistryPackage, Assert-ReleaseDocsArchive,

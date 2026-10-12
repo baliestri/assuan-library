@@ -101,4 +101,52 @@ public sealed class VersionTests {
     fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.0"); // Disposable bare fixture only.
     Assert.NotEqual(0, (await fixture.ResumeAsync(fixture.Head)).ExitCode);
   }
+
+  [Fact]
+  public async Task PatchCandidateMustBeStableAndNewerThanPublishedTag() {
+    using var fixture = new ReleaseFixture(patchRelease: true);
+    var preview = await fixture.PrepareAsync("2.0.1");
+    Assert.True(preview.ExitCode == 0, preview.Output);
+    foreach (var version in new[] { "2.0.0", "2.0.1-rc.1", "2.0.1+build", "3.0.0" }) {
+      Assert.NotEqual(0, (await fixture.PrepareAsync(version)).ExitCode);
+    }
+  }
+
+  [Fact]
+  public async Task PatchCandidateRejectsAChangedLocalPublishedTag() {
+    using var fixture = new ReleaseFixture(patchRelease: true);
+    fixture.Git("tag", "-f", "v2.0.0", fixture.Head);
+    Assert.NotEqual(0, (await fixture.PrepareAsync("2.0.1")).ExitCode);
+  }
+
+  [Fact]
+  public async Task PatchPreparationUpdatesPackageReadmeAndLeavesDryRunUntouched() {
+    using var fixture = new ReleaseFixture(patchRelease: true);
+    var path = Path.Combine(fixture.Root, "docs", "nuget", "README.md");
+    var before = File.ReadAllText(path);
+    var preview = await fixture.PrepareAsync("2.0.1");
+    Assert.True(preview.ExitCode == 0, preview.Output);
+    Assert.Equal(before, File.ReadAllText(path));
+    using var proposal = JsonDocument.Parse(preview.Output);
+    Assert.Contains(proposal.RootElement.GetProperty("files").EnumerateArray(), item =>
+      item.GetString() == "docs/nuget/README.md");
+    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);
+    var prepared = File.ReadAllText(path);
+    Assert.Contains("dotnet add package AssuanLibrary --version 2.0.1", prepared);
+    Assert.Contains("/assuan-library/2.0.1/guides/", prepared);
+  }
+
+  [Fact]
+  public async Task PatchResumeRequiresMatchingPreparedBranch() {
+    using var fixture = new ReleaseFixture(patchRelease: true);
+    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);
+    fixture.Git("switch", "-c", "release/v2.0.1");
+    fixture.Git("add", "CHANGELOG.md", "README.adoc", "docs/guides/getting-started.md",
+      "src/AssuanLibrary/AssuanLibrary.csproj", "docs/nuget/README.md");
+    fixture.Git("commit", "-m", "chore(release): prepare for 2.0.1");
+    fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.1");
+    var sha = fixture.Head;
+    Assert.Equal(0, (await fixture.ResumeAsync(sha, "2.0.1")).ExitCode);
+    Assert.NotEqual(0, (await fixture.ResumeAsync(new string('a', 40), "2.0.1")).ExitCode);
+  }
 }

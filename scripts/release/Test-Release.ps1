@@ -1,5 +1,6 @@
 [CmdletBinding()]
-param([string] $Root = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))))
+param([string] $Root = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))),
+  [string] $Version = '2.0.1')
 
 $ErrorActionPreference = 'Stop'
 try {
@@ -36,20 +37,20 @@ try {
   $packageRoot = Join-Path $workspace 'package'
   [IO.Directory]::CreateDirectory($packageRoot) | Out-Null
   & dotnet pack (Join-Path $rootPath 'src/AssuanLibrary/AssuanLibrary.csproj') -c Release --no-build `
-    --no-restore -p:PackageVersion=2.0.0 -o $packageRoot
+    --no-restore "-p:PackageVersion=$Version" -o $packageRoot
   if ($LASTEXITCODE -ne 0) { throw 'Local package build failed.' }
   Import-Module (Join-Path $rootPath 'scripts/release/Artifacts.psm1') -Force
-  Assert-ReleasePackage (Join-Path $packageRoot 'AssuanLibrary.2.0.0.nupkg') '2.0.0'
+  Assert-ReleasePackage -Path (Join-Path $packageRoot "AssuanLibrary.$Version.nupkg") -Version $Version
   $completed.Add('package')
 
   foreach ($name in @('one', 'two')) {
     & dotnet run --project (Join-Path $rootPath 'tools/AssuanLibrary.Docs') -c Release --no-restore -- `
-      build --version 2.0.0 --base-url https://baliestri.github.io/assuan-library/ `
+      build --version $Version --base-url https://baliestri.github.io/assuan-library/ `
       --output (Join-Path $workspace "docs-$name")
     if ($LASTEXITCODE -ne 0) { throw 'Local documentation bundle failed.' }
   }
-  $first = Join-Path $workspace 'docs-one/2.0.0'
-  $second = Join-Path $workspace 'docs-two/2.0.0'
+  $first = Join-Path $workspace "docs-one/$Version"
+  $second = Join-Path $workspace "docs-two/$Version"
   $left = @(Get-ChildItem -LiteralPath $first -File -Recurse | ForEach-Object {
     $relative = [IO.Path]::GetRelativePath($first, $_.FullName)
     "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
@@ -78,7 +79,7 @@ try {
   }
   $completed.Add('recovery')
 
-  [ordered]@{ dryRunOnly = $true; version = '2.0.0'; checkoutHead = $head; output = $workspace;
+  [ordered]@{ dryRunOnly = $true; version = $Version; checkoutHead = $head; output = $workspace;
     checks = $completed.ToArray(); lastMockedFailure = $uncertain.lastPhase;
     requiresManualInspection = $uncertain.requiresManualInspection;
     recovery = $uncertain.nextStep } | ConvertTo-Json -Compress

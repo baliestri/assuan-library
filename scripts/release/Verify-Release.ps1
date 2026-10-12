@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)] [string] $Root,
+  [Parameter(Mandatory = $true)] [string] $Version,
   [Parameter(Mandatory = $true)] [string] $PreparedSha,
   [Parameter(Mandatory = $true)] [string] $CiSha,
   [Parameter(Mandatory = $true)] [string] $InteropSha,
@@ -30,7 +31,7 @@ try {
         [IO.Path]::IsPathRooted($relative)) { throw 'Release artifact is outside the checkout.' }
   }
   Import-Module (Join-Path $PSScriptRoot 'Artifacts.psm1') -Force
-  $verified = Assert-ReleaseArtifacts -PreparedSha $PreparedSha -PackagePath $PackagePath `
+  $verified = Assert-ReleaseArtifacts -Version $Version -PreparedSha $PreparedSha -PackagePath $PackagePath `
     -DocsArchive $DocsArchive -ChecksumPath $ChecksumPath -ManifestPath $ManifestPath
   $verified | ConvertTo-Json -Compress
 }

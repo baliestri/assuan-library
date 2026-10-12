@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.Release;
@@ -23,11 +24,13 @@ internal sealed class ReleaseFixture : IDisposable {
       "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework>" +
       (versionProperty ? "<Version>1.2.0</Version>" : "") + "</PropertyGroup></Project>\n");
     foreach (var path in new[] {
-               "README.adoc", "docs/nuget/README.md", "docs/guides/getting-started.md",
-               "cliff.toml"
-             }) {
+                "README.adoc", "docs/nuget/README.md", "docs/guides/getting-started.md",
+                "cliff.toml"
+              }) {
       File.Copy(Path.Combine(ToolsRoot, path), Path.Combine(Root, path));
     }
+    var packageReadme = Path.Combine(Root, "docs", "nuget", "README.md");
+    File.WriteAllText(packageReadme, BaselinePackageReadme(File.ReadAllText(packageReadme)));
 
     Git("init", "-b", "main");
     Git("add", ".");
@@ -61,6 +64,18 @@ internal sealed class ReleaseFixture : IDisposable {
   internal static string ToolsRoot { get; } = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
 
   internal static string HistoricalChangelog => "# Assuan Library .NET Changelog\n\n## [1.2.0] - historical\n\nLegacy entry.\n";
+  internal static string BaselinePackageReadme(string content) {
+    var matches = Regex.Matches(content, @"dotnet add package AssuanLibrary --version (?<version>2\.[0-9]+\.[0-9]+)");
+    if (matches.Count != 1) {
+      throw new InvalidDataException("The fixture requires exactly one package installation command.");
+    }
+
+    var version = matches[0].Groups["version"].Value;
+    return content.Replace(matches[0].Value, "dotnet add package AssuanLibrary --version 2.0.0", StringComparison.Ordinal)
+      .Replace($"https://baliestri.github.io/assuan-library/{version}/",
+        "https://baliestri.github.io/assuan-library/2.0.0/", StringComparison.Ordinal)
+      .Replace($"/tree/v{version}/examples/", "/tree/v2.0.0/examples/", StringComparison.Ordinal);
+  }
   internal string Head => Git("rev-parse", "HEAD").Trim();
 
   public void Dispose() {

@@ -137,6 +137,18 @@ public sealed class VersionTests {
   }
 
   [Fact]
+  public void FixtureUsesThePublishedReadmeEvenWhenTheSourceIsPreparedForAPatch() {
+    const string prepared = "dotnet add package AssuanLibrary --version 2.0.1\n" +
+                            "https://baliestri.github.io/assuan-library/2.0.1/guides/getting-started.html\n" +
+                            "https://github.com/baliestri/assuan-library/tree/v2.0.1/examples/AssuanLibrary.Examples\n";
+    var baseline = ReleaseFixture.BaselinePackageReadme(prepared);
+    Assert.Contains("dotnet add package AssuanLibrary --version 2.0.0", baseline);
+    Assert.Contains("/assuan-library/2.0.0/guides/", baseline);
+    Assert.Contains("/tree/v2.0.0/examples/", baseline);
+    Assert.DoesNotContain("2.0.1", baseline);
+  }
+
+  [Fact]
   public async Task PatchResumeRequiresMatchingPreparedBranch() {
     using var fixture = new ReleaseFixture(patchRelease: true);
     Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);

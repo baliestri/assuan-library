@@ -12,6 +12,7 @@ on:
         description: Commit validated by every required job
         value: ${{ jobs.gate.outputs.source_sha }}
   push:
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 

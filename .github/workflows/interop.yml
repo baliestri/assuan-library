@@ -12,6 +12,7 @@ on:
         description: Commit validated against real GnuPG on every platform
         value: ${{ jobs.gate.outputs.source_sha }}
   push:
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 
@@ -106,7 +107,13 @@ jobs:
               Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
               $scoopRoot = Join-Path $env:RUNNER_TEMP 'assuan-scoop'
               $installer = Join-Path $env:RUNNER_TEMP 'install-scoop.ps1'
-              Invoke-WebRequest -Uri 'https://get.scoop.sh' -OutFile $installer
+              # The installer runs with administrator rights, so it is fetched by commit and verified.
+              $installerCommit = '1e2f334083d609986d8c8bc9e31ae8e87c39fab4'
+              $installerSha256 = '94f983b190438311e006b957db7c8422709e0ba62a6c2ac04e278164108f2512'
+              Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ScoopInstaller/Install/$installerCommit/install.ps1" -OutFile $installer
+              if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $installerSha256) {
+                throw 'Scoop installer checksum mismatch.'
+              }
               & $installer -RunAsAdmin -ScoopDir $scoopRoot
               if ($LASTEXITCODE -ne 0) { throw 'Scoop installation failed.' }
               $scoop = Join-Path $scoopRoot 'shims\scoop.ps1'

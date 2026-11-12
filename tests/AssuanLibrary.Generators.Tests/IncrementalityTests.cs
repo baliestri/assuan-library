@@ -5,22 +5,22 @@ namespace AssuanLibrary.Generators.Tests;
 
 public sealed class IncrementalityTests {
   private const string SOURCE = """
-                                namespace Consumer {
-                                  public sealed class State { }
-                                  [AssuanLibrary.Attributes.AssuanHandlerGroup]
-                                  public partial class Commands {
-                                    [AssuanLibrary.Attributes.AssuanCommandHandler("ECHO", "Echoes arguments")]
-                                    private static System.Threading.Tasks.ValueTask EchoAsync(
-                                      AssuanLibrary.Server.CommandContext<State> ctx,
-                                      System.Threading.CancellationToken ct) => ctx.SendDataAsync(ctx.Arguments, ct);
-                                    [AssuanLibrary.Attributes.AssuanOptionHandler("pinentry-mode")]
-                                    private static System.Threading.Tasks.ValueTask SetMode(
-                                      AssuanLibrary.Server.OptionRequest request,
-                                      AssuanLibrary.Server.CommandContext<State> context,
-                                      System.Threading.CancellationToken token) => System.Threading.Tasks.ValueTask.CompletedTask;
-                                  }
-                                }
-                                """;
+    namespace Consumer {
+      public sealed class State { }
+      [AssuanLibrary.Attributes.AssuanHandlerGroup]
+      public partial class Commands {
+        [AssuanLibrary.Attributes.AssuanCommandHandler("ECHO", "Echoes arguments")]
+        private static System.Threading.Tasks.ValueTask EchoAsync(
+          AssuanLibrary.Server.CommandContext<State> ctx,
+          System.Threading.CancellationToken ct) => ctx.SendDataAsync(ctx.Arguments, ct);
+        [AssuanLibrary.Attributes.AssuanOptionHandler("pinentry-mode")]
+        private static System.Threading.Tasks.ValueTask SetMode(
+          AssuanLibrary.Server.OptionRequest request,
+          AssuanLibrary.Server.CommandContext<State> context,
+          System.Threading.CancellationToken token) => System.Threading.Tasks.ValueTask.CompletedTask;
+      }
+    }
+    """;
 
   [Fact]
   public void UnrelatedEditKeepsHandlerAdapterAndHintStable() {
@@ -38,7 +38,7 @@ public sealed class IncrementalityTests {
     var after = GeneratorHarness.Compile(SOURCE.Replace("Echoes arguments", "Returns arguments"));
     Assert.Equal(before.GeneratedHints, after.GeneratedHints);
     Assert.Equal(1, before.GeneratedSources.Zip(after.GeneratedSources)
-      .Count(pair => pair.First != pair.Second));
+      .Count(pair => !string.Equals(pair.First, pair.Second, StringComparison.Ordinal)));
     Assert.Empty(after.OutputCompilationErrors);
   }
 
@@ -48,7 +48,7 @@ public sealed class IncrementalityTests {
     var after = GeneratorHarness.Compile(SOURCE.Replace("pinentry-mode", "loopback-mode"));
     Assert.Equal(before.GeneratedHints, after.GeneratedHints);
     Assert.Equal(1, before.GeneratedSources.Zip(after.GeneratedSources)
-      .Count(pair => pair.First != pair.Second));
+      .Count(pair => !string.Equals(pair.First, pair.Second, StringComparison.Ordinal)));
     Assert.Empty(after.GeneratorDiagnostics);
   }
 }

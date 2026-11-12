@@ -23,7 +23,10 @@ public sealed class ExampleRunTests {
       TestContext.Current.CancellationToken);
     Assert.Equal(0, code);
     Assert.Contains(expected, output.ToString());
-    Assert.Contains(name == "sexpressions" ? "canonical=0x28333A666F6F303A29" : "BYE completed",
+    Assert.Contains(
+      string.Equals(name, "sexpressions", StringComparison.Ordinal)
+        ? "canonical=0x28333A666F6F303A29"
+        : "BYE completed",
       output.ToString());
     Assert.DoesNotContain("SECRET_MARKER", output.ToString());
     Assert.Empty(error.ToString());
@@ -40,7 +43,8 @@ public sealed class ExampleRunTests {
       output, error, TestContext.Current.CancellationToken);
     Assert.NotEqual(0, code);
     Assert.Empty(output.ToString());
-    Assert.Contains(name == "agent-info" ? "--gpgconf" : "--port", error.ToString());
+    Assert.Contains(string.Equals(name, "agent-info", StringComparison.Ordinal) ? "--gpgconf" : "--port",
+      error.ToString());
     Assert.DoesNotContain("private", error.ToString());
   }
 

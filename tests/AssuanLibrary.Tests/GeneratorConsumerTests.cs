@@ -1,32 +1,11 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
-using AssuanLibrary.Attributes;
 using AssuanLibrary.Server;
 using AssuanLibrary.Tests.Server;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Tests;
-
-public sealed class GeneratedSessionState {
-  public byte[]? LastValue;
-  public int OptionCount;
-}
-
-[AssuanHandlerGroup]
-public partial class GeneratedDemo {
-  [AssuanCommandHandler("ECHO", "Echoes arguments")]
-  private static ValueTask EchoAsync(CommandContext<GeneratedSessionState> context, CancellationToken token)
-    => context.SendDataAsync(context.Arguments, token);
-
-  [AssuanOptionHandler("mode")]
-  private static ValueTask ModeAsync(OptionRequest request, CommandContext<GeneratedSessionState> context,
-  CancellationToken token) {
-    context.State.OptionCount++;
-    context.State.LastValue = request.Value?.ToArray();
-    return ValueTask.CompletedTask;
-  }
-}
 
 public sealed class GeneratorConsumerTests {
   [Fact]
@@ -49,36 +28,36 @@ public sealed class GeneratorConsumerTests {
     var session = new ServerSession<GeneratedSessionState>(new AcceptedConnection(peer), state,
       registry, GeneratedDemo.CreateHooks(hooks), ServerOptions.Default);
     await session.RunAsync(TestContext.Current.CancellationToken);
-    Assert.Equal(1, hooks._authentications);
-    Assert.Equal(1, hooks._unknownOptions);
-    Assert.Equal(1, hooks._resets);
-    Assert.Equal(1, hooks._closures);
+    Assert.Equal(1, hooks.Authentications);
+    Assert.Equal(1, hooks.UnknownOptions);
+    Assert.Equal(1, hooks.Resets);
+    Assert.Equal(1, hooks.Closures);
     Assert.Equal(1, state.OptionCount);
     Assert.Equal("on"u8.ToArray(), state.LastValue);
     Assert.Equal("OK\nOK\nOK\nOK\nOK\n"u8.ToArray(), peer.WrittenBytes);
   }
 
   private sealed class RecordingHooks : ISessionHooks<GeneratedSessionState> {
-    internal int _authentications, _unknownOptions, _resets, _closures;
+    internal int Authentications, UnknownOptions, Resets, Closures;
 
     public ValueTask AuthenticateAsync(CommandContext<GeneratedSessionState> context, CancellationToken token) {
-      _authentications++;
+      Authentications++;
       return ValueTask.CompletedTask;
     }
 
     public ValueTask OptionAsync(OptionRequest request, CommandContext<GeneratedSessionState> context,
-    CancellationToken token) {
-      _unknownOptions++;
+      CancellationToken token) {
+      UnknownOptions++;
       return ValueTask.CompletedTask;
     }
 
     public ValueTask ResetAsync(CommandContext<GeneratedSessionState> context, CancellationToken token) {
-      _resets++;
+      Resets++;
       return ValueTask.CompletedTask;
     }
 
     public ValueTask ClosedAsync(GeneratedSessionState state, SessionEnd reason, CancellationToken token) {
-      _closures++;
+      Closures++;
       return ValueTask.CompletedTask;
     }
   }

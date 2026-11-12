@@ -11,17 +11,17 @@ namespace AssuanLibrary.Tests.Documentation;
 public sealed partial class SnippetTests {
   [Fact]
   public void NuGetAndGettingStartedSnippetsCompileAgainstPublicRuntime() {
-    var root = ManifestTests._repository;
+    var root = ManifestTests.Repository;
     foreach (var path in new[] { "docs/nuget/README.md", "docs/guides/getting-started.md" }) {
       var content = File.ReadAllText(Path.Combine(root, path));
-      var snippet = Assert.Single(SnippetRegex().Matches(content)).Groups[1].Value;
+      var snippet = Assert.Single(SnippetRegex().Matches(content)).Groups["code"].Value;
       Assert.Empty(Errors(snippet));
     }
   }
 
   [Fact]
   public void CompiledExampleSnippetMatchesPublishedPrimitiveWorkflow() {
-    var root = ManifestTests._repository;
+    var root = ManifestTests.Repository;
     var code = File.ReadAllText(Path.Combine(root, "examples/AssuanLibrary.Examples/SExpressionExample.cs"));
     var start = code.IndexOf("// <snippet:sexpressions>", StringComparison.Ordinal);
     var end = code.IndexOf("// </snippet:sexpressions>", StringComparison.Ordinal);
@@ -46,6 +46,7 @@ public sealed partial class SnippetTests {
     return compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).ToArray();
   }
 
-  [GeneratedRegex(@"```csharp\s*\r?\n(.*?)\r?\n```", RegexOptions.Singleline)]
+  [GeneratedRegex(@"```csharp\s*\r?\n(?<code>.*?)\r?\n```", RegexOptions.Singleline | RegexOptions.ExplicitCapture,
+    5000)]
   private static partial Regex SnippetRegex();
 }

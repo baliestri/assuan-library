@@ -101,7 +101,7 @@ public sealed class InquiryCompatibilityTests {
     using var ev = Assert.IsType<ClientEventLease>(await tx.ReadNextAsync(TestContext.Current.CancellationToken));
     using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var pending = ev.Inquiry.CancelAsync(cancelled.Token);
-    await peer._started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await peer.Started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     await cancelled.CancelAsync();
     var error = await Assert.ThrowsAsync<ClientException>(() => pending);
     Assert.Equal(ClientErrorKind.Cancelled, error.Kind);
@@ -113,9 +113,11 @@ public sealed class InquiryCompatibilityTests {
   }
 
   private sealed class PendingCanStream : ScriptedClientStream {
+    internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    internal readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     internal PendingCanStream() : base("OK\n"u8.ToArray(), "INQUIRE PIN\n"u8.ToArray()) { }
+
     internal ReadOnlyMemory<byte> Pending { get; private set; }
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken token = default) {
@@ -124,7 +126,7 @@ public sealed class InquiryCompatibilityTests {
       }
 
       Pending = buffer;
-      _started.SetResult();
+      Started.SetResult();
       return new ValueTask(_release.Task); // Deliberately ignores cancellation.
     }
 

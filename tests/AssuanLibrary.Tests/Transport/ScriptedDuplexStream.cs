@@ -9,7 +9,7 @@ internal class ScriptedDuplexStream(byte[] incoming, int maxRead = 1000) : Strea
   internal int WriteCalls { get; private set; }
   internal int FlushCalls { get; private set; }
   internal bool Disposed { get; private set; }
-  internal bool FailAfterPrefix { get; set; }
+  internal bool FailAfterPrefix { get; init; }
   internal List<byte> Written { get; } = [];
 
   public override bool CanRead => !Disposed;
@@ -50,9 +50,13 @@ internal class ScriptedDuplexStream(byte[] incoming, int maxRead = 1000) : Strea
   }
 
   public override void Flush() => ++FlushCalls;
+
   public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
   public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
   public override void SetLength(long value) => throw new NotSupportedException();
+
   public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
   protected override void Dispose(bool disposing) {

@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
@@ -14,6 +15,7 @@ namespace AssuanLibrary.Tests.Interop;
 
 public sealed class ServerPeerInteropTests {
   [Fact]
+  [SuppressMessage("ReSharper", "UseUtf8StringLiteral", Justification = "Binary fixture bytes, not text.")]
   public void PublicBinaryFixtureHasAnAsciiSafeWireRepresentation() {
     var output = new byte[1000];
     var result = ProtocolEncoder.EncodeDataChunk(new byte[] { 0, (byte)'%' }, output);
@@ -22,8 +24,14 @@ public sealed class ServerPeerInteropTests {
 
   [Fact]
   public async Task IndependentGnuPgPeerCanDriveTheUnixServer() {
-    if (!GnuPgFixture.Required) return;
-    if (OperatingSystem.IsWindows()) return;
+    if (!GnuPgFixture.Required) {
+      return;
+    }
+
+    if (OperatingSystem.IsWindows()) {
+      return;
+    }
+
     await using var fixture = new GnuPgFixture(GnuPgTools.FromEnvironment());
     var socket = Path.Combine(fixture.Home, "peer");
     var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(socket));
@@ -44,7 +52,10 @@ public sealed class ServerPeerInteropTests {
 
   [Fact]
   public async Task LiteralTcpPeerObservesPercentEncodedBinaryData() {
-    if (!GnuPgFixture.Required) return;
+    if (!GnuPgFixture.Required) {
+      return;
+    }
+
     GnuPgTools.FromEnvironment();
     await using var listener = TcpAcceptor.Bind(new IPEndPoint(IPAddress.Loopback, 0));
     var host = CreateBinaryServer();
@@ -64,8 +75,14 @@ public sealed class ServerPeerInteropTests {
 
   [Fact]
   public async Task WindowsBytePipeAcceptsAnIndependentPeer() {
-    if (!GnuPgFixture.Required) return;
-    if (!OperatingSystem.IsWindows()) return;
+    if (!GnuPgFixture.Required) {
+      return;
+    }
+
+    if (!OperatingSystem.IsWindows()) {
+      return;
+    }
+
     GnuPgTools.FromEnvironment();
     var name = "assuan-interop-" + Guid.NewGuid().ToString("N");
     await using var listener = PipeAcceptor.Bind(LocalEndpoint.NamedPipe(@"\\.\pipe\" + name));
@@ -92,12 +109,12 @@ public sealed class ServerPeerInteropTests {
 
   private static async Task AssertWireExchangeAsync(Stream stream, CancellationToken token) {
     var greeting = new byte[3];
-    await stream.ReadExactlyAsync(greeting, token);
+    await stream.ReadExactlyAsync(greeting, token).ConfigureAwait(false);
     Assert.Equal("OK\n"u8.ToArray(), greeting);
-    await stream.WriteAsync("BINARY\nBYE\n"u8.ToArray(), token);
+    await stream.WriteAsync("BINARY\nBYE\n"u8.ToArray(), token).ConfigureAwait(false);
     var expected = "D %00%25\nOK\nOK\n"u8.ToArray();
     var response = new byte[expected.Length];
-    await stream.ReadExactlyAsync(response, token);
+    await stream.ReadExactlyAsync(response, token).ConfigureAwait(false);
     Assert.Equal(expected, response);
   }
 
@@ -105,6 +122,7 @@ public sealed class ServerPeerInteropTests {
     public string Name => "BINARY";
     public string Description => "Public fixed binary response";
 
+    [SuppressMessage("ReSharper", "UseUtf8StringLiteral", Justification = "Binary fixture bytes, not text.")]
     public ValueTask HandleAsync(CommandContext<object> context, CancellationToken token)
       => context.SendDataAsync(new byte[] { 0, (byte)'%' }, token);
   }

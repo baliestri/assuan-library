@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -14,6 +15,8 @@ public sealed class AgentConnectionTests {
   [Theory]
   [InlineData(false)]
   [InlineData(true)]
+  [SuppressMessage("ReSharper", "AccessToDisposedClosure",
+    Justification = "The connect delegate runs and fails inside this method, before the stream's scope ends.")]
   public async Task PendingNonceWriteRetainsSecretUntilCompletionAfterTimeoutOrCancellation(bool cancel) {
     var secret = new SecretBuffer(16);
     var nonce = Enumerable.Range(0, 16).Select(value => (byte)value).ToArray();
@@ -23,19 +26,20 @@ public sealed class AgentConnectionTests {
     using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var connecting = resolved.ConnectWithAsync((_, _, _) => Task.FromResult<Stream>(stream),
       cancel ? TimeSpan.FromSeconds(2) : TimeSpan.FromMilliseconds(100), cancellation.Token);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+    await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     if (cancel) {
       await cancellation.CancelAsync();
     }
 
     var error = await Assert.ThrowsAsync<TransportException>(() => connecting);
     Assert.Equal(cancel ? TransportErrorKind.Cancelled : TransportErrorKind.Timeout, error.Kind);
-    Assert.True(stream._closed);
+    Assert.True(stream.Closed);
     resolved.Dispose();
     Assert.Equal(nonce, secret.Expose().ToArray()); // Still borrowed by the pending write.
     Assert.Equal(nonce, stream.PendingNonce.ToArray());
     stream.Finish();
-    Assert.True(SpinWait.SpinUntil(() => {
+    Assert.True(SpinWait.SpinUntil(() =>
+    {
       try {
         _ = secret.Length;
         return false;
@@ -85,7 +89,7 @@ public sealed class AgentConnectionTests {
     }
 
     using var fixture = new AgentFixture();
-    File.WriteAllBytes(fixture.SocketFile, new byte[1024]);
+    await File.WriteAllBytesAsync(fixture.SocketFile, new byte[1024], TestContext.Current.CancellationToken);
     var error = await Assert.ThrowsAsync<DiscoveryException>(() =>
       new AgentLocator(fixture.Executable, fixture.Home).ResolveAsync(TestContext.Current.CancellationToken));
     Assert.Equal(DiscoveryErrorKind.InvalidOutput, error.Kind);
@@ -93,21 +97,21 @@ public sealed class AgentConnectionTests {
   }
 
   private sealed class DelayedNonceStream : MemoryStream {
+    internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    internal readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    internal bool _closed;
+    internal bool Closed;
     internal ReadOnlyMemory<byte> PendingNonce { get; private set; }
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) {
       PendingNonce = buffer;
-      _started.SetResult();
+      Started.SetResult();
       return new ValueTask(_release.Task);
     }
 
     internal void Finish() => _release.SetResult();
 
     protected override void Dispose(bool disposing) {
-      _closed = true;
+      Closed = true;
       base.Dispose(disposing);
     }
   }

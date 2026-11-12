@@ -9,9 +9,7 @@ public sealed class RustCompatibilityTests {
   [Fact]
   public void BinaryPayloadRoundTripsAcrossAsManyDLinesAsNeeded() {
     var input = new byte[8192];
-    for (var index = 0; index < input.Length; ++index) {
-      input[index] = (byte)index;
-    }
+    for (var index = 0; index < input.Length; ++index) input[index] = (byte)index;
 
     var remaining = input.AsSpan();
     var collected = new List<byte>();

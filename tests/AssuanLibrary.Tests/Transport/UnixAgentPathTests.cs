@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Text;
 using AssuanLibrary.Transport;
@@ -13,7 +14,10 @@ namespace AssuanLibrary.Tests.Transport;
 public sealed class UnixAgentPathTests {
   [Fact]
   public void DiscoveryFixtureSocketFitsTheHostedMacOsPathBudget() {
-    if (OperatingSystem.IsWindows()) return;
+    if (OperatingSystem.IsWindows()) {
+      return;
+    }
+
     using var fixture = new AgentFixture();
     var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
     var relative = Path.GetRelativePath(repository, fixture.SocketFile).Replace('\\', '/');
@@ -66,10 +70,14 @@ public sealed class UnixAgentPathTests {
   }
 
   [Fact]
+  [SuppressMessage("ReSharper", "DisposeOnUsingVariable",
+    Justification = "The listener must close before its raw path is unlinked; the using keeps cleanup on failure.")]
   public async Task InvalidUtf8PathBytesReachTheExactRawLinuxSocket() {
     // macOS preserves gpgconf's raw bytes above but its native bind rejects
     // a filesystem socket pathname containing malformed UTF-8.
-    if (!OperatingSystem.IsLinux()) return;
+    if (!OperatingSystem.IsLinux()) {
+      return;
+    }
 
     using var fixture = new AgentFixture();
     var rawPath = InvalidUtf8SocketPath(fixture.Home);

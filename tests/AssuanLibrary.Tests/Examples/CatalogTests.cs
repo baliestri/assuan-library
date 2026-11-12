@@ -10,9 +10,8 @@ public sealed class CatalogTests {
   public void ReadmeDocumentsAllExampleEntryPointsAndTheBreakingVersion() {
     var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
     var readme = File.ReadAllText(Path.Combine(repository, "README.adoc"));
-    foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" }) {
+    foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" })
       Assert.Contains("--example " + name, readme);
-    }
 
     Assert.Contains("--list", readme);
     Assert.Contains("2.0.0", readme);
@@ -26,9 +25,8 @@ public sealed class CatalogTests {
     var result = await ExampleCatalog.RunAsync(["--list"], new StringReader(""), output, error,
       TestContext.Current.CancellationToken);
     Assert.Equal(0, result);
-    foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" }) {
+    foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" })
       Assert.Contains(name, output.ToString());
-    }
 
     Assert.Equal(5, output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     Assert.Empty(error.ToString());

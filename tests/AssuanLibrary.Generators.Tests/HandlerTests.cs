@@ -9,16 +9,16 @@ namespace AssuanLibrary.Generators.Tests;
 
 public sealed class HandlerTests {
   private const string VALID = """
-                               namespace Consumer {
-                                 public sealed class State { }
-                                 public partial class Demo {
-                                   [AssuanLibrary.Attributes.AssuanCommandHandler("ECHO", "Echoes arguments")]
-                                   private static System.Threading.Tasks.ValueTask EchoAsync(
-                                     AssuanLibrary.Server.CommandContext<State> ctx,
-                                     System.Threading.CancellationToken ct) => ctx.SendDataAsync(ctx.Arguments, ct);
-                                 }
-                               }
-                               """;
+    namespace Consumer {
+      public sealed class State { }
+      public partial class Demo {
+        [AssuanLibrary.Attributes.AssuanCommandHandler("ECHO", "Echoes arguments")]
+        private static System.Threading.Tasks.ValueTask EchoAsync(
+          AssuanLibrary.Server.CommandContext<State> ctx,
+          System.Threading.CancellationToken ct) => ctx.SendDataAsync(ctx.Arguments, ct);
+      }
+    }
+    """;
 
   [Fact]
   public void ValidPrivateStaticHandlerEmitsACompilableExplicitAdapter() {
@@ -59,15 +59,18 @@ public sealed class HandlerTests {
   }
 
   [Theory]
-  [InlineData("private static System.Threading.Tasks.ValueTask EchoAsync", "private static System.Threading.Tasks.Task EchoAsync")]
-  [InlineData("private static System.Threading.Tasks.ValueTask EchoAsync", "private System.Threading.Tasks.ValueTask EchoAsync")]
+  [InlineData("private static System.Threading.Tasks.ValueTask EchoAsync",
+    "private static System.Threading.Tasks.Task EchoAsync")]
+  [InlineData("private static System.Threading.Tasks.ValueTask EchoAsync",
+    "private System.Threading.Tasks.ValueTask EchoAsync")]
   [InlineData("System.Threading.CancellationToken ct", "int ct")]
   [InlineData("EchoAsync(", "EchoAsync<T>(")]
   public void InvalidHandlerSignatureIsDiagnosedWithoutGeneratedAdapter(string original, string replacement) {
     var source = VALID.Replace(original, replacement);
-    Assert.NotEqual(VALID, source);
+    Assert.NotEqual(VALID, source, StringComparer.Ordinal);
     var result = GeneratorHarness.Compile(source);
-    Assert.Contains(result.GeneratorDiagnostics, diagnostic => diagnostic.Id == "ASG006");
+    Assert.Contains(result.GeneratorDiagnostics,
+      diagnostic => string.Equals(diagnostic.Id, "ASG006", StringComparison.Ordinal));
     Assert.Empty(result.GeneratedSources);
   }
 
@@ -79,7 +82,8 @@ public sealed class HandlerTests {
     var source = VALID.Replace("\"ECHO\", \"Echoes arguments\"",
       "\"" + name + "\", \"" + description.Replace("\n", "\\n") + "\"");
     var result = GeneratorHarness.Compile(source);
-    Assert.Contains(result.GeneratorDiagnostics, diagnostic => diagnostic.Id == "ASG007");
+    Assert.Contains(result.GeneratorDiagnostics,
+      diagnostic => string.Equals(diagnostic.Id, "ASG007", StringComparison.Ordinal));
     Assert.Empty(result.GeneratedSources);
     Assert.DoesNotContain("bad name", string.Join(" ", result.GeneratorDiagnostics.Select(item => item.ToString())));
   }
@@ -88,32 +92,35 @@ public sealed class HandlerTests {
   public void ExistingGeneratedPropertyAndNonpartialContainerAreDiagnosed() {
     var duplicate = GeneratorHarness.Compile(VALID.Replace("public partial class Demo {",
       "public partial class Demo { public static int EchoAsyncHandler => 1;"));
-    Assert.Contains(duplicate.GeneratorDiagnostics, diagnostic => diagnostic.Id == "ASG002");
+    Assert.Contains(duplicate.GeneratorDiagnostics,
+      diagnostic => string.Equals(diagnostic.Id, "ASG002", StringComparison.Ordinal));
     Assert.Empty(duplicate.GeneratedSources);
     var nonpartial = GeneratorHarness.Compile(VALID.Replace("public partial class Demo", "public class Demo"));
-    Assert.Contains(nonpartial.GeneratorDiagnostics, diagnostic => diagnostic.Id == "ASG001");
+    Assert.Contains(nonpartial.GeneratorDiagnostics,
+      diagnostic => string.Equals(diagnostic.Id, "ASG001", StringComparison.Ordinal));
     Assert.Empty(nonpartial.GeneratedSources);
   }
 
   [Fact]
   public void PrivateStateTypeCannotLeakThroughGeneratedPublicHandlerProperty() {
     var result = GeneratorHarness.Compile("""
-                                          public partial class Demo {
-                                            private sealed class PrivateState { }
-                                            [AssuanLibrary.Attributes.AssuanCommandHandler("ECHO", "Echo")]
-                                            private static System.Threading.Tasks.ValueTask EchoAsync(
-                                              AssuanLibrary.Server.CommandContext<PrivateState> context,
-                                              System.Threading.CancellationToken token) => System.Threading.Tasks.ValueTask.CompletedTask;
-                                          }
-                                          """);
-    Assert.Contains(result.GeneratorDiagnostics, item => item.Id == "ASG006");
+      public partial class Demo {
+        private sealed class PrivateState { }
+        [AssuanLibrary.Attributes.AssuanCommandHandler("ECHO", "Echo")]
+        private static System.Threading.Tasks.ValueTask EchoAsync(
+          AssuanLibrary.Server.CommandContext<PrivateState> context,
+          System.Threading.CancellationToken token) => System.Threading.Tasks.ValueTask.CompletedTask;
+      }
+      """);
+    Assert.Contains(result.GeneratorDiagnostics, item => string.Equals(item.Id, "ASG006", StringComparison.Ordinal));
     Assert.Empty(result.GeneratedSources);
     Assert.Empty(result.OutputCompilationErrors);
   }
 
   [Fact]
   public void StaticPartialContainerProducesACompilableHandlerAdapter() {
-    var result = GeneratorHarness.Compile(VALID.Replace("public partial class Demo", "public static partial class Demo"));
+    var result =
+      GeneratorHarness.Compile(VALID.Replace("public partial class Demo", "public static partial class Demo"));
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
     Assert.Contains("static partial class Demo", Assert.Single(result.GeneratedSources));
@@ -127,7 +134,11 @@ public sealed class HandlerTests {
     public override bool CanWrite => true;
     public override bool CanSeek => false;
     public override long Length => throw new NotSupportedException();
-    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+    public override long Position {
+      get => throw new NotSupportedException();
+      set => throw new NotSupportedException();
+    }
 
     public override int Read(byte[] buffer, int offset, int count)
       => _input.Read(buffer, offset, count);

@@ -24,11 +24,11 @@ internal sealed class ReleaseFixture : IDisposable {
       "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework>" +
       (versionProperty ? "<Version>1.2.0</Version>" : "") + "</PropertyGroup></Project>\n");
     foreach (var path in new[] {
-                "README.adoc", "docs/nuget/README.md", "docs/guides/getting-started.md",
-                "cliff.toml"
-              }) {
+               "README.adoc", "docs/nuget/README.md", "docs/guides/getting-started.md",
+               "cliff.toml"
+             })
       File.Copy(Path.Combine(ToolsRoot, path), Path.Combine(Root, path));
-    }
+
     var packageReadme = Path.Combine(Root, "docs", "nuget", "README.md");
     File.WriteAllText(packageReadme, BaselinePackageReadme(File.ReadAllText(packageReadme)));
 
@@ -63,34 +63,39 @@ internal sealed class ReleaseFixture : IDisposable {
   internal string Root { get; }
   internal static string ToolsRoot { get; } = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
 
-  internal static string HistoricalChangelog => "# Assuan Library .NET Changelog\n\n## [1.2.0] - historical\n\nLegacy entry.\n";
+  internal static string HistoricalChangelog
+    => "# Assuan Library .NET Changelog\n\n## [1.2.0] - historical\n\nLegacy entry.\n";
+
+  internal string Head => Git("rev-parse", "HEAD").Trim();
+
+  public void Dispose() {
+    foreach (var path in Directory.EnumerateFiles(_parent, "*", SearchOption.AllDirectories))
+      File.SetAttributes(path, FileAttributes.Normal);
+
+    Directory.Delete(_parent, true);
+  }
+
   internal static string BaselinePackageReadme(string content) {
-    var matches = Regex.Matches(content, @"dotnet add package AssuanLibrary --version (?<version>2\.[0-9]+\.[0-9]+)");
+    var matches = Regex.Matches(content,
+      @"dotnet add package AssuanLibrary --version (?<version>2\.[0-9]+\.[0-9]+)",
+      RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
     if (matches.Count != 1) {
       throw new InvalidDataException("The fixture requires exactly one package installation command.");
     }
 
     var version = matches[0].Groups["version"].Value;
-    return content.Replace(matches[0].Value, "dotnet add package AssuanLibrary --version 2.0.0", StringComparison.Ordinal)
+    return content.Replace(matches[0].Value, "dotnet add package AssuanLibrary --version 2.0.0",
+        StringComparison.Ordinal)
       .Replace($"https://baliestri.github.io/assuan-library/{version}/",
         "https://baliestri.github.io/assuan-library/2.0.0/", StringComparison.Ordinal)
       .Replace($"/tree/v{version}/examples/", "/tree/v2.0.0/examples/", StringComparison.Ordinal);
-  }
-  internal string Head => Git("rev-parse", "HEAD").Trim();
-
-  public void Dispose() {
-    foreach (var path in Directory.EnumerateFiles(_parent, "*", SearchOption.AllDirectories)) {
-      File.SetAttributes(path, FileAttributes.Normal);
-    }
-
-    Directory.Delete(_parent, true);
   }
 
   internal string Git(params string[] arguments)
     => GitIn(Root, arguments);
 
   internal async Task<(int ExitCode, string Output)> PrepareAsync(string version = "2.0.0", bool dryRun = true,
-  params string[] extra) {
+    params string[] extra) {
     var arguments = new List<string> {
       "-NoProfile", "-NonInteractive", "-File",
       Path.Combine(ToolsRoot, "scripts", "release", "Prepare-Version.ps1"), "-Root", Root,
@@ -98,7 +103,7 @@ internal sealed class ReleaseFixture : IDisposable {
       dryRun ? "-DryRun" : "-Fixture"
     };
     arguments.AddRange(extra);
-    return await RunAsync("pwsh", ToolsRoot, arguments.ToArray());
+    return await RunAsync("pwsh", ToolsRoot, arguments.ToArray()).ConfigureAwait(false);
   }
 
   internal Task<(int ExitCode, string Output)> ResumeAsync(string sha, string version = "2.0.0")
@@ -116,14 +121,12 @@ internal sealed class ReleaseFixture : IDisposable {
   }
 
   private static async Task<(int ExitCode, string Output)> RunAsync(string executable, string directory,
-  params string[] arguments) {
+    params string[] arguments) {
     var start = new ProcessStartInfo(executable) {
       WorkingDirectory = directory, UseShellExecute = false,
       RedirectStandardOutput = true, RedirectStandardError = true
     };
-    foreach (var argument in arguments) {
-      start.ArgumentList.Add(argument);
-    }
+    foreach (var argument in arguments) start.ArgumentList.Add(argument);
 
     start.Environment["GIT_AUTHOR_NAME"] = "Fixture Author";
     start.Environment["GIT_AUTHOR_EMAIL"] = "fixture@example.invalid";
@@ -132,7 +135,7 @@ internal sealed class ReleaseFixture : IDisposable {
     using var process = Process.Start(start)!;
     var stdout = process.StandardOutput.ReadToEndAsync();
     var stderr = process.StandardError.ReadToEndAsync();
-    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(2));
-    return (process.ExitCode, await stdout + await stderr);
+    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+    return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
   }
 }

@@ -21,7 +21,7 @@ switch (mode) {
     stdout.Write(output);
     return 23;
   case "stderr":
-    stderr.Write(new byte[(1024 * 1024) + 1]);
+    stderr.Write(new byte[1024 * 1024 + 1]);
     return 0;
   case "aggregate":
     stdout.Write(new byte[600_000]);
@@ -29,7 +29,7 @@ switch (mode) {
     return 0;
   case "timeout":
     File.WriteAllText(Path.Combine(home, "pid.txt"), Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
-    await Task.Delay(TimeSpan.FromSeconds(30));
+    await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
     File.WriteAllText(Path.Combine(home, "completed.txt"), "unexpected");
     return 0;
   default:

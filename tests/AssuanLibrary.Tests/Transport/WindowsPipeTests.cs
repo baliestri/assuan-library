@@ -65,7 +65,7 @@ public sealed class WindowsPipeTests {
     using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(token);
     await cancelled.CancelAsync();
     var error = await Assert.ThrowsAsync<TransportException>(async () =>
-      await listener.AcceptAsync(cancelled.Token));
+      await listener.AcceptAsync(cancelled.Token).ConfigureAwait(false));
     Assert.Equal(TransportErrorKind.Cancelled, error.Kind);
     var accepting = listener.AcceptAsync(token);
     var client = await PipeConnector.ConnectAsync(endpoint, cancellationToken: token);
@@ -78,7 +78,8 @@ public sealed class WindowsPipeTests {
     Assert.True(received.AsSpan().SequenceEqual("unread data"u8));
     try {
       var tail = new byte[1];
-      Assert.Equal(0, await server.ReadAsync(tail.AsMemory(), token).AsTask().WaitAsync(TimeSpan.FromSeconds(1), token));
+      Assert.Equal(0,
+        await server.ReadAsync(tail.AsMemory(), token).AsTask().WaitAsync(TimeSpan.FromSeconds(1), token));
     }
     catch (IOException) {
       // A closed pipe can report either EOF or broken pipe depending on the OS.
@@ -97,7 +98,7 @@ public sealed class WindowsPipeTests {
     using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(token);
     var pending = listener.AcceptAsync(cancelled.Token);
     cancelled.CancelAfter(TimeSpan.FromMilliseconds(30));
-    var error = await Assert.ThrowsAsync<TransportException>(async () => await pending);
+    var error = await Assert.ThrowsAsync<TransportException>(async () => await pending.ConfigureAwait(false));
     Assert.Equal(TransportErrorKind.Cancelled, error.Kind);
     var next = listener.AcceptAsync(token);
     await using var client = await PipeConnector.ConnectAsync(endpoint, cancellationToken: token);

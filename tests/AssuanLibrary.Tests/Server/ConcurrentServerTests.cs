@@ -1,9 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Threading.Channels;
 using AssuanLibrary.Server;
-using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Tests.Server;
 
@@ -11,10 +9,11 @@ public sealed class ConcurrentServerTests {
   [Fact]
   public async Task ConfigurationClosesAtFirstServeAndCannotBeReused() {
     var constructed = 0;
-    var server = new AssuanServer<object>(() => {
-      Interlocked.Increment(ref constructed);
-      return new object();
-    },
+    var server = new AssuanServer<object>(() =>
+      {
+        Interlocked.Increment(ref constructed);
+        return new object();
+      },
       ServerOptions.Default);
     server.Register(new NoopHandler());
     server.SetHooks(new DefaultSessionHooks<object>());
@@ -36,7 +35,8 @@ public sealed class ConcurrentServerTests {
     var server = new AssuanServer<object>(() => new object(), ServerOptions.Default);
     await server.DisposeAsync();
     Assert.Throws<ObjectDisposedException>(() => server.Register(new NoopHandler()));
-    Assert.Throws<ObjectDisposedException>(() => {
+    Assert.Throws<ObjectDisposedException>(() =>
+    {
       _ = server.ServeAsync(new ControlledAcceptor(), TestContext.Current.CancellationToken);
     });
   }
@@ -55,7 +55,7 @@ public sealed class ConcurrentServerTests {
     acceptor.Enqueue(first);
     await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     acceptor.Enqueue(second);
-    Assert.Equal(1, Volatile.Read(ref acceptor._acceptCalls));
+    Assert.Equal(1, Volatile.Read(ref acceptor.AcceptCalls));
     release.SetResult();
     await acceptor.WaitForCallsAsync(2, TestContext.Current.CancellationToken);
     await server.WhenDrainedAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5),
@@ -74,10 +74,11 @@ public sealed class ConcurrentServerTests {
     var first = new SessionDuplexStream("WAIT\nBYE\n"u8.ToArray());
     var second = new SessionDuplexStream("BYE\n"u8.ToArray());
     var constructed = 0;
-    var server = new AssuanServer<object>(() => {
-      Interlocked.Increment(ref constructed);
-      return new object();
-    },
+    var server = new AssuanServer<object>(() =>
+      {
+        Interlocked.Increment(ref constructed);
+        return new object();
+      },
       new ServerOptions(maxSessions: 2));
     server.Register(new WaitingHandler(entered, release));
     using var stop = new CancellationTokenSource();
@@ -123,7 +124,7 @@ public sealed class ConcurrentServerTests {
     internal WaitingForIdleStream() : base(ReadOnlyMemory<byte>.Empty) { }
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) {
-      await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+      await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
       return 0;
     }
   }
@@ -143,43 +144,7 @@ public sealed class ConcurrentServerTests {
 
     public async ValueTask HandleAsync(CommandContext<object> context, CancellationToken token) {
       entered.TrySetResult();
-      await release.Task; // Deliberately held to exercise permit ownership.
-    }
-  }
-}
-
-internal sealed class ControlledAcceptor : IAssuanAcceptor {
-  internal readonly TaskCompletionSource _firstAccept = new(TaskCreationOptions.RunContinuationsAsynchronously);
-  private readonly Channel<AcceptedConnection> _queue = Channel.CreateUnbounded<AcceptedConnection>();
-  internal int _acceptCalls;
-  internal bool _disposed;
-
-  public async ValueTask<AcceptedConnection> AcceptAsync(CancellationToken cancellationToken = default) {
-    Interlocked.Increment(ref _acceptCalls);
-    _firstAccept.TrySetResult();
-    return await _queue.Reader.ReadAsync(cancellationToken);
-  }
-
-  public ValueTask DisposeAsync() {
-    _disposed = true;
-    _queue.Writer.TryComplete();
-    while (_queue.Reader.TryRead(out var connection)) {
-      connection.Stream.Dispose();
-    }
-
-    return ValueTask.CompletedTask;
-  }
-
-  internal void Enqueue(Stream stream) => _queue.Writer.TryWrite(new AcceptedConnection(stream));
-
-  internal async Task WaitForCallsAsync(int count, CancellationToken token)
-    => await WaitUntilAsync(() => Volatile.Read(ref _acceptCalls) >= count, token);
-
-  internal static async Task WaitUntilAsync(Func<bool> ready, CancellationToken token) {
-    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-    timeout.CancelAfter(TimeSpan.FromSeconds(5));
-    while (!ready()) {
-      await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
+      await release.Task.ConfigureAwait(false); // Deliberately held to exercise permit ownership.
     }
   }
 }

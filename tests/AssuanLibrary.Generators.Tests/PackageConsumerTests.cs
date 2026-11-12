@@ -8,27 +8,31 @@ using System.Xml.Linq;
 namespace AssuanLibrary.Generators.Tests;
 
 public sealed class PackageConsumerTests {
-  private static readonly string _repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-  private static readonly string _packageDirectory = Path.Combine(_repository, "artifacts", "packages");
+  private readonly static string Repository =
+    Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+
+  private readonly static string PackageDirectory = Path.Combine(Repository, "artifacts", "packages");
 
   [Fact]
   public async Task MainPackageContainsOneAnalyzerAndNoMandatoryMicrosoftDependencies() {
-    Directory.CreateDirectory(_packageDirectory);
-    await RunDotnetAsync(_repository, "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
-      "--no-restore", "-o", _packageDirectory);
-    var package = Directory.EnumerateFiles(_packageDirectory, "AssuanLibrary.*.nupkg")
+    Directory.CreateDirectory(PackageDirectory);
+    await RunDotnetAsync(Repository, "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
+      "--no-restore", "-o", PackageDirectory);
+    var package = Directory.EnumerateFiles(PackageDirectory, "AssuanLibrary.*.nupkg")
       .OrderByDescending(File.GetLastWriteTimeUtc).First();
-    await using var archive = ZipFile.OpenRead(package);
-    Assert.Single(archive.Entries, item => item.FullName == "lib/net10.0/AssuanLibrary.dll");
-    Assert.Single(archive.Entries, item => item.FullName == "README.md");
-    Assert.Single(archive.Entries, item => item.FullName == "LICENSE.md");
-    Assert.Single(archive.Entries, item => item.FullName ==
-                                           "analyzers/dotnet/cs/AssuanLibrary.Generators.dll");
+    await using var archive = await ZipFile.OpenReadAsync(package, TestContext.Current.CancellationToken);
+    Assert.Single(archive.Entries,
+      item => string.Equals(item.FullName, "lib/net10.0/AssuanLibrary.dll", StringComparison.Ordinal));
+    Assert.Single(archive.Entries, item => string.Equals(item.FullName, "README.md", StringComparison.Ordinal));
+    Assert.Single(archive.Entries, item => string.Equals(item.FullName, "LICENSE.md", StringComparison.Ordinal));
+    Assert.Single(archive.Entries,
+      item => string.Equals(item.FullName, "analyzers/dotnet/cs/AssuanLibrary.Generators.dll",
+        StringComparison.Ordinal));
     Assert.DoesNotContain(archive.Entries, item => item.FullName.StartsWith("lib/", StringComparison.Ordinal) &&
                                                    (item.Name.Contains("Generators", StringComparison.Ordinal) ||
                                                     item.Name.Contains("CodeAnalysis", StringComparison.Ordinal)));
     var nuspec = Assert.Single(archive.Entries, item => item.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
-    await using var nuspecStream = nuspec.Open();
+    await using var nuspecStream = await nuspec.OpenAsync(TestContext.Current.CancellationToken);
     var document = XDocument.Load(nuspecStream);
     var metadata = document.Root!.Element(document.Root.Name.Namespace + "metadata")!;
     var ns = metadata.Name.Namespace;
@@ -38,51 +42,55 @@ public sealed class PackageConsumerTests {
     Assert.Equal("LICENSE.md", metadata.Element(ns + "license")?.Value);
     Assert.Equal("file", metadata.Element(ns + "license")?.Attribute("type")?.Value);
     Assert.Equal("https://github.com/baliestri/assuan-library", metadata.Element(ns + "projectUrl")?.Value);
-    Assert.Equal("https://github.com/baliestri/assuan-library", metadata.Element(ns + "repository")?.Attribute("url")?.Value);
+    Assert.Equal("https://github.com/baliestri/assuan-library",
+      metadata.Element(ns + "repository")?.Attribute("url")?.Value);
     Assert.Equal("git", metadata.Element(ns + "repository")?.Attribute("type")?.Value);
     Assert.Equal("assuan gpg gpgme gnupg", metadata.Element(ns + "tags")?.Value);
     var xml = document.ToString();
     Assert.DoesNotContain("Microsoft.Extensions", xml);
     Assert.DoesNotContain("AssuanLibrary.Generators", xml);
-    Assert.Empty(Directory.EnumerateFiles(_packageDirectory, "AssuanLibrary.Generators.*.nupkg"));
+    Assert.Empty(Directory.EnumerateFiles(PackageDirectory, "AssuanLibrary.Generators.*.nupkg"));
   }
 
   [Fact]
   public async Task InstalledPackageGeneratesOnlyIntegrationsSupportedByConsumerReferences() {
     var suffix = Guid.NewGuid().ToString("N");
     var version = "2.0.0-local." + suffix;
-    var packages = Path.Combine(_packageDirectory, suffix);
+    var packages = Path.Combine(PackageDirectory, suffix);
     Directory.CreateDirectory(packages);
-    await RunDotnetAsync(_repository, "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
+    await RunDotnetAsync(Repository, "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
       "--no-restore", "-o", packages, "-p:PackageVersion=" + version);
     foreach (var (di, logging) in new[] { (false, false), (true, false), (false, true), (true, true) }) {
-      var consumer = Path.Combine(_repository, "artifacts", "integration-consumers", suffix,
+      var consumer = Path.Combine(Repository, "artifacts", "integration-consumers", suffix,
         di ? logging ? "both" : "di" : logging ? "logging" : "none");
       Directory.CreateDirectory(consumer);
-      File.WriteAllText(Path.Combine(consumer, "Directory.Build.props"), """
-                                                                         <Project><PropertyGroup>
-                                                                           <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
-                                                                           <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-                                                                           <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-                                                                         </PropertyGroup></Project>
-                                                                         """);
-      File.WriteAllText(Path.Combine(consumer, "Consumer.csproj"), """
-                                                                   <Project Sdk="Microsoft.NET.Sdk">
-                                                                     <PropertyGroup>
-                                                                       <TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType>
-                                                                       <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-                                                                     </PropertyGroup>
-                                                                     <ItemGroup>
-                                                                   """ + "\n" +
-                                                                   "<PackageReference Include=\"AssuanLibrary\" Version=\"" + version + "\" />\n" +
-                                                                   (di
-                                                                     ? "<PackageReference Include=\"Microsoft.Extensions.DependencyInjection\" Version=\"10.0.0\" />\n"
-                                                                     : "") +
-                                                                   (logging
-                                                                     ? "<PackageReference Include=\"Microsoft.Extensions.Logging.Abstractions\" Version=\"10.0.0\" />\n"
-                                                                     : "") +
-                                                                   "</ItemGroup></Project>\n");
-      File.WriteAllText(Path.Combine(consumer, "Program.cs"), ConsumerSource(di, logging));
+      await File.WriteAllTextAsync(Path.Combine(consumer, "Directory.Build.props"), """
+      <Project><PropertyGroup>
+        <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+        <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+      </PropertyGroup></Project>
+      """, TestContext.Current.CancellationToken);
+      await File.WriteAllTextAsync(Path.Combine(consumer, "Consumer.csproj"), """
+                                                                              <Project Sdk="Microsoft.NET.Sdk">
+                                                                                <PropertyGroup>
+                                                                                  <TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType>
+                                                                                  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+                                                                                </PropertyGroup>
+                                                                                <ItemGroup>
+                                                                              """ + "\n" +
+                                                                              "<PackageReference Include=\"AssuanLibrary\" Version=\"" +
+                                                                              version + "\" />\n" +
+                                                                              (di
+                                                                                ? "<PackageReference Include=\"Microsoft.Extensions.DependencyInjection\" Version=\"10.0.0\" />\n"
+                                                                                : "") +
+                                                                              (logging
+                                                                                ? "<PackageReference Include=\"Microsoft.Extensions.Logging.Abstractions\" Version=\"10.0.0\" />\n"
+                                                                                : "") +
+                                                                              "</ItemGroup></Project>\n",
+        TestContext.Current.CancellationToken);
+      await File.WriteAllTextAsync(Path.Combine(consumer, "Program.cs"), ConsumerSource(di, logging),
+        TestContext.Current.CancellationToken);
       await RunDotnetAsync(consumer, "restore", "Consumer.csproj", "--source", packages);
       await RunDotnetAsync(consumer, "build", "Consumer.csproj", "-c", "Release", "--no-restore");
       await RunDotnetAsync(consumer, "run", "--project", "Consumer.csproj", "-c", "Release", "--no-build");
@@ -90,43 +98,45 @@ public sealed class PackageConsumerTests {
         .Select(Path.GetFileName).ToArray();
       Assert.Contains(generated, name => name!.StartsWith("AssuanHandler_", StringComparison.Ordinal));
       Assert.Contains(generated, name => name!.StartsWith("AssuanGroup_", StringComparison.Ordinal));
-      Assert.Equal(di, generated.Any(name => name!.StartsWith("AssuanDependencyInjectionExtensions", StringComparison.Ordinal)));
-      Assert.Equal(logging, generated.Any(name => name!.StartsWith("AssuanLoggingExtensions", StringComparison.Ordinal)));
+      Assert.Equal(di,
+        generated.Any(name => name!.StartsWith("AssuanDependencyInjectionExtensions", StringComparison.Ordinal)));
+      Assert.Equal(logging,
+        generated.Any(name => name!.StartsWith("AssuanLoggingExtensions", StringComparison.Ordinal)));
     }
   }
 
   private static string ConsumerSource(bool di, bool logging)
     => """
-       using AssuanLibrary.Attributes;
-       using AssuanLibrary.Server;
-       [AssuanHandlerGroup]
-       public static partial class Commands {
-         [AssuanCommandHandler("ECHO", "Echo")]
-         private static System.Threading.Tasks.ValueTask EchoAsync(
-           CommandContext<object> context, System.Threading.CancellationToken token)
-           => context.SendDataAsync(context.Arguments, token);
-       }
-       public static class Program {
-         public static void Main() {
-           var registry = new CommandRegistry<object>();
-           Commands.RegisterHandlers(registry);
-           if (registry.Find("ECHO") is null) throw new System.Exception("Missing handler");
-       """ + "\n" + (di
+      using AssuanLibrary.Attributes;
+      using AssuanLibrary.Server;
+      [AssuanHandlerGroup]
+      public static partial class Commands {
+        [AssuanCommandHandler("ECHO", "Echo")]
+        private static System.Threading.Tasks.ValueTask EchoAsync(
+          CommandContext<object> context, System.Threading.CancellationToken token)
+          => context.SendDataAsync(context.Arguments, token);
+      }
+      public static class Program {
+        public static void Main() {
+          var registry = new CommandRegistry<object>();
+          Commands.RegisterHandlers(registry);
+          if (registry.Find("ECHO") is null) throw new System.Exception("Missing handler");
+      """ + "\n" + (di
       ? """
-            var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-            AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanServer<object>(services,
-              _ => new object(), ServerOptions.Default, new DefaultSessionHooks<object>());
-        """
+          var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+          AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanServer<object>(services,
+            _ => new object(), ServerOptions.Default, new DefaultSessionHooks<object>());
+      """
       : "") + (logging
       ? """
-            var sink = AssuanLibrary.Generated.AssuanLoggingExtensions.CreateEventSink(
-              Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
-            var info = new AssuanLibrary.Diagnostics.AssuanEvent(
-              AssuanLibrary.Diagnostics.AssuanComponent.Client,
-              AssuanLibrary.Diagnostics.AssuanEventId.RemoteFinal,
-              AssuanLibrary.Diagnostics.AssuanOutcome.RemoteError);
-            sink.Emit(in info);
-        """
+          var sink = AssuanLibrary.Generated.AssuanLoggingExtensions.CreateEventSink(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+          var info = new AssuanLibrary.Diagnostics.AssuanEvent(
+            AssuanLibrary.Diagnostics.AssuanComponent.Client,
+            AssuanLibrary.Diagnostics.AssuanEventId.RemoteFinal,
+            AssuanLibrary.Diagnostics.AssuanOutcome.RemoteError);
+          sink.Emit(in info);
+      """
       : "") + "\n  }\n}\n";
 
   private static async Task RunDotnetAsync(string directory, params string[] arguments) {
@@ -134,19 +144,17 @@ public sealed class PackageConsumerTests {
       WorkingDirectory = directory,
       RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false
     };
-    foreach (var argument in arguments) {
-      start.ArgumentList.Add(argument);
-    }
+    foreach (var argument in arguments) start.ArgumentList.Add(argument);
 
-    start.Environment["NUGET_PACKAGES"] = Path.Combine(_repository, "artifacts", "nuget-cache");
-    start.Environment["DOTNET_CLI_HOME"] = Path.Combine(_repository, "artifacts", "dotnet-home");
+    start.Environment["NUGET_PACKAGES"] = Path.Combine(Repository, "artifacts", "nuget-cache");
+    start.Environment["DOTNET_CLI_HOME"] = Path.Combine(Repository, "artifacts", "dotnet-home");
     start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
     using var process = Process.Start(start)!;
     var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
     var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
     await process.WaitForExitAsync(TestContext.Current.CancellationToken)
-      .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken);
-    var result = await stdout + await stderr;
+      .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken).ConfigureAwait(false);
+    var result = await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false);
     Assert.True(process.ExitCode == 0, result);
   }
 }

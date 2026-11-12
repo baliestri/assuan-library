@@ -21,8 +21,10 @@ public sealed class ArtifactTests {
     using var fixture = new ArtifactFixture("2.0.1");
     Assert.Equal(0, (await fixture.VerifyAsync()).ExitCode);
     Assert.Equal(0, (await fixture.BuildAsync("patch")).ExitCode);
-    File.WriteAllText(fixture.ManifestPath,
-      File.ReadAllText(fixture.ManifestPath).Replace("\"version\":\"2.0.1\"", "\"version\":\"2.0.0\""));
+    var token = TestContext.Current.CancellationToken;
+    await File.WriteAllTextAsync(fixture.ManifestPath,
+      (await File.ReadAllTextAsync(fixture.ManifestPath, token))
+      .Replace("\"version\":\"2.0.1\"", "\"version\":\"2.0.0\""), token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
   }
 
@@ -78,11 +80,13 @@ public sealed class ArtifactTests {
     Assert.NotEqual(0, (await fixture.VerifyAsync(ciSha: new string('b', 40))).ExitCode);
     Assert.NotEqual(0, (await fixture.VerifyAsync(new string('b', 40),
       new string('b', 40), new string('b', 40))).ExitCode);
-    File.WriteAllText(fixture.ChecksumPath, new string('0', 64) + "  docs-v2.0.0.zip\n");
+    var token = TestContext.Current.CancellationToken;
+    await File.WriteAllTextAsync(fixture.ChecksumPath, new string('0', 64) + "  docs-v2.0.0.zip\n", token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
     fixture.RefreshHashes();
-    File.WriteAllText(fixture.ManifestPath,
-      File.ReadAllText(fixture.ManifestPath).Replace(fixture.SourceSha, new string('b', 40)));
+    await File.WriteAllTextAsync(fixture.ManifestPath,
+      (await File.ReadAllTextAsync(fixture.ManifestPath, token)).Replace(fixture.SourceSha, new string('b', 40)),
+      token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
   }
 
@@ -95,7 +99,8 @@ public sealed class ArtifactTests {
     Assert.Equal(0, second.ExitCode);
     var left = Path.Combine(fixture.OutputRoot, "first", "docs-v2.0.0.zip");
     var right = Path.Combine(fixture.OutputRoot, "second", "docs-v2.0.0.zip");
-    Assert.Equal(File.ReadAllBytes(left), File.ReadAllBytes(right));
+    var token = TestContext.Current.CancellationToken;
+    Assert.Equal(await File.ReadAllBytesAsync(left, token), await File.ReadAllBytesAsync(right, token));
     Assert.NotEqual(0, (await fixture.BuildAsync("first")).ExitCode);
   }
 
@@ -105,15 +110,16 @@ public sealed class ArtifactTests {
     var registry = Path.Combine(fixture.OutputRoot, "registry", "AssuanLibrary.2.0.0.nupkg");
     Directory.CreateDirectory(Path.GetDirectoryName(registry)!);
     File.Copy(fixture.PackagePath, registry);
-    await using (var archive = ZipFile.Open(registry, ZipArchiveMode.Update)) {
-      await using var signature = archive.CreateEntry(".signature.p7s").Open();
+    var token = TestContext.Current.CancellationToken;
+    await using (var archive = await ZipFile.OpenAsync(registry, ZipArchiveMode.Update, token)) {
+      await using var signature = await archive.CreateEntry(".signature.p7s").OpenAsync(token);
       signature.Write("registry signature"u8);
     }
 
     Assert.Equal(0, (await fixture.CompareRegistryAsync(registry)).ExitCode);
-    await using (var archive = ZipFile.Open(registry, ZipArchiveMode.Update)) {
+    await using (var archive = await ZipFile.OpenAsync(registry, ZipArchiveMode.Update, token)) {
       archive.GetEntry("README.md")!.Delete();
-      await using var readme = archive.CreateEntry("README.md").Open();
+      await using var readme = await archive.CreateEntry("README.md").OpenAsync(token);
       readme.Write("different content"u8);
     }
 
@@ -138,7 +144,7 @@ public sealed class ArtifactTests {
     }
 
     internal string PackagePath { get; }
-    internal string DocsPath { get; }
+    private string DocsPath { get; }
     internal string ChecksumPath { get; }
     internal string ManifestPath { get; }
     internal string SourceSha => _git.Head;
@@ -150,14 +156,23 @@ public sealed class ArtifactTests {
     internal void WritePackage(string? defect = null) {
       File.Delete(PackagePath);
       using var archive = ZipFile.Open(PackagePath, ZipArchiveMode.Create);
-      var id = defect == "WrongId" ? "DifferentLibrary" : "AssuanLibrary";
-      var version = defect == "WrongVersion" ? "1.0.0" : _version;
-      var dependency = defect == "MandatoryExtensions"
+      var id = string.Equals(defect, "WrongId", StringComparison.Ordinal) ? "DifferentLibrary" : "AssuanLibrary";
+      var version = string.Equals(defect, "WrongVersion", StringComparison.Ordinal) ? "1.0.0" : _version;
+      var dependency = string.Equals(defect, "MandatoryExtensions"
+        , StringComparison.Ordinal)
         ? "<dependency id=\"Microsoft.Extensions.Logging.Abstractions\" version=\"10.0.0\" />"
         : "";
-      var authors = defect == "MissingAuthor" ? "" : "<authors>Bruno Sales</authors>";
-      var description = defect == "MissingDescription" ? "" : "<description>Binary-safe asynchronous Assuan clients and servers.</description>";
-      var repository = defect == "WrongRepository" ? "https://example.invalid" : "https://github.com/baliestri/assuan-library";
+      var authors = string.Equals(defect, "MissingAuthor", StringComparison.Ordinal)
+        ? ""
+        : "<authors>Bruno Sales</authors>";
+      var description = string.Equals(defect, "MissingDescription"
+        , StringComparison.Ordinal)
+        ? ""
+        : "<description>Binary-safe asynchronous Assuan clients and servers.</description>";
+      var repository = string.Equals(defect, "WrongRepository"
+        , StringComparison.Ordinal)
+        ? "https://example.invalid"
+        : "https://github.com/baliestri/assuan-library";
       Add(archive, "AssuanLibrary.nuspec", $"<package><metadata><id>{id}</id><version>{version}</version>" +
                                            $"{authors}{description}<copyright>Copyright (c) 2026 Bruno Sales</copyright>" +
                                            $"<projectUrl>https://github.com/baliestri/assuan-library</projectUrl>" +
@@ -167,20 +182,20 @@ public sealed class ArtifactTests {
                                            $"<dependencies><group targetFramework=\"net10.0\">{dependency}</group></dependencies></metadata></package>");
       Add(archive, "lib/net10.0/AssuanLibrary.dll", "runtime");
       Add(archive, "lib/net10.0/AssuanLibrary.xml", "<doc/>");
-      if (defect != "MissingAnalyzer") {
+      if (!string.Equals(defect, "MissingAnalyzer", StringComparison.Ordinal)) {
         Add(archive, "analyzers/dotnet/cs/AssuanLibrary.Generators.dll", "generator");
-        if (defect == "DuplicateAnalyzer") {
+        if (string.Equals(defect, "DuplicateAnalyzer", StringComparison.Ordinal)) {
           Add(archive, "analyzers/dotnet/cs/AssuanLibrary.Generators.dll", "duplicate");
         }
       }
 
-      if (defect != "MissingReadme") {
+      if (!string.Equals(defect, "MissingReadme", StringComparison.Ordinal)) {
         Add(archive, "README.md", "# AssuanLibrary\n");
       }
 
-      if (defect != "MissingLicense") {
+      if (!string.Equals(defect, "MissingLicense", StringComparison.Ordinal)) {
         Add(archive, "LICENSE.md", "MIT License\n");
-        if (defect == "DuplicateLicense") {
+        if (string.Equals(defect, "DuplicateLicense", StringComparison.Ordinal)) {
           Add(archive, "LICENSE.md", "duplicate");
         }
       }
@@ -192,11 +207,10 @@ public sealed class ArtifactTests {
       foreach (var path in new[] {
                  $"{_version}/site/index.html", $"{_version}/site/api/toc.html",
                  $"{_version}/llms.txt", $"{_version}/llms-full.txt", $"{_version}/metadata.json"
-               }) {
-        if (path != missingPath) {
+               })
+        if (!string.Equals(path, missingPath, StringComparison.Ordinal)) {
           Add(archive, path, path);
         }
-      }
 
       if (additionalPath is not null) {
         var added = Add(archive, additionalPath, "unexpected");
@@ -220,7 +234,7 @@ public sealed class ArtifactTests {
     }
 
     internal async Task<(int ExitCode, string Output)> VerifyAsync(string? preparedSha = null,
-    string? ciSha = null, string? interopSha = null) {
+      string? ciSha = null, string? interopSha = null) {
       var start = new ProcessStartInfo("pwsh") {
         WorkingDirectory = ReleaseFixture.ToolsRoot, UseShellExecute = false,
         RedirectStandardOutput = true, RedirectStandardError = true
@@ -232,15 +246,14 @@ public sealed class ArtifactTests {
                  "-CiSha", ciSha ?? _git.Head, "-InteropSha", interopSha ?? _git.Head,
                  "-PackagePath", PackagePath, "-DocsArchive", DocsPath,
                  "-ChecksumPath", ChecksumPath, "-ManifestPath", ManifestPath
-               }) {
+               })
         start.ArgumentList.Add(argument);
-      }
 
       using var process = Process.Start(start)!;
       var stdout = process.StandardOutput.ReadToEndAsync();
       var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
-      return (process.ExitCode, await stdout + await stderr);
+      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 
     internal async Task<(int ExitCode, string Output)> BuildAsync(string name) {
@@ -251,7 +264,7 @@ public sealed class ArtifactTests {
                }) {
         var filename = Path.Combine(bundle, path);
         Directory.CreateDirectory(Path.GetDirectoryName(filename)!);
-        File.WriteAllText(filename, path);
+        await File.WriteAllTextAsync(filename, path).ConfigureAwait(false);
       }
 
       var start = new ProcessStartInfo("pwsh") {
@@ -263,15 +276,14 @@ public sealed class ArtifactTests {
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Build-ReleaseArtifacts.ps1"),
                  "-Root", _git.Root, "-Version", _version, "-PreparedSha", _git.Head, "-PackagePath", PackagePath,
                  "-BundlePath", bundle, "-OutputDirectory", Path.Combine(OutputRoot, name)
-               }) {
+               })
         start.ArgumentList.Add(argument);
-      }
 
       using var process = Process.Start(start)!;
       var stdout = process.StandardOutput.ReadToEndAsync();
       var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
-      return (process.ExitCode, await stdout + await stderr);
+      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 
     internal async Task<(int ExitCode, string Output)> CompareRegistryAsync(string registryPath) {
@@ -283,15 +295,14 @@ public sealed class ArtifactTests {
                  "-NoProfile", "-NonInteractive", "-File",
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Compare-RegistryPackage.ps1"),
                  "-OriginalPath", PackagePath, "-RegistryPath", registryPath, "-Version", _version
-               }) {
+               })
         start.ArgumentList.Add(argument);
-      }
 
       using var process = Process.Start(start)!;
       var stdout = process.StandardOutput.ReadToEndAsync();
       var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
-      return (process.ExitCode, await stdout + await stderr);
+      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 
     private static string Hash(string path)

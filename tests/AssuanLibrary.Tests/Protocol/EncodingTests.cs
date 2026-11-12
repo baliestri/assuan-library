@@ -16,13 +16,12 @@ public sealed class EncodingTests {
       Assert.Equal(invalid, Encoding.ASCII.GetString(bytes));
     }
 
-    for (var value = 0; value <= 255; ++value) {
+    for (var value = 0; value <= 255; ++value)
       foreach (var encoded in new[] { $"%{value:X2}", $"%{value:x2}" }) {
         var bytes = Encoding.ASCII.GetBytes(encoded);
         Assert.Equal(1, ProtocolEscaping.DecodeDataInPlace(bytes));
         Assert.Equal((byte)value, bytes[0]);
       }
-    }
 
     var prefix = "%2541"u8.ToArray();
     var length = ProtocolEscaping.DecodeDataInPlace(prefix);
@@ -42,7 +41,8 @@ public sealed class EncodingTests {
     Assert.Equal(1000, ProtocolEncoder.EncodeCommand(ProtocolCommand.Create("X"u8, arguments), output));
     var before = output.ToArray();
     Assert.Equal(ProtocolErrorKind.LineTooLong,
-      Assert.Throws<ProtocolException>(() => ProtocolEncoder.EncodeCommand(ProtocolCommand.Create("XX"u8, arguments), output)).Kind);
+      Assert.Throws<ProtocolException>(()
+        => ProtocolEncoder.EncodeCommand(ProtocolCommand.Create("XX"u8, arguments), output)).Kind);
     Assert.Equal(before, output);
     length = ProtocolEncoder.EncodeCommand(ProtocolCommand.Create("CUSTOM"u8, " %GG "u8), output);
     Assert.True(output.AsSpan(0, length).SequenceEqual("CUSTOM  %GG \n"u8));
@@ -87,10 +87,12 @@ public sealed class EncodingTests {
     AssertWire(ProtocolResponse.Empty(), "\n"u8, output);
     var before = output.ToArray();
     Assert.Equal(ProtocolErrorKind.InvalidEscape,
-      Assert.Throws<ProtocolException>(() => ProtocolEncoder.EncodeResponse(ProtocolResponse.Data("%GG"u8), output)).Kind);
+      Assert.Throws<ProtocolException>(() => ProtocolEncoder.EncodeResponse(ProtocolResponse.Data("%GG"u8), output))
+        .Kind);
     Assert.Equal(before, output);
     Assert.Equal(ProtocolErrorKind.InvalidLine,
-      Assert.Throws<ProtocolException>(() => ProtocolEncoder.EncodeResponse(ProtocolResponse.Ok("x\n"u8), output)).Kind);
+      Assert.Throws<ProtocolException>(() => ProtocolEncoder.EncodeResponse(ProtocolResponse.Ok("x\n"u8), output))
+        .Kind);
     Assert.Equal(before, output);
   }
 

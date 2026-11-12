@@ -28,7 +28,8 @@ public sealed class ChannelWriteTests {
              }) {
       var stream = new ScriptedDuplexStream([]);
       await using var channel = new AssuanChannel(stream);
-      var error = await Assert.ThrowsAsync<TransportException>(() => channel.WriteLineAsync(bytes, TimeSpan.FromSeconds(2), token));
+      var error = await Assert.ThrowsAsync<TransportException>(()
+        => channel.WriteLineAsync(bytes, TimeSpan.FromSeconds(2), token));
       Assert.Equal(TransportErrorKind.Framing, error.Kind);
       Assert.Equal(0, stream.WriteCalls);
       Assert.Empty(stream.Written);

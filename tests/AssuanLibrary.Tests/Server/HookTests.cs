@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Text;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Server;
 
@@ -26,7 +27,7 @@ public sealed class HookTests {
   [InlineData("bad\nname")]
   [InlineData("na%me")]
   public void MalformedOptionsFailWithoutEchoingInput(string text) {
-    var error = Assert.Throws<ProtocolException>(() => OptionRequest.Parse(System.Text.Encoding.UTF8.GetBytes(text)));
+    var error = Assert.Throws<ProtocolException>(() => OptionRequest.Parse(Encoding.UTF8.GetBytes(text)));
     Assert.DoesNotContain(text, error.ToString());
   }
 
@@ -35,7 +36,7 @@ public sealed class HookTests {
     var hooks = new DefaultSessionHooks<object>();
     var request = OptionRequest.Parse("color=red"u8.ToArray());
     var error = await Assert.ThrowsAsync<HandlerException>(async () =>
-      await hooks.OptionAsync(request, null!, TestContext.Current.CancellationToken));
+      await hooks.OptionAsync(request, null!, TestContext.Current.CancellationToken).ConfigureAwait(false));
     Assert.Equal((uint)174, error.Code);
   }
 }

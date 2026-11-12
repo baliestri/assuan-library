@@ -9,7 +9,7 @@ namespace AssuanLibrary.Tests.Documentation;
 public sealed class PackageReadmeTests {
   [Fact]
   public async Task MainPackageIncludesNuGetRootReadmeAndBundledAnalyzer() {
-    var repository = ManifestTests._repository;
+    var repository = ManifestTests.Repository;
     Assert.True(File.Exists(Path.Combine(repository, "docs", "nuget", "README.md")));
     var packages = Path.Combine(repository, "artifacts", "docs-package-tests");
     Directory.CreateDirectory(packages);
@@ -23,9 +23,8 @@ public sealed class PackageReadmeTests {
     foreach (var value in new[] {
                "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
                "--no-restore", "-o", packages, "-p:PackageVersion=" + version
-             }) {
+             })
       start.ArgumentList.Add(value);
-    }
 
     start.Environment["NUGET_PACKAGES"] = Path.Combine(repository, "artifacts", "nuget-cache");
     start.Environment["DOTNET_CLI_HOME"] = Path.Combine(repository, "artifacts", "dotnet-home");
@@ -36,17 +35,23 @@ public sealed class PackageReadmeTests {
     await process.WaitForExitAsync(TestContext.Current.CancellationToken)
       .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken);
     Assert.True(process.ExitCode == 0, await stdout + await stderr);
-    await using var archive = ZipFile.OpenRead(Path.Combine(packages, "AssuanLibrary." + version + ".nupkg"));
-    Assert.Single(archive.Entries, entry => entry.FullName == "README.md");
-    Assert.Single(archive.Entries, entry => entry.FullName ==
-                                            "analyzers/dotnet/cs/AssuanLibrary.Generators.dll");
+    await using var archive = await ZipFile.OpenReadAsync(
+      Path.Combine(packages, "AssuanLibrary." + version + ".nupkg"), TestContext.Current.CancellationToken);
+    Assert.Single(archive.Entries, entry => string.Equals(entry.FullName, "README.md", StringComparison.Ordinal));
+    Assert.Single(archive.Entries,
+      entry => string.Equals(entry.FullName, "analyzers/dotnet/cs/AssuanLibrary.Generators.dll",
+        StringComparison.Ordinal));
     var nuspec = Assert.Single(archive.Entries, entry => entry.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
-    using var reader = new StreamReader(nuspec.Open());
+    using var reader = new StreamReader(await nuspec.OpenAsync(TestContext.Current.CancellationToken));
     Assert.Contains("<readme>README.md</readme>", await reader.ReadToEndAsync(TestContext.Current.CancellationToken));
-    using var readme = new StreamReader(Assert.Single(archive.Entries, entry => entry.FullName == "README.md").Open());
+    using var readme = new StreamReader(await Assert.Single(archive.Entries,
+        entry => string.Equals(entry.FullName, "README.md", StringComparison.Ordinal))
+      .OpenAsync(TestContext.Current.CancellationToken));
     var markdown = await readme.ReadToEndAsync(TestContext.Current.CancellationToken);
     Assert.Contains("net10.0", markdown);
-    Assert.Equal(File.ReadAllText(Path.Combine(repository, "docs", "nuget", "README.md")), markdown);
+    Assert.Equal(
+      await File.ReadAllTextAsync(Path.Combine(repository, "docs", "nuget", "README.md"),
+        TestContext.Current.CancellationToken), markdown);
     Assert.DoesNotContain("../", markdown);
     Assert.Contains("https://", markdown);
   }

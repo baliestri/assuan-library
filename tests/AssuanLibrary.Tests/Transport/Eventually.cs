@@ -7,10 +7,9 @@ internal static class Eventually {
   internal static async Task<bool> UntilAsync(Func<bool> condition, TimeSpan timeout, CancellationToken token) {
     using var wait = CancellationTokenSource.CreateLinkedTokenSource(token);
     wait.CancelAfter(timeout);
-    while (!condition()) {
-      try { await Task.Delay(10, wait.Token); }
+    while (!condition())
+      try { await Task.Delay(10, wait.Token).ConfigureAwait(false); }
       catch (OperationCanceledException) when (!token.IsCancellationRequested) { return condition(); }
-    }
 
     return true;
   }

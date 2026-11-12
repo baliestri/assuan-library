@@ -51,7 +51,8 @@ public sealed class AgentProcessTests {
       new TransportDeadline(TimeSpan.FromSeconds(5)), TestContext.Current.CancellationToken);
     Assert.Equal(Encoding.UTF8.GetBytes(fixture.SocketFile + "\n"), output.Expose().ToArray());
     Assert.Equal(new[] { "--homedir", fixture.Home, "--list-dirs", "agent-socket" },
-      File.ReadAllLines(Path.Combine(fixture.Home, "arguments.txt")));
+      await File.ReadAllLinesAsync(Path.Combine(fixture.Home, "arguments.txt"),
+        TestContext.Current.CancellationToken));
   }
 
   [Theory]
@@ -85,7 +86,8 @@ public sealed class AgentProcessTests {
     Assert.False(File.Exists(Path.Combine(fixture.Home, "completed.txt")));
     var pidFile = Path.Combine(fixture.Home, "pid.txt");
     Assert.True(File.Exists(pidFile));
-    var pid = int.Parse(File.ReadAllText(pidFile), CultureInfo.InvariantCulture);
+    var pid = int.Parse(await File.ReadAllTextAsync(pidFile, TestContext.Current.CancellationToken),
+      CultureInfo.InvariantCulture);
     try {
       using var child = Process.GetProcessById(pid);
       Assert.True(child.HasExited);

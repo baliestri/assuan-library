@@ -47,7 +47,8 @@ public sealed class CompatibilityTests {
     var owned = SExpressionParser.ParseComplete("(9:superkey!)"u8).ToOwned();
     Assert.DoesNotContain("superkey", owned.ToString());
     var output = new List<byte>(new byte[SExpressionLimits.Default.MaxInputBytes]);
-    var encodingError = Assert.Throws<SExpressionEncodeException>(() => SExpressionWriter.AppendCanonical(owned, output));
+    var encodingError =
+      Assert.Throws<SExpressionEncodeException>(() => SExpressionWriter.AppendCanonical(owned, output));
     Assert.DoesNotContain("superkey", encodingError.Message);
   }
 

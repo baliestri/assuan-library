@@ -21,7 +21,8 @@ internal sealed class AgentFixture : IDisposable {
   internal string Home { get; }
 
   internal string Executable {
-    get {
+    get
+    {
       var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
       var name = "AssuanLibrary.GpgconfFixture" + (OperatingSystem.IsWindows() ? ".exe" : "");
       return Path.Combine(_repository, "tests", "AssuanLibrary.GpgconfFixture", "bin", configuration, "net10.0", name);

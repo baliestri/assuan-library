@@ -12,12 +12,12 @@ public sealed class LoggingIntegrationTests {
   [Fact]
   public void GeneratedSinkCallsILoggerWithOnlySafeFieldsAndNoException() {
     var result = GeneratorHarness.Compile("""
-                                          public static class Consumer {
-                                            public static AssuanLibrary.Diagnostics.IAssuanEventSink Create(
-                                              Microsoft.Extensions.Logging.ILogger logger) =>
-                                              AssuanLibrary.Generated.AssuanLoggingExtensions.CreateEventSink(logger);
-                                          }
-                                          """, extraReferences: [MetadataReference.CreateFromFile(typeof(ILogger).Assembly.Location)]);
+      public static class Consumer {
+        public static AssuanLibrary.Diagnostics.IAssuanEventSink Create(
+          Microsoft.Extensions.Logging.ILogger logger) =>
+          AssuanLibrary.Generated.AssuanLoggingExtensions.CreateEventSink(logger);
+      }
+      """, extraReferences: [MetadataReference.CreateFromFile(typeof(ILogger).Assembly.Location)]);
     Assert.Empty(result.OutputCompilationErrors);
     using var image = new MemoryStream();
     var emitted = result.OutputCompilation.Emit(image, cancellationToken: TestContext.Current.CancellationToken);
@@ -28,10 +28,10 @@ public sealed class LoggingIntegrationTests {
       .GetMethod("Create")!.Invoke(null, [logger]));
     var info = new AssuanEvent(AssuanComponent.Client, AssuanEventId.RemoteFinal, AssuanOutcome.RemoteError, 3);
     sink.Emit(in info);
-    Assert.Null(logger._lastException);
-    Assert.Equal((int)AssuanEventId.RemoteFinal, logger._eventId.Id);
-    Assert.Contains("RemoteError", logger._message);
-    Assert.DoesNotContain("SECRET_MARKER", logger._message);
+    Assert.Null(logger.LastException);
+    Assert.Equal((int)AssuanEventId.RemoteFinal, logger.EventId.Id);
+    Assert.Contains("RemoteError", logger.Message);
+    Assert.DoesNotContain("SECRET_MARKER", logger.Message);
   }
 
   private sealed class Scope : IDisposable {
@@ -39,17 +39,19 @@ public sealed class LoggingIntegrationTests {
   }
 
   private sealed class RecordingLogger : ILogger {
-    internal EventId _eventId;
-    internal Exception? _lastException;
-    internal string? _message;
+    internal EventId EventId;
+    internal Exception? LastException;
+    internal string? Message;
+
     public IDisposable BeginScope<TState>(TState state) where TState : notnull => new Scope();
+
     public bool IsEnabled(LogLevel logLevel) => true;
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-    Func<TState, Exception?, string> formatter) {
-      _message = formatter(state, exception);
-      _eventId = eventId;
-      _lastException = exception;
+      Func<TState, Exception?, string> formatter) {
+      Message = formatter(state, exception);
+      EventId = eventId;
+      LastException = exception;
     }
   }
 }

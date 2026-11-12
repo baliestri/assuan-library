@@ -44,11 +44,13 @@ public sealed class HandshakeTests {
   public async Task GreetingErrAfterCanIsFatalWithFullUnsignedCode() {
     var peer = new ScriptedClientStream("INQUIRE PIN\nERR 4294967295 denied\n"u8.ToArray());
     await using var handshake = AssuanClient.BeginHandshake(peer);
-    using (var inquiry = Assert.IsType<ClientEventLease>(await handshake.ReadNextAsync(TestContext.Current.CancellationToken))) {
+    using (var inquiry =
+           Assert.IsType<ClientEventLease>(await handshake.ReadNextAsync(TestContext.Current.CancellationToken))) {
       await inquiry.Inquiry.CancelAsync(TestContext.Current.CancellationToken);
     }
 
-    using (var final = Assert.IsType<ClientEventLease>(await handshake.ReadNextAsync(TestContext.Current.CancellationToken))) {
+    using (var final =
+           Assert.IsType<ClientEventLease>(await handshake.ReadNextAsync(TestContext.Current.CancellationToken))) {
       Assert.Equal(uint.MaxValue, final.RemoteCode);
     }
 

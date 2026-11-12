@@ -10,7 +10,7 @@ namespace AssuanLibrary.Tests.Server;
 
 public sealed class InquiryTests {
   private static (CommandContext<object>, AssuanChannel, ServerMachine) Create(
-  SessionDuplexStream stream, int limit = 1024 * 1024) {
+    SessionDuplexStream stream, int limit = 1024 * 1024) {
     var channel = new AssuanChannel(stream);
     var machine = new ServerMachine();
     machine.SendResponse(ProtocolResponseKind.Ok);
@@ -31,11 +31,12 @@ public sealed class InquiryTests {
     var first = Assert.IsType<InquiryChunk>(await inquiry.ReadNextAsync(TestContext.Current.CancellationToken));
     Assert.Throws<InvalidOperationException>(() => _ = first.Data);
     Assert.Equal(new byte[] { 0, 255 }, first.Expose().ToArray());
-    await Assert.ThrowsAsync<InvalidOperationException>(() => inquiry.ReadNextAsync(TestContext.Current.CancellationToken));
+    await Assert.ThrowsAsync<InvalidOperationException>(()
+      => inquiry.ReadNextAsync(TestContext.Current.CancellationToken));
     Assert.Throws<InvalidOperationException>(() => inquiry.Finish());
     var borrowed = first.Expose();
     first.Dispose();
-    Assert.Equal(new byte[] { 0, 0 }, borrowed.ToArray());
+    Assert.Equal(new byte[2], borrowed.ToArray());
     var empty = Assert.IsType<InquiryChunk>(await inquiry.ReadNextAsync(TestContext.Current.CancellationToken));
     Assert.Empty(empty.Expose().ToArray());
     empty.Dispose();
@@ -64,7 +65,7 @@ public sealed class InquiryTests {
     await using var anotherStream = new SessionDuplexStream(ReadOnlyMemory<byte>.Empty);
     var (anotherContext, anotherChannel, anotherMachine) = Create(anotherStream);
     await using var anotherOwned = anotherChannel;
-    await using (var abandoned = await anotherContext.BeginInquiryAsync("PIN", ReadOnlyMemory<byte>.Empty,
+    await using (await anotherContext.BeginInquiryAsync("PIN", ReadOnlyMemory<byte>.Empty,
                    PayloadSensitivity.Public, TestContext.Current.CancellationToken)) { }
 
     Assert.Equal(ServerState.Invalid, anotherMachine.State);
@@ -78,7 +79,8 @@ public sealed class InquiryTests {
     await using var owned = channel;
     await using var inquiry = await context.BeginInquiryAsync("PIN", ReadOnlyMemory<byte>.Empty,
       PayloadSensitivity.Public, TestContext.Current.CancellationToken);
-    var error = await Assert.ThrowsAsync<ServerException>(() => inquiry.ReadNextAsync(TestContext.Current.CancellationToken));
+    var error = await Assert.ThrowsAsync<ServerException>(()
+      => inquiry.ReadNextAsync(TestContext.Current.CancellationToken));
     Assert.Equal(ServerErrorKind.Limit, error.Kind);
     Assert.Equal(ServerState.Invalid, machine.State);
   }

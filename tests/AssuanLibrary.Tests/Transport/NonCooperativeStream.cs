@@ -7,13 +7,12 @@ internal sealed class NonCooperativeStream : ScriptedDuplexStream {
   private readonly TaskCompletionSource<int> _read = new(TaskCreationOptions.RunContinuationsAsynchronously);
   private readonly TaskCompletionSource _write = new(TaskCreationOptions.RunContinuationsAsynchronously);
   private Memory<byte> _readBuffer;
-  private ReadOnlyMemory<byte> _writeBuffer;
+
+  internal NonCooperativeStream() : base([]) { }
 
   internal TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
   internal TaskCompletionSource WriteStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-  internal ReadOnlyMemory<byte> PendingWrite => _writeBuffer;
-
-  internal NonCooperativeStream() : base([]) { }
+  internal ReadOnlyMemory<byte> PendingWrite { get; private set; }
 
   public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) {
     _readBuffer = buffer;
@@ -23,7 +22,7 @@ internal sealed class NonCooperativeStream : ScriptedDuplexStream {
   }
 
   public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) {
-    _writeBuffer = buffer;
+    PendingWrite = buffer;
     WriteStarted.TrySetResult();
     return new ValueTask(_write.Task); // Still borrows the caller's buffer after timeout.
   }

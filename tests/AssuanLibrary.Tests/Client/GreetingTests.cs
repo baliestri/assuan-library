@@ -38,7 +38,7 @@ public sealed class GreetingTests {
   [Fact]
   public async Task InvalidOptionsAndCancelledReadDisposeOwnedStream() {
     Assert.Equal(ClientErrorKind.InvalidOptions,
-      Assert.Throws<ClientException>(() => new ClientOptions(connectTimeout: TimeSpan.Zero)).Kind);
+      Assert.Throws<ClientException>(() => new ClientOptions(TimeSpan.Zero)).Kind);
     Assert.Equal(ClientErrorKind.InvalidOptions,
       Assert.Throws<ClientException>(() => new ClientOptions(commandTimeout: TimeSpan.MaxValue)).Kind);
     Assert.Equal(ClientErrorKind.InvalidOptions,

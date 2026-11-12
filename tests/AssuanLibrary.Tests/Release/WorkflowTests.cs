@@ -31,14 +31,14 @@ public sealed partial class WorkflowTests {
     foreach (var value in new[] {
                "v2.0.0", "OIDC", "NuGet", "Pages", "git-cliff",
                "prepared SHA", "recovery", "docs-v<version>.zip", "version=2.0.1"
-             }) {
+             })
       Assert.Contains(value, guide, StringComparison.OrdinalIgnoreCase);
-    }
 
     Assert.Contains("-DryRun", guide);
     using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "docs", "site", "sources.json")));
-    var entry = Assert.Single(manifest.RootElement.GetProperty("sources").EnumerateArray(), item =>
-      item.GetProperty("source").GetString() == "docs/guides/releasing.md");
+    var entry = Assert.Single(manifest.RootElement.GetProperty("sources").EnumerateArray(),
+      item => string.Equals(item.GetProperty("source").GetString(), "docs/guides/releasing.md",
+        StringComparison.Ordinal));
     Assert.True(entry.GetProperty("includeInIndex").GetBoolean());
     Assert.False(entry.GetProperty("includeInFull").GetBoolean());
   }
@@ -82,7 +82,7 @@ public sealed partial class WorkflowTests {
     Assert.Single(IdTokenWriteRegex().Matches(yaml));
     var actions = UsesRegex().Matches(yaml);
     Assert.NotEmpty(actions);
-    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
   }
 
   [Fact]
@@ -106,7 +106,7 @@ public sealed partial class WorkflowTests {
     Assert.DoesNotContain("dotnet pack", yaml, StringComparison.OrdinalIgnoreCase);
     var actions = UsesRegex().Matches(yaml);
     Assert.NotEmpty(actions);
-    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
   }
 
   [Fact]
@@ -122,13 +122,13 @@ public sealed partial class WorkflowTests {
     Assert.DoesNotContain("gh workflow run", script, StringComparison.OrdinalIgnoreCase);
   }
 
-  [GeneratedRegex("id-token: write")]
+  [GeneratedRegex("id-token: write", RegexOptions.ExplicitCapture, 5000)]
   private static partial Regex IdTokenWriteRegex();
 
   private static string ReadWorkflow(string name)
     => File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, ".github", "workflows", name))
       .Replace("\r\n", "\n", StringComparison.Ordinal);
 
-  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)")]
+  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@(?<ref>[^\s#]+)", RegexOptions.ExplicitCapture, 5000)]
   private static partial Regex UsesRegex();
 }

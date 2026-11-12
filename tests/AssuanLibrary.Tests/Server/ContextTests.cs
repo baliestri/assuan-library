@@ -44,7 +44,7 @@ public sealed class ContextTests {
       TestContext.Current.CancellationToken);
     var lines = Encoding.ASCII.GetString(stream.WrittenBytes).Split('\n', StringSplitOptions.RemoveEmptyEntries);
     Assert.True(lines.Length > 1);
-    Assert.All(lines, line => Assert.True((line.Length + 1) <= 1000));
+    Assert.All(lines, line => Assert.True(line.Length + 1 <= 1000));
     Assert.Equal(1000, lines.Sum(line => (line.Length - 2) / 3));
   }
 
@@ -54,10 +54,10 @@ public sealed class ContextTests {
     var (context, channel, machine) = CreateContext(stream);
     await using var owned = channel;
     await Assert.ThrowsAsync<TransportException>(async () =>
-      await context.SendDataAsync("private"u8.ToArray(), TestContext.Current.CancellationToken));
+      await context.SendDataAsync("private"u8.ToArray(), TestContext.Current.CancellationToken).ConfigureAwait(false));
     Assert.Equal(ServerState.Invalid, machine.State);
     await Assert.ThrowsAsync<ServerException>(async () =>
-      await context.SendDataAsync("next"u8.ToArray(), TestContext.Current.CancellationToken));
+      await context.SendDataAsync("next"u8.ToArray(), TestContext.Current.CancellationToken).ConfigureAwait(false));
   }
 
   private sealed class FailingStream : SessionDuplexStream {

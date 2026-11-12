@@ -23,14 +23,14 @@ public sealed class SessionDeadlineTests {
     try {
       await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
       Assert.False(run.IsCompleted);
-      Assert.Equal(0, hooks._closed);
+      Assert.Equal(0, hooks.Closed);
       Assert.Equal("private"u8.ToArray(), handler.BorrowedArguments.ToArray());
     }
     finally { release.SetResult(); }
 
     var error = await Assert.ThrowsAsync<ServerException>(() => run);
     Assert.Equal(ServerErrorKind.Timeout, error.Kind);
-    Assert.Equal(1, hooks._closed);
+    Assert.Equal(1, hooks.Closed);
     Assert.Equal(new byte[7], handler.BorrowedArguments.ToArray());
     Assert.DoesNotContain("private", error.ToString());
     Assert.Equal("OK\n"u8.ToArray(), stream.WrittenBytes);
@@ -51,13 +51,13 @@ public sealed class SessionDeadlineTests {
     session.Control.RequestStop();
     try {
       Assert.False(run.IsCompleted);
-      Assert.Equal(0, hooks._closed);
+      Assert.Equal(0, hooks.Closed);
     }
     finally { release.SetResult(); }
 
     var error = await Assert.ThrowsAsync<ServerException>(() => run);
     Assert.Equal(ServerErrorKind.Cancelled, error.Kind);
-    Assert.Equal(1, hooks._closed);
+    Assert.Equal(1, hooks.Closed);
   }
 
   private sealed class Handler(TaskCompletionSource release, TaskCompletionSource started)
@@ -69,12 +69,12 @@ public sealed class SessionDeadlineTests {
     public async ValueTask HandleAsync(CommandContext<object> context, CancellationToken cancellationToken) {
       BorrowedArguments = context.Arguments;
       started.SetResult();
-      await release.Task; // Deliberately ignores cancellation to test retained ownership.
+      await release.Task.ConfigureAwait(false); // Deliberately ignores cancellation to test retained ownership.
     }
   }
 
   private sealed class Hooks : ISessionHooks<object> {
-    internal int _closed;
+    internal int Closed;
 
     public ValueTask AuthenticateAsync(CommandContext<object> context, CancellationToken token)
       => ValueTask.CompletedTask;
@@ -86,7 +86,7 @@ public sealed class SessionDeadlineTests {
       => ValueTask.CompletedTask;
 
     public ValueTask ClosedAsync(object state, SessionEnd reason, CancellationToken token) {
-      Interlocked.Increment(ref _closed);
+      Interlocked.Increment(ref Closed);
       return ValueTask.CompletedTask;
     }
   }

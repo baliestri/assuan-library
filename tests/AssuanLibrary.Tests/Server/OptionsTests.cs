@@ -26,7 +26,7 @@ public sealed class OptionsTests {
     Assert.Equal(ServerErrorKind.InvalidOptions,
       Assert.Throws<ServerException>(() => new ServerOptions(inquiryTimeout: TimeSpan.FromTicks(-1))).Kind);
     Assert.Equal(ServerErrorKind.InvalidOptions,
-      Assert.Throws<ServerException>(() => new ServerOptions(greetingTimeout: TimeSpan.MaxValue)).Kind);
+      Assert.Throws<ServerException>(() => new ServerOptions(TimeSpan.MaxValue)).Kind);
     Assert.Equal(ServerErrorKind.InvalidOptions,
       Assert.Throws<ServerException>(() => new ServerOptions(maxInquiryBytes: 0)).Kind);
     Assert.Equal(ServerErrorKind.InvalidOptions,

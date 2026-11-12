@@ -33,7 +33,8 @@ public sealed class WireParsingTests {
   [InlineData("X\rY", ProtocolErrorKind.InvalidLine)]
   [InlineData("X\nY", ProtocolErrorKind.InvalidLine)]
   [InlineData("X\0Y", ProtocolErrorKind.InvalidLine)]
-  public void RejectsInvalidCommands(string text, ProtocolErrorKind kind) => Assert.Equal(kind, CommandError(Encoding.UTF8.GetBytes(text)).Kind);
+  public void RejectsInvalidCommands(string text, ProtocolErrorKind kind)
+    => Assert.Equal(kind, CommandError(Encoding.UTF8.GetBytes(text)).Kind);
 
   [Theory]
   [InlineData("OKAY", ProtocolErrorKind.InvalidResponse)]
@@ -46,7 +47,8 @@ public sealed class WireParsingTests {
   [InlineData("ERR  1", ProtocolErrorKind.InvalidErrorCode)]
   [InlineData("ERR 4294967296", ProtocolErrorKind.InvalidErrorCode)]
   [InlineData("OK\r\n", ProtocolErrorKind.InvalidLine)]
-  public void RejectsMalformedResponses(string text, ProtocolErrorKind kind) => Assert.Equal(kind, ResponseError(Encoding.UTF8.GetBytes(text)).Kind);
+  public void RejectsMalformedResponses(string text, ProtocolErrorKind kind)
+    => Assert.Equal(kind, ResponseError(Encoding.UTF8.GetBytes(text)).Kind);
 
   [Fact]
   public void ParsesAllServerCategoriesWithOriginalBinaryFields() {
@@ -80,7 +82,7 @@ public sealed class WireParsingTests {
     Assert.DoesNotContain("secret", ProtocolCommand.Parse("SECRET secret"u8).ToString());
   }
 
-  internal static ProtocolException CommandError(ReadOnlySpan<byte> line) {
+  private static ProtocolException CommandError(ReadOnlySpan<byte> line) {
     try { ProtocolCommand.Parse(line); }
     catch (ProtocolException error) { return error; }
 

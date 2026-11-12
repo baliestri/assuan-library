@@ -106,13 +106,13 @@ public sealed class LineBufferTests {
   [Fact]
   public void EveryPartitionPreservesBothFrames() {
     var input = "D a%0Ab\r\nOK\n"u8;
-    for (var mask = 0; mask < (1 << (input.Length - 1)); ++mask) {
+    for (var mask = 0; mask < 1 << input.Length - 1; ++mask) {
       using var frame = new ProtocolLineBuffer();
       var lines = new List<byte[]>();
       var start = 0;
       for (var end = 1; end <= input.Length; ++end) {
         if (end != input.Length &&
-            (mask & (1 << (end - 1))) == 0) {
+            (mask & 1 << end - 1) == 0) {
           continue;
         }
 

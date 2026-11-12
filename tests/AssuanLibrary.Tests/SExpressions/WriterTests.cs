@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using AssuanLibrary.SExpressions;
 using Xunit.Sdk;
@@ -24,6 +25,8 @@ public sealed class WriterTests {
   }
 
   [Fact]
+  [SuppressMessage("ReSharper", "UseUtf8StringLiteral",
+    Justification = "The expected wire bytes are spelled out so the UTF-8 length is not derived from the encoder.")]
   public void Utf8ByteLengthAndDecimalBoundaries() {
     Assert.Equal(new byte[] { (byte)'2', (byte)':', 0xc3, 0xa9 },
       SExpressionWriter.ToCanonical(SExpression.Atom("é"u8)));
@@ -49,9 +52,7 @@ public sealed class WriterTests {
   [Fact]
   public void RejectsExcessiveDepthAndNodesWithoutAppending() {
     var deep = SExpression.Atom("x"u8);
-    for (var index = 0; index < 65; ++index) {
-      deep = SExpression.List([deep]);
-    }
+    for (var index = 0; index < 65; ++index) deep = SExpression.List([deep]);
 
     var output = new List<byte>("keep"u8.ToArray());
     var error = EncodeError(SExpression.List([SExpression.Atom("valid-first"u8), deep]), output);
@@ -65,9 +66,7 @@ public sealed class WriterTests {
   [Fact]
   public void ExistingOutputAndLengthPrefixCountTowardSizeLimit() {
     var output = new List<byte>(new byte[SExpressionLimits.Default.MaxInputBytes]);
-    for (var index = 0; index < output.Count; ++index) {
-      output[index] = (byte)'x';
-    }
+    for (var index = 0; index < output.Count; ++index) output[index] = (byte)'x';
 
     Assert.Equal(SExpressionEncodeErrorKind.SizeLimit, EncodeError(SExpression.Atom([]), output).Kind);
     Assert.Equal(SExpressionLimits.Default.MaxInputBytes, output.Count);
@@ -100,11 +99,11 @@ public sealed class WriterTests {
 
   [Fact]
   public void CustomNodeBudgetCanParseButDefaultWriterStillRejectsTheView() {
-    var encoded = new byte[(65_536 * 2) + 2];
+    var encoded = new byte[65_536 * 2 + 2];
     encoded[0] = (byte)'(';
     for (var index = 0; index < 65_536; ++index) {
-      encoded[1 + (index * 2)] = (byte)'0';
-      encoded[2 + (index * 2)] = (byte)':';
+      encoded[1 + index * 2] = (byte)'0';
+      encoded[2 + index * 2] = (byte)':';
     }
 
     encoded[^1] = (byte)')';

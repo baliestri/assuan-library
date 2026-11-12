@@ -117,8 +117,9 @@ public sealed class UnixSocketTests {
     using var fixture = new UnixFixture();
     await using var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(fixture.Socket()));
     using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-    cancelled.Cancel();
-    var error = await Assert.ThrowsAsync<TransportException>(async () => await listener.AcceptAsync(cancelled.Token));
+    await cancelled.CancelAsync();
+    var error = await Assert.ThrowsAsync<TransportException>(async ()
+      => await listener.AcceptAsync(cancelled.Token).ConfigureAwait(false));
     Assert.Equal(TransportErrorKind.Cancelled, error.Kind);
     var pending = listener.AcceptAsync(TestContext.Current.CancellationToken);
     await using var client = await UnixConnector.ConnectAsync(listener.Endpoint,

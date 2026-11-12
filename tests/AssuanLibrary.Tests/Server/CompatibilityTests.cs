@@ -29,23 +29,24 @@ public sealed class CompatibilityTests {
     await using var stream = new SessionDuplexStream(
       "ASK\n# comment\n\nD \nD SECRET_MARKER%00%ff%25\nEND\nASK\nCAN\nBYE\n"u8.ToArray());
     var registry = new CommandRegistry<object>();
-    registry.Register(new Handler("ASK", async (context, token) => {
-      await using var inquiry = await context.BeginInquiryAsync("VALUE", "challenge"u8.ToArray(),
-        PayloadSensitivity.Secret, token);
-      var count = 0;
-      InquiryChunk? chunk;
-      while ((chunk = await inquiry.ReadNextAsync(token)) is not null) {
-        using (chunk) {
-          count += chunk.Expose().Length;
+    registry.Register(new Handler("ASK", async (context, token) =>
+    {
+      var inquiry = await context.BeginInquiryAsync("VALUE", "challenge"u8.ToArray(),
+        PayloadSensitivity.Secret, token).ConfigureAwait(false);
+      await using (inquiry.ConfigureAwait(false)) {
+        var count = 0;
+        while (await inquiry.ReadNextAsync(token).ConfigureAwait(false) is { } chunk)
+          using (chunk) {
+            count += chunk.Expose().Length;
+          }
+
+        if (inquiry.Finish() == InquiryOutcome.Cancelled) {
+          throw HandlerException.Remote(99, "cancelled");
         }
-      }
 
-      if (inquiry.Finish() == InquiryOutcome.Cancelled) {
-        throw HandlerException.Remote(99, "cancelled");
+        await context.SendDataAsync(Encoding.ASCII.GetBytes(count.ToString(
+          CultureInfo.InvariantCulture)), token).ConfigureAwait(false);
       }
-
-      await context.SendDataAsync(Encoding.ASCII.GetBytes(count.ToString(
-        CultureInfo.InvariantCulture)), token);
     }));
     var session = new ServerSession<object>(new AcceptedConnection(stream), new object(), registry,
       new DefaultSessionHooks<object>(), ServerOptions.Default);
@@ -62,7 +63,8 @@ public sealed class CompatibilityTests {
       new TransportException(TransportErrorKind.Io, new IOException("SECRET_MARKER")))));
     var session = new ServerSession<object>(new AcceptedConnection(stream), new object(), registry,
       new DefaultSessionHooks<object>(), ServerOptions.Default);
-    var error = await Assert.ThrowsAsync<ServerException>(() => session.RunAsync(TestContext.Current.CancellationToken));
+    var error = await Assert.ThrowsAsync<ServerException>(()
+      => session.RunAsync(TestContext.Current.CancellationToken));
     Assert.Equal(ServerErrorKind.Transport, error.Kind);
     Assert.DoesNotContain("SECRET_MARKER", error.ToString());
     Assert.Equal("OK\n"u8.ToArray(), stream.WrittenBytes);
@@ -84,6 +86,7 @@ public sealed class CompatibilityTests {
     : ICommandHandler<object> {
     public string Name => name;
     public string Description => "fixture";
+
     public ValueTask HandleAsync(CommandContext<object> context, CancellationToken token) => call(context, token);
   }
 }

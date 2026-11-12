@@ -47,7 +47,8 @@ public sealed class WindowsSecurityTests {
     var error = Assert.Throws<TransportException>(() => PipeAcceptor.Bind(endpoint));
     Assert.Equal(TransportErrorKind.Io, error.Kind);
     var accepting = first.AcceptAsync(TestContext.Current.CancellationToken);
-    await using var client = await PipeConnector.ConnectAsync(endpoint, cancellationToken: TestContext.Current.CancellationToken);
+    await using var client =
+      await PipeConnector.ConnectAsync(endpoint, cancellationToken: TestContext.Current.CancellationToken);
     var admitted = await accepting;
     await using var accepted = admitted.Stream;
     Assert.Null(admitted.PeerIdentity);

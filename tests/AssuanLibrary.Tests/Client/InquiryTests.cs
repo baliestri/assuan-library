@@ -9,7 +9,7 @@ namespace AssuanLibrary.Tests.Client;
 
 public sealed class InquiryTests {
   private static (ClientInquiry Inquiry, ScriptedClientStream Peer) Create(int limit = 1024 * 1024,
-  PayloadSensitivity sensitivity = PayloadSensitivity.Public) {
+    PayloadSensitivity sensitivity = PayloadSensitivity.Public) {
     var peer = new ScriptedClientStream(ReadOnlyMemory<byte>.Empty);
     var core = new ClientCore(peer);
     core.Machine.Receive(ProtocolResponseKind.Inquire);
@@ -85,7 +85,9 @@ public sealed class InquiryTests {
   private sealed class ManualClock : TimeProvider {
     private long _ticks;
     public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
     public override long GetTimestamp() => Volatile.Read(ref _ticks);
+
     internal void Advance(TimeSpan elapsed) => Interlocked.Add(ref _ticks, elapsed.Ticks);
   }
 }

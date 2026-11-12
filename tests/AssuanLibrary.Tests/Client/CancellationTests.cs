@@ -17,7 +17,7 @@ public sealed class CancellationTests {
       PayloadSensitivity.Secret, TestContext.Current.CancellationToken);
     using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var reading = transaction.ReadNextAsync(cancellation.Token);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     await cancellation.CancelAsync();
     var error = await Assert.ThrowsAsync<ClientException>(() => reading);
     Assert.Equal(ClientErrorKind.Cancelled, error.Kind);
@@ -36,7 +36,7 @@ public sealed class CancellationTests {
     using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var command = client.CommandAsync("GET", ReadOnlyMemory<byte>.Empty, PayloadSensitivity.Public,
       cancellation.Token);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     await cancellation.CancelAsync();
     var error = await Assert.ThrowsAsync<ClientException>(() => command);
     Assert.Equal(ClientErrorKind.Cancelled, error.Kind);
@@ -49,10 +49,12 @@ public sealed class CancellationTests {
   }
 
   private sealed class DelayedRead : ScriptedClientStream {
+    internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<int> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    internal readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _calls;
+
     internal DelayedRead() : base("OK\n"u8.ToArray()) { }
+
     internal Memory<byte> Pending { get; private set; }
 
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token = default) {
@@ -61,7 +63,7 @@ public sealed class CancellationTests {
       }
 
       Pending = buffer;
-      _started.TrySetResult();
+      Started.TrySetResult();
       return new ValueTask<int>(_release.Task); // Simulates an OS read that ignores cancellation.
     }
 
@@ -72,14 +74,16 @@ public sealed class CancellationTests {
   }
 
   private sealed class DelayedWrite : ScriptedClientStream {
+    internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    internal readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     internal DelayedWrite() : base("OK\n"u8.ToArray()) { }
+
     internal ReadOnlyMemory<byte> Pending { get; private set; }
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken token = default) {
       Pending = buffer;
-      _started.TrySetResult();
+      Started.TrySetResult();
       return new ValueTask(_release.Task); // Deliberately noncooperative.
     }
 

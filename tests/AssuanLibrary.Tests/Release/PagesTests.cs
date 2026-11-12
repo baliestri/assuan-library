@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -22,9 +23,10 @@ public sealed class PagesTests {
     Assert.True(assembled.ExitCode == 0, assembled.Output);
     Assert.True(File.Exists(Path.Combine(fixture.Site, "2.0.0", "index.html")));
     Assert.True(File.Exists(Path.Combine(fixture.Site, "2.1.0", "llms.txt")));
-    Assert.Contains("2.1.0", File.ReadAllText(Path.Combine(fixture.Site, "index.html")));
-    Assert.Equal(File.ReadAllText(Path.Combine(fixture.Site, "2.1.0", "llms.txt")),
-      File.ReadAllText(Path.Combine(fixture.Site, "llms.txt")));
+    var token = TestContext.Current.CancellationToken;
+    Assert.Contains("2.1.0", await File.ReadAllTextAsync(Path.Combine(fixture.Site, "index.html"), token));
+    Assert.Equal(await File.ReadAllTextAsync(Path.Combine(fixture.Site, "2.1.0", "llms.txt"), token),
+      await File.ReadAllTextAsync(Path.Combine(fixture.Site, "llms.txt"), token));
     Assert.False(Directory.Exists(Path.Combine(fixture.Site, "1.2.0")));
     Assert.False(Directory.Exists(Path.Combine(fixture.Site, "3.0.0")));
     Assert.NotEqual(0, (await fixture.AssembleAsync()).ExitCode);
@@ -64,9 +66,10 @@ public sealed class PagesTests {
     fixture.Add("v2.9.0");
     var assembled = await fixture.AssembleAsync();
     Assert.True(assembled.ExitCode == 0, assembled.Output);
-    Assert.Contains("2.10.0", File.ReadAllText(Path.Combine(fixture.Site, "index.html")));
-    Assert.Equal(File.ReadAllText(Path.Combine(fixture.Site, "2.10.0", "llms.txt")),
-      File.ReadAllText(Path.Combine(fixture.Site, "llms.txt")));
+    var token = TestContext.Current.CancellationToken;
+    Assert.Contains("2.10.0", await File.ReadAllTextAsync(Path.Combine(fixture.Site, "index.html"), token));
+    Assert.Equal(await File.ReadAllTextAsync(Path.Combine(fixture.Site, "2.10.0", "llms.txt"), token),
+      await File.ReadAllTextAsync(Path.Combine(fixture.Site, "llms.txt"), token));
   }
 
   [Fact]
@@ -75,10 +78,11 @@ public sealed class PagesTests {
     fixture.Add("v2.0.0");
     var assembled = await fixture.AssembleAsync();
     Assert.True(assembled.ExitCode == 0, assembled.Output);
-    var original = File.ReadAllBytes(Path.Combine(fixture.Site, "index.html"));
+    var token = TestContext.Current.CancellationToken;
+    var original = await File.ReadAllBytesAsync(Path.Combine(fixture.Site, "index.html"), token);
     fixture.Add("v2.1.0", corruptChecksum: true);
     Assert.NotEqual(0, (await fixture.AssembleAsync()).ExitCode);
-    Assert.Equal(original, File.ReadAllBytes(Path.Combine(fixture.Site, "index.html")));
+    Assert.Equal(original, await File.ReadAllBytesAsync(Path.Combine(fixture.Site, "index.html"), token));
   }
 
   private sealed class PagesFixture : IDisposable {
@@ -88,12 +92,13 @@ public sealed class PagesTests {
       Guid.NewGuid().ToString("N"));
 
     internal PagesFixture() => Directory.CreateDirectory(_root);
+
     internal string Site => Path.Combine(_root, "site");
 
     public void Dispose() => Directory.Delete(_root, true);
 
     internal void Add(string tag, bool draft = false, bool prerelease = false, bool createAssets = true,
-    bool corruptChecksum = false, string? unsafePath = null) {
+      bool corruptChecksum = false, string? unsafePath = null) {
       var version = tag.TrimStart('v');
       var assets = Path.Combine(_root, "assets", version, _releases.Count.ToString());
       var archivePath = Path.Combine(assets, $"docs-v{version}.zip");
@@ -127,8 +132,8 @@ public sealed class PagesTests {
 
     internal async Task<(int ExitCode, string Output)> AssembleAsync() {
       var manifest = Path.Combine(_root, "releases.json");
-      File.WriteAllText(manifest, JsonSerializer.Serialize(_releases,
-        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+      await File.WriteAllTextAsync(manifest, JsonSerializer.Serialize(_releases,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })).ConfigureAwait(false);
       var start = new ProcessStartInfo("pwsh") {
         WorkingDirectory = ReleaseFixture.ToolsRoot, UseShellExecute = false,
         RedirectStandardOutput = true, RedirectStandardError = true
@@ -137,18 +142,20 @@ public sealed class PagesTests {
                  "-NoProfile", "-NonInteractive", "-File",
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Assemble-Pages.ps1"),
                  "-Root", ReleaseFixture.ToolsRoot, "-ManifestPath", manifest, "-OutputDirectory", Site
-               }) {
+               })
         start.ArgumentList.Add(argument);
-      }
 
       using var process = Process.Start(start)!;
       var stdout = process.StandardOutput.ReadToEndAsync();
       var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
-      return (process.ExitCode, await stdout + await stderr);
+      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 
-    private sealed record ReleaseEntry(string TagName,
+    [SuppressMessage("ReSharper", "NotAccessedPositionalProperty.Local",
+      Justification = "Serialized to the releases manifest consumed by Assemble-Pages.ps1.")]
+    private sealed record ReleaseEntry(
+      string TagName,
       bool Draft,
       bool Prerelease,
       string Archive,

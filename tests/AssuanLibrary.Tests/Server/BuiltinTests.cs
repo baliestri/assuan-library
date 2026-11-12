@@ -32,7 +32,7 @@ public sealed class BuiltinTests {
       }
 
       var line = output.AsSpan(start, index - start);
-      Assert.True((line.Length + 1) <= 1000);
+      Assert.True(line.Length + 1 <= 1000);
       Assert.StartsWith("# ", new UTF8Encoding(false, true).GetString(line));
       start = index + 1;
     }

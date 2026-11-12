@@ -12,15 +12,18 @@ public sealed class LocalEndpointTests {
       Assert.Throws<PlatformNotSupportedException>(() => LocalEndpoint.NamedPipe(@"\\.\pipe\test"));
       return;
     }
+
     var valid = LocalEndpoint.NamedPipe(@"\\.\pipe\assuan-test");
     Assert.Equal(LocalEndpointKind.NamedPipe, valid.Kind);
     Assert.Equal(@"\\.\pipe\assuan-test", valid.Path);
     Assert.DoesNotContain("assuan-test", valid.ToString());
-    foreach (var path in new[] { @"\\remote\pipe\test", @"\\.\pipe\", @"C:\test",
-      "\\\\.\\pipe\\bad\0name", @"\\.\pipe\nested\name", @"\\.\pipe\nested/name" }) {
+    foreach (var path in new[] {
+               @"\\remote\pipe\test", @"\\.\pipe\", @"C:\test",
+               "\\\\.\\pipe\\bad\0name", @"\\.\pipe\nested\name", @"\\.\pipe\nested/name"
+             })
       Assert.Equal(TransportErrorKind.InvalidEndpoint,
         Assert.Throws<TransportException>(() => LocalEndpoint.NamedPipe(path)).Kind);
-    }
+
     var prefix = @"\\.\pipe\";
     Assert.Equal(256, LocalEndpoint.NamedPipe(prefix + new string('x', 256 - prefix.Length)).Path.Length);
     Assert.Throws<TransportException>(() => LocalEndpoint.NamedPipe(prefix + new string('x', 257 - prefix.Length)));
@@ -32,6 +35,7 @@ public sealed class LocalEndpointTests {
       Assert.Throws<PlatformNotSupportedException>(() => LocalEndpoint.Unix("/socket"));
       return;
     }
+
     var endpoint = LocalEndpoint.Unix("/tmp/external-agent.sock");
     Assert.Equal(LocalEndpointKind.UnixSocket, endpoint.Kind);
     Assert.Equal("/tmp/external-agent.sock", endpoint.Path);

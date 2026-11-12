@@ -15,12 +15,14 @@ public sealed class DeadlineTests {
       new ClientOptions(commandTimeout: TimeSpan.FromSeconds(2)), clock, TestContext.Current.CancellationToken);
     await using var transaction = await client.CommandAsync("GET", ReadOnlyMemory<byte>.Empty,
       PayloadSensitivity.Public, TestContext.Current.CancellationToken);
-    using (var data = Assert.IsType<ClientEventLease>(await transaction.ReadNextAsync(TestContext.Current.CancellationToken))) {
+    using (var data = Assert.IsType<ClientEventLease>(
+             await transaction.ReadNextAsync(TestContext.Current.CancellationToken))) {
       Assert.Equal("one"u8.ToArray(), data.PayloadBytes.ToArray());
     }
 
     clock.Advance(TimeSpan.FromSeconds(2));
-    var error = await Assert.ThrowsAsync<ClientException>(() => transaction.ReadNextAsync(TestContext.Current.CancellationToken));
+    var error = await Assert.ThrowsAsync<ClientException>(()
+      => transaction.ReadNextAsync(TestContext.Current.CancellationToken));
     Assert.Equal(ClientErrorKind.Timeout, error.Kind);
     Assert.False(client.IsUsable);
   }

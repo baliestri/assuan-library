@@ -9,11 +9,11 @@ using AssuanLibrary.Docs;
 namespace AssuanLibrary.Tests.CI;
 
 public sealed partial class WorkflowContractTests {
-  private static readonly string _repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
+  private readonly static string Repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
 
   [Fact]
   public void SdkPinKeepsTheTestingPlatformRunner() {
-    using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_repository, "global.json")));
+    using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(Repository, "global.json")));
     Assert.Equal("10.0.403", json.RootElement.GetProperty("sdk").GetProperty("version").GetString());
     Assert.Equal("latestPatch", json.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString());
     Assert.Equal("Microsoft.Testing.Platform",
@@ -22,9 +22,10 @@ public sealed partial class WorkflowContractTests {
 
   [Fact]
   public void SolutionRestoresFromVersionedPackageLocks() {
-    var properties = XDocument.Load(Path.Combine(_repository, "Directory.Build.props"));
-    Assert.Contains(properties.Descendants(), element => element.Name.LocalName == "RestorePackagesWithLockFile" &&
-                                                         element.Value == "true");
+    var properties = XDocument.Load(Path.Combine(Repository, "Directory.Build.props"));
+    Assert.Contains(properties.Descendants(), element
+      => string.Equals(element.Name.LocalName, "RestorePackagesWithLockFile", StringComparison.Ordinal) &&
+         string.Equals(element.Value, "true", StringComparison.Ordinal));
 
     foreach (var project in new[] {
                "src/AssuanLibrary.Generators", "src/AssuanLibrary",
@@ -32,7 +33,7 @@ public sealed partial class WorkflowContractTests {
                "tests/AssuanLibrary.GpgconfFixture", "tests/AssuanLibrary.Generators.Tests",
                "tests/AssuanLibrary.Tests"
              }) {
-      var path = Path.Combine(_repository, project, "packages.lock.json");
+      var path = Path.Combine(Repository, project, "packages.lock.json");
       using var document = JsonDocument.Parse(File.ReadAllText(path));
       Assert.True(document.RootElement.GetProperty("version").GetInt32() >= 1);
       Assert.NotEqual(JsonValueKind.Undefined, document.RootElement.GetProperty("dependencies").ValueKind);
@@ -41,7 +42,7 @@ public sealed partial class WorkflowContractTests {
 
   [Fact]
   public void CiWorkflowChecksAnExactShaWithoutPublicationCredentials() {
-    var path = Path.Combine(_repository, ".github", "workflows", "ci.yml");
+    var path = Path.Combine(Repository, ".github", "workflows", "ci.yml");
     var yaml = File.ReadAllText(path);
     Assert.Contains("workflow_call:", yaml);
     Assert.Contains("source_sha:", yaml);
@@ -62,22 +63,22 @@ public sealed partial class WorkflowContractTests {
     Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("pages: write", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("contents: write", yaml, StringComparison.OrdinalIgnoreCase);
-    var actions = Regex.Matches(yaml, @"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)");
+    var actions = UsesRegex().Matches(yaml);
     Assert.NotEmpty(actions);
-    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
-    Assert.Equal(6, Regex.Matches(yaml, "Assert-CheckoutSha\\.ps1").Count);
-    Assert.Equal(6, Regex.Matches(yaml, @"(?m)^\s*-\s*uses:\s*actions/checkout@").Count);
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
+    Assert.Equal(6, CmdletRegex().Count(yaml));
+    Assert.Equal(6, CheckoutRegex().Count(yaml));
   }
 
   [Fact]
   public void CiGuideAndWorkflowValidatorStayInTheRepository() {
-    Assert.True(File.Exists(Path.Combine(_repository, "docs", "guides", "continuous-integration.md")));
-    Assert.True(File.Exists(Path.Combine(_repository, "scripts", "ci", "Verify-Workflows.ps1")));
+    Assert.True(File.Exists(Path.Combine(Repository, "docs", "guides", "continuous-integration.md")));
+    Assert.True(File.Exists(Path.Combine(Repository, "scripts", "ci", "Verify-Workflows.ps1")));
   }
 
   [Fact]
   public void InteropWorkflowRequiresRealGnuPgOnEveryHostedPlatform() {
-    var yaml = File.ReadAllText(Path.Combine(_repository, ".github", "workflows", "interop.yml"));
+    var yaml = File.ReadAllText(Path.Combine(Repository, ".github", "workflows", "interop.yml"));
     Assert.Contains("workflow_call:", yaml);
     Assert.Contains("source_sha:", yaml);
     Assert.Contains("required: true", yaml);
@@ -102,13 +103,16 @@ public sealed partial class WorkflowContractTests {
     Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
     var actions = UsesRegex().Matches(yaml);
     Assert.NotEmpty(actions);
-    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups[1].Value));
+    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
     Assert.Equal(3, CmdletRegex().Count(yaml));
   }
 
-  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@([^\s#]+)")]
+  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@(?<ref>[^\s#]+)", RegexOptions.ExplicitCapture, 5000)]
   private static partial Regex UsesRegex();
 
-  [GeneratedRegex("Assert-CheckoutSha\\.ps1")]
+  [GeneratedRegex("Assert-CheckoutSha\\.ps1", RegexOptions.ExplicitCapture, 5000)]
   private static partial Regex CmdletRegex();
+
+  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*actions/checkout@", RegexOptions.ExplicitCapture, 5000)]
+  private static partial Regex CheckoutRegex();
 }

@@ -59,7 +59,7 @@ public sealed class ServerFailureTests {
     Assert.Equal(ServerErrorKind.Transport, error.Kind);
     Assert.IsType<TransportException>(error.TechnicalCause);
     Assert.DoesNotContain("SECRET_MARKER", error.ToString());
-    Assert.True(acceptor._disposed);
+    Assert.True(acceptor.Disposed);
     Assert.Equal("OK\nOK\n"u8.ToArray(), first.WrittenBytes);
   }
 
@@ -67,14 +67,15 @@ public sealed class ServerFailureTests {
   public async Task NoncooperativeLateAcceptIsClosedWithoutBecomingASession() {
     var acceptor = new LateAcceptor();
     var states = 0;
-    var server = new AssuanServer<object>(() => {
-      Interlocked.Increment(ref states);
-      return new object();
-    },
+    var server = new AssuanServer<object>(() =>
+      {
+        Interlocked.Increment(ref states);
+        return new object();
+      },
       ServerOptions.Default);
     using var stop = new CancellationTokenSource();
     var serving = server.ServeAsync(acceptor, stop.Token);
-    await acceptor._entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    await acceptor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     await stop.CancelAsync();
     await serving.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     var late = new ObservedStream();
@@ -82,7 +83,7 @@ public sealed class ServerFailureTests {
     Assert.True(await Eventually.UntilAsync(() => late.Disposals != 0,
       TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     Assert.Equal(0, states);
-    Assert.True(acceptor._disposed);
+    Assert.True(acceptor.Disposed);
   }
 
   [Theory]
@@ -93,10 +94,11 @@ public sealed class ServerFailureTests {
     var stream = new ObservedStream();
     var acceptor = new StopDuringAccept(stop, stream, fail);
     var states = 0;
-    var server = new AssuanServer<object>(() => {
-      Interlocked.Increment(ref states);
-      return new object();
-    },
+    var server = new AssuanServer<object>(() =>
+      {
+        Interlocked.Increment(ref states);
+        return new object();
+      },
       ServerOptions.Default);
     if (fail) {
       var error = await Assert.ThrowsAsync<ServerException>(() => server.ServeAsync(acceptor, stop.Token));
@@ -110,7 +112,7 @@ public sealed class ServerFailureTests {
     }
 
     Assert.Equal(0, states);
-    Assert.True(acceptor._disposed);
+    Assert.True(acceptor.Disposed);
   }
 
   private sealed class DiagnosticProbe : IObserver<DiagnosticListener>,
@@ -118,10 +120,12 @@ public sealed class ServerFailureTests {
     private readonly IDisposable _all;
     private readonly List<string> _entries = [];
     private IDisposable? _events;
+
     internal DiagnosticProbe() => _all = DiagnosticListener.AllListeners.Subscribe(this);
 
     internal string[] Entries {
-      get {
+      get
+      {
         lock (_entries) {
           return [.. _entries];
         }
@@ -134,12 +138,13 @@ public sealed class ServerFailureTests {
     }
 
     public void OnNext(DiagnosticListener listener) {
-      if (listener.Name == "AssuanLibrary.Server") {
+      if (string.Equals(listener.Name, "AssuanLibrary.Server", StringComparison.Ordinal)) {
         _events = listener.Subscribe(this);
       }
     }
 
     public void OnError(Exception error) { }
+
     public void OnCompleted() { }
 
     public void OnNext(KeyValuePair<string, object?> entry) {
@@ -151,38 +156,38 @@ public sealed class ServerFailureTests {
 
   private sealed class FailsOnSecondAccept : IAssuanAcceptor {
     private readonly AcceptedConnection _first;
-    internal int _calls;
-    internal bool _disposed;
+    internal bool Disposed;
+    private int _calls;
+
     internal FailsOnSecondAccept(Stream first) => _first = new AcceptedConnection(first);
 
-    public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken cancellationToken = default) {
-      return Interlocked.Increment(ref _calls) == 1
+    public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken cancellationToken = default)
+      => Interlocked.Increment(ref _calls) == 1
         ? ValueTask.FromResult(_first)
         : ValueTask.FromException<AcceptedConnection>(
           new TransportException(TransportErrorKind.Io, new IOException("SECRET_MARKER")));
-    }
 
     public ValueTask DisposeAsync() {
-      _disposed = true;
+      Disposed = true;
       return ValueTask.CompletedTask;
     }
   }
 
   private sealed class LateAcceptor : IAssuanAcceptor {
-    internal readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly TaskCompletionSource<AcceptedConnection> _late =
       new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    internal bool _disposed;
+    internal bool Disposed;
 
     public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken cancellationToken = default) {
-      _entered.TrySetResult();
+      Entered.TrySetResult();
       return new ValueTask<AcceptedConnection>(_late.Task); // Ignores cancellation deliberately.
     }
 
     public ValueTask DisposeAsync() {
-      _disposed = true;
+      Disposed = true;
       return ValueTask.CompletedTask;
     }
 
@@ -205,7 +210,7 @@ public sealed class ServerFailureTests {
 
   private sealed class StopDuringAccept(CancellationTokenSource stop, Stream stream, bool fail)
     : IAssuanAcceptor {
-    internal bool _disposed;
+    internal bool Disposed;
 
     public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken cancellationToken = default) {
       stop.Cancel();
@@ -216,7 +221,7 @@ public sealed class ServerFailureTests {
     }
 
     public ValueTask DisposeAsync() {
-      _disposed = true;
+      Disposed = true;
       return ValueTask.CompletedTask;
     }
   }

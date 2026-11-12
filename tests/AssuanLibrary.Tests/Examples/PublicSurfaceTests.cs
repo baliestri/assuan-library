@@ -6,7 +6,8 @@ using AssuanLibrary.Protocol;
 namespace AssuanLibrary.Tests.Examples;
 
 public sealed class PublicSurfaceTests {
-  private static readonly string _repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+  private readonly static string Repository =
+    Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
 
   [Fact]
   public void RuntimeAssemblyExportsOnlyResponsibilityNamespaces() {
@@ -16,16 +17,17 @@ public sealed class PublicSurfaceTests {
       "AssuanLibrary.Server", "AssuanLibrary.Client", "AssuanLibrary.Attributes", "AssuanLibrary.Diagnostics"
     };
     var exports = typeof(ProtocolCommand).Assembly.GetExportedTypes();
-    Assert.DoesNotContain(exports, type => type.Namespace == "AssuanLibrary" ||
-                                           (type.Name.Contains("Native", StringComparison.Ordinal) && type.Name != "AgentEndpointKind"));
+    Assert.DoesNotContain(exports, type => string.Equals(type.Namespace, "AssuanLibrary", StringComparison.Ordinal) ||
+                                           type.Name.Contains("Native", StringComparison.Ordinal) &&
+                                           !string.Equals(type.Name, "AgentEndpointKind", StringComparison.Ordinal));
     Assert.All(exports, type => Assert.Contains(Assert.IsType<string>(type.Namespace), names));
   }
 
   [Fact]
   public void OneUserExamplesProjectIsPartOfTheSolution() {
-    Assert.True(File.Exists(Path.Combine(_repository, "examples", "AssuanLibrary.Examples",
+    Assert.True(File.Exists(Path.Combine(Repository, "examples", "AssuanLibrary.Examples",
       "AssuanLibrary.Examples.csproj")));
     Assert.Contains("examples/AssuanLibrary.Examples/AssuanLibrary.Examples.csproj",
-      File.ReadAllText(Path.Combine(_repository, "AssuanLibrary.slnx")));
+      File.ReadAllText(Path.Combine(Repository, "AssuanLibrary.slnx")));
   }
 }

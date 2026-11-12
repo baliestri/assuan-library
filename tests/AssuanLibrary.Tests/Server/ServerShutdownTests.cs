@@ -18,7 +18,8 @@ public sealed class ServerShutdownTests {
     var delayCalls = 0;
     var acceptor = new ControlledAcceptor();
     var hooks = new CloseHooks();
-    var server = new AssuanServer<object>(() => new object(), ServerOptions.Default, (duration, _) => {
+    var server = new AssuanServer<object>(() => new object(), ServerOptions.Default, (duration, _) =>
+    {
       Assert.Equal(TimeSpan.FromSeconds(30), duration);
       Interlocked.Increment(ref delayCalls);
       graceStarted.TrySetResult();
@@ -34,7 +35,7 @@ public sealed class ServerShutdownTests {
     await graceStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     Assert.False(serving.IsCompleted);
     Assert.Equal(1, server.PendingSessionCount);
-    Assert.Equal(0, hooks._closed);
+    Assert.Equal(0, hooks.Closed);
     endGrace.SetResult();
     await serving.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     Assert.Equal(1, delayCalls);
@@ -47,7 +48,7 @@ public sealed class ServerShutdownTests {
     await server.WhenDrainedAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(2),
       TestContext.Current.CancellationToken);
     Assert.Equal(0, server.PendingSessionCount);
-    Assert.Equal(1, hooks._closed);
+    Assert.Equal(1, hooks.Closed);
   }
 
   [Fact]
@@ -59,7 +60,8 @@ public sealed class ServerShutdownTests {
     var delays = 0;
     var acceptor = new ControlledAcceptor();
     var server = new AssuanServer<object>(() => new object(), new ServerOptions(maxSessions: 2),
-      (_, _) => {
+      (_, _) =>
+      {
         Interlocked.Increment(ref delays);
         graceCalled.TrySetResult();
         return grace.Task;
@@ -90,7 +92,8 @@ public sealed class ServerShutdownTests {
     var graceCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     var holdGrace = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     var server = new AssuanServer<object>(() => new object(), ServerOptions.Default,
-      (_, _) => {
+      (_, _) =>
+      {
         graceCalled.TrySetResult();
         return holdGrace.Task;
       });
@@ -122,12 +125,12 @@ public sealed class ServerShutdownTests {
     public async ValueTask HandleAsync(CommandContext<object> context, CancellationToken token) {
       onStart?.Invoke();
       started.TrySetResult();
-      await release.Task; // Deliberately noncooperative.
+      await release.Task.ConfigureAwait(false); // Deliberately noncooperative.
     }
   }
 
   private sealed class CloseHooks : ISessionHooks<object> {
-    internal int _closed;
+    internal int Closed;
 
     public ValueTask AuthenticateAsync(CommandContext<object> context, CancellationToken token)
       => ValueTask.CompletedTask;
@@ -139,7 +142,7 @@ public sealed class ServerShutdownTests {
       => ValueTask.CompletedTask;
 
     public ValueTask ClosedAsync(object state, SessionEnd reason, CancellationToken token) {
-      Interlocked.Increment(ref _closed);
+      Interlocked.Increment(ref Closed);
       return ValueTask.CompletedTask;
     }
   }

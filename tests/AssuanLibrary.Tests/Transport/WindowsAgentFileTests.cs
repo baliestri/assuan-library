@@ -13,7 +13,7 @@ public sealed class WindowsAgentFileTests {
     var read = WindowsSocketFile.ReadStreamAsync(stream,
       new TransportDeadline(TimeSpan.FromMilliseconds(100)),
       TestContext.Current.CancellationToken);
-    await stream._started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     var error = await Assert.ThrowsAsync<DiscoveryException>(() => read);
     Assert.Equal(DiscoveryErrorKind.Timeout, error.Kind);
     stream.FinishAfterTimeout();
@@ -62,13 +62,13 @@ public sealed class WindowsAgentFileTests {
   }
 
   private sealed class DelayedReadStream : MemoryStream {
+    internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<int> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    internal readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal Memory<byte> PendingBuffer { get; private set; }
 
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) {
       PendingBuffer = buffer;
-      _started.SetResult();
+      Started.SetResult();
       return new ValueTask<int>(_release.Task);
     }
 

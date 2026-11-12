@@ -16,8 +16,9 @@ public sealed class ChannelLifetimeTests {
     Assert.True(stream.Disposed);
     Assert.True(ChannelReadTests.GetBuffer(channel, "_ahead").AsSpan().IndexOfAnyExcept((byte)0) < 0);
     Assert.True(ChannelReadTests.GetBuffer(channel, "_write").AsSpan().IndexOfAnyExcept((byte)0) < 0);
-    Assert.Equal(TransportErrorKind.Closed, (await Assert.ThrowsAsync<TransportException>(() => channel.WriteLineAsync("NOP\n"u8.ToArray(),
-      TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken))).Kind);
+    Assert.Equal(TransportErrorKind.Closed, (await Assert.ThrowsAsync<TransportException>(()
+      => channel.WriteLineAsync("NOP\n"u8.ToArray(),
+        TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken))).Kind);
   }
 
   [Fact]
@@ -33,7 +34,8 @@ public sealed class ChannelLifetimeTests {
     var ahead = ChannelReadTests.GetBuffer(channel, "_ahead");
     Assert.Equal((byte)'s', ahead[0]); // ReadAsync still owns this memory.
     Assert.Equal(TransportErrorKind.Closed,
-      (await Assert.ThrowsAsync<TransportException>(() => channel.ReadLineOrEofAsync(TimeSpan.FromSeconds(1), token))).Kind);
+      (await Assert.ThrowsAsync<TransportException>(() => channel.ReadLineOrEofAsync(TimeSpan.FromSeconds(1), token)))
+      .Kind);
     stream.ReleaseRead("OK\n"u8);
     Assert.True(await Eventually.UntilAsync(() => ahead.AsSpan().IndexOfAnyExcept((byte)0) < 0,
       TimeSpan.FromSeconds(5), token));

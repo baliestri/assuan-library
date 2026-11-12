@@ -36,9 +36,10 @@ public sealed class ChangelogTests {
 
     var applied = await fixture.PrepareAsync(dryRun: false);
     Assert.Equal(0, applied.ExitCode);
-    var changelog = File.ReadAllText(Path.Combine(fixture.Root, "CHANGELOG.md"));
+    var changelog = await File.ReadAllTextAsync(Path.Combine(fixture.Root, "CHANGELOG.md"),
+      TestContext.Current.CancellationToken);
     Assert.EndsWith(ReleaseFixture.HistoricalChangelog["# Assuan Library .NET Changelog\n\n".Length..], changelog);
-    Assert.Equal(1, changelog.Split("## [2.0.0]", StringSplitOptions.None).Length - 1);
+    Assert.Equal(1, changelog.Split("## [2.0.0]").Length - 1);
     Assert.NotEqual(0, (await fixture.PrepareAsync(dryRun: false)).ExitCode);
   }
 
@@ -51,7 +52,8 @@ public sealed class ChangelogTests {
     var section = proposal.RootElement.GetProperty("generatedSection").GetString()!;
     Assert.Contains("v2.0.0..v2.0.1", section);
     Assert.DoesNotContain("replace the published 1.x API", section);
-    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);
-    Assert.Contains("## [2.0.0] - published", File.ReadAllText(Path.Combine(fixture.Root, "CHANGELOG.md")));
+    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", false)).ExitCode);
+    Assert.Contains("## [2.0.0] - published",
+      await File.ReadAllTextAsync(Path.Combine(fixture.Root, "CHANGELOG.md"), TestContext.Current.CancellationToken));
   }
 }

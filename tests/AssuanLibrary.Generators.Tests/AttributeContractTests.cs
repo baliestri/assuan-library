@@ -20,7 +20,7 @@ public sealed class AttributeContractTests {
 
   [Fact]
   public void UnannotatedConsumerProducesNoGeneratedCodeOrErrors() {
-    var result = GeneratorHarness.Compile("public class Empty {}", true);
+    var result = GeneratorHarness.Compile("public class Empty {}");
     Assert.Empty(result.GeneratedSources);
     Assert.Empty(result.OutputCompilationErrors);
   }
@@ -28,14 +28,14 @@ public sealed class AttributeContractTests {
   [Fact]
   public void ConsumerCanResolveAllAttributeTypes() {
     var result = GeneratorHarness.Compile("""
-                                          using AssuanLibrary.Attributes;
-                                          public partial class Demo {
-                                            [AssuanCommandHandler("ECHO", "Echoes arguments")]
-                                            private static System.Threading.Tasks.ValueTask EchoAsync(
-                                              AssuanLibrary.Server.CommandContext<object> ctx,
-                                              System.Threading.CancellationToken ct) => System.Threading.Tasks.ValueTask.CompletedTask;
-                                          }
-                                          """);
+      using AssuanLibrary.Attributes;
+      public partial class Demo {
+        [AssuanCommandHandler("ECHO", "Echoes arguments")]
+        private static System.Threading.Tasks.ValueTask EchoAsync(
+          AssuanLibrary.Server.CommandContext<object> ctx,
+          System.Threading.CancellationToken ct) => System.Threading.Tasks.ValueTask.CompletedTask;
+      }
+      """);
     Assert.Empty(result.OutputCompilationErrors);
     Assert.Single(result.GeneratedSources);
   }

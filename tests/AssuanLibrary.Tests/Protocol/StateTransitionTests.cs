@@ -7,7 +7,7 @@ using AssuanLibrary.Protocol.State;
 namespace AssuanLibrary.Tests.Protocol;
 
 public sealed class StateTransitionTests {
-  private static readonly ProtocolResponseKind[] _responseKinds = [
+  private readonly static ProtocolResponseKind[] ResponseKinds = [
     ProtocolResponseKind.Ok, ProtocolResponseKind.Err, ProtocolResponseKind.Data, ProtocolResponseKind.Status,
     ProtocolResponseKind.Inquire, ProtocolResponseKind.End, ProtocolResponseKind.Comment, ProtocolResponseKind.Empty
   ];
@@ -23,11 +23,11 @@ public sealed class StateTransitionTests {
       (ClientState.Invalid, [false, false, false, false, false, false, false, false]),
       (ClientState.Closed, [false, false, false, false, false, false, false, false])
     ];
-    foreach (var (state, accepted) in cases) {
-      for (var index = 0; index < _responseKinds.Length; ++index) {
+    foreach (var (state, accepted) in cases)
+      for (var index = 0; index < ResponseKinds.Length; ++index) {
         var machine = ClientIn(state);
         var success = true;
-        try { machine.Receive(_responseKinds[index]); }
+        try { machine.Receive(ResponseKinds[index]); }
         catch (StateException) { success = false; }
 
         Assert.Equal(accepted[index], success);
@@ -35,7 +35,6 @@ public sealed class StateTransitionTests {
           Assert.Equal(state == ClientState.Closed ? ClientState.Closed : ClientState.Invalid, machine.State);
         }
       }
-    }
   }
 
   [Fact]
@@ -49,11 +48,11 @@ public sealed class StateTransitionTests {
       (ServerState.Invalid, [false, false, false, false, false, false, false, false]),
       (ServerState.Closed, [false, false, false, false, false, false, false, false])
     ];
-    foreach (var (state, accepted) in responses) {
-      for (var index = 0; index < _responseKinds.Length; ++index) {
+    foreach (var (state, accepted) in responses)
+      for (var index = 0; index < ResponseKinds.Length; ++index) {
         var machine = ServerIn(state);
         var success = true;
-        try { machine.SendResponse(_responseKinds[index]); }
+        try { machine.SendResponse(ResponseKinds[index]); }
         catch (StateException) { success = false; }
 
         Assert.Equal(accepted[index], success);
@@ -61,7 +60,6 @@ public sealed class StateTransitionTests {
           Assert.Equal(state == ServerState.Closed ? ServerState.Closed : ServerState.Invalid, machine.State);
         }
       }
-    }
 
     RequestKind[] requestKinds = [
       RequestKind.Command, RequestKind.Data, RequestKind.End,
@@ -76,7 +74,7 @@ public sealed class StateTransitionTests {
       (ServerState.Invalid, [false, false, false, false, false, false]),
       (ServerState.Closed, [false, false, false, false, false, false])
     ];
-    foreach (var (state, accepted) in requests) {
+    foreach (var (state, accepted) in requests)
       for (var index = 0; index < requestKinds.Length; ++index) {
         var machine = ServerIn(state);
         var success = true;
@@ -88,7 +86,6 @@ public sealed class StateTransitionTests {
           Assert.Equal(state == ServerState.Closed ? ServerState.Closed : ServerState.Invalid, machine.State);
         }
       }
-    }
   }
 
   private static ClientMachine ClientIn(ClientState state) {

@@ -72,7 +72,8 @@ public sealed class LifecycleTests {
       cancellationToken: TestContext.Current.CancellationToken);
     await using (var first = await client.CommandAsync("ONE", ReadOnlyMemory<byte>.Empty,
                    PayloadSensitivity.Public, TestContext.Current.CancellationToken)) {
-      using var final = Assert.IsType<ClientEventLease>(await first.ReadNextAsync(TestContext.Current.CancellationToken));
+      using var final =
+        Assert.IsType<ClientEventLease>(await first.ReadNextAsync(TestContext.Current.CancellationToken));
     }
 
     Assert.True(client.IsUsable);

@@ -24,17 +24,19 @@ public sealed class SessionTests {
   public async Task ArgumentsSurviveAwaitAndRemoteErrorsPermitFollowingCommand() {
     await using var stream = new SessionDuplexStream("ECHO %00\nFAIL\nECHO again\nBYE\n"u8.ToArray());
     var registry = new CommandRegistry<Counter>();
-    registry.Register(new Handler("ECHO", async (context, token) => {
+    registry.Register(new Handler("ECHO", async (context, token) =>
+    {
       await Task.Yield();
-      context.State._value++;
-      await context.SendDataAsync(context.Arguments, token);
+      context.State.Value++;
+      await context.SendDataAsync(context.Arguments, token).ConfigureAwait(false);
     }));
-    registry.Register(new Handler("FAIL", (_, _) => ValueTask.FromException(HandlerException.Remote(55, "public error"))));
+    registry.Register(new Handler("FAIL",
+      (_, _) => ValueTask.FromException(HandlerException.Remote(55, "public error"))));
     var state = new Counter();
     var session = new ServerSession<Counter>(new AcceptedConnection(stream), state, registry,
       new DefaultSessionHooks<Counter>(), ServerOptions.Default);
     await session.RunAsync(TestContext.Current.CancellationToken);
-    Assert.Equal(2, state._value);
+    Assert.Equal(2, state.Value);
     Assert.Equal("OK\nD %2500\nOK\nERR 55 public error\nD again\nOK\nOK\n"u8.ToArray(), stream.WrittenBytes);
   }
 
@@ -61,10 +63,10 @@ public sealed class SessionTests {
     var session = new ServerSession<Counter>(new AcceptedConnection(stream), state,
       new CommandRegistry<Counter>(), hooks, ServerOptions.Default);
     await session.RunAsync(TestContext.Current.CancellationToken);
-    Assert.True(hooks._authSawUnauthenticated);
-    Assert.True(hooks._resetSawAuthenticated);
-    Assert.Equal(SessionEnd.Clean, hooks._endReason);
-    Assert.Equal(0, state._value);
+    Assert.True(hooks.AuthSawUnauthenticated);
+    Assert.True(hooks.ResetSawAuthenticated);
+    Assert.Equal(SessionEnd.Clean, hooks.EndReason);
+    Assert.Equal(0, state.Value);
     Assert.Equal("S AUTH yes\nOK\nOK\nOK\nOK\nOK\n"u8.ToArray(), stream.WrittenBytes);
   }
 
@@ -72,13 +74,17 @@ public sealed class SessionTests {
   public async Task AbandonedInquiryTerminatesSessionWithoutInventingAFinal() {
     await using var stream = new SessionDuplexStream("LEAK\nD payload\nEND\n"u8.ToArray());
     var registry = new CommandRegistry<Counter>();
-    registry.Register(new Handler("LEAK", async (context, token) => {
-      await using var inquiry = await context.BeginInquiryAsync("PIN", ReadOnlyMemory<byte>.Empty,
-        PayloadSensitivity.Secret, token);
+    registry.Register(new Handler("LEAK", async (context, token) =>
+    {
+      var inquiry = await context.BeginInquiryAsync("PIN", ReadOnlyMemory<byte>.Empty,
+        PayloadSensitivity.Secret, token).ConfigureAwait(false);
+      await using (inquiry.ConfigureAwait(false)) {
+      }
     }));
     var session = new ServerSession<Counter>(new AcceptedConnection(stream), new Counter(), registry,
       new DefaultSessionHooks<Counter>(), ServerOptions.Default);
-    var error = await Assert.ThrowsAsync<ServerException>(() => session.RunAsync(TestContext.Current.CancellationToken));
+    var error = await Assert.ThrowsAsync<ServerException>(()
+      => session.RunAsync(TestContext.Current.CancellationToken));
     Assert.Equal(ServerErrorKind.Protocol, error.Kind);
     Assert.Equal("OK\nINQUIRE PIN\n"u8.ToArray(), stream.WrittenBytes);
   }
@@ -98,7 +104,8 @@ public sealed class SessionTests {
     await using var stream = new SessionDuplexStream("ECHO private\nBYE\n"u8.ToArray());
     ReadOnlyMemory<byte> borrowed = default;
     var registry = new CommandRegistry<Counter>();
-    registry.Register(new Handler("ECHO", (context, _) => {
+    registry.Register(new Handler("ECHO", (context, _) =>
+    {
       borrowed = context.Arguments;
       return ValueTask.CompletedTask;
     }));
@@ -110,7 +117,7 @@ public sealed class SessionTests {
   }
 
   private sealed class Counter {
-    internal int _value;
+    internal int Value;
   }
 
   private sealed class Handler(string name, Func<CommandContext<Counter>, CancellationToken, ValueTask> call)
@@ -123,28 +130,28 @@ public sealed class SessionTests {
   }
 
   private sealed class Hooks : ISessionHooks<Counter> {
-    internal bool _authSawUnauthenticated;
-    internal SessionEnd? _endReason;
-    internal bool _resetSawAuthenticated;
+    internal bool AuthSawUnauthenticated;
+    internal SessionEnd? EndReason;
+    internal bool ResetSawAuthenticated;
 
     public async ValueTask AuthenticateAsync(CommandContext<Counter> context, CancellationToken token) {
-      _authSawUnauthenticated = !context.IsAuthenticated;
-      await context.SendStatusAsync("AUTH", "yes"u8.ToArray(), token);
+      AuthSawUnauthenticated = !context.IsAuthenticated;
+      await context.SendStatusAsync("AUTH", "yes"u8.ToArray(), token).ConfigureAwait(false);
     }
 
     public ValueTask OptionAsync(OptionRequest request, CommandContext<Counter> context, CancellationToken token) {
-      context.State._value = request.Value!.Value.Length;
+      context.State.Value = request.Value!.Value.Length;
       return ValueTask.CompletedTask;
     }
 
     public ValueTask ResetAsync(CommandContext<Counter> context, CancellationToken token) {
-      _resetSawAuthenticated = context.IsAuthenticated;
-      context.State._value = 0;
+      ResetSawAuthenticated = context.IsAuthenticated;
+      context.State.Value = 0;
       return ValueTask.CompletedTask;
     }
 
     public ValueTask ClosedAsync(Counter state, SessionEnd reason, CancellationToken token) {
-      _endReason = reason;
+      EndReason = reason;
       return ValueTask.CompletedTask;
     }
   }

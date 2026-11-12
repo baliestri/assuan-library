@@ -56,9 +56,10 @@ public sealed class GreetingHandlerTests {
   [Fact]
   public async Task CallbackCanSendDataAndFinishBeforeGreetingOk() {
     var peer = new ScriptedClientStream("INQUIRE TOKEN\nOK\n"u8.ToArray());
-    var callback = new Callback(async (inquiry, token) => {
-      await inquiry.SendDataAsync("a\n%"u8.ToArray(), token);
-      await inquiry.FinishAsync(token);
+    var callback = new Callback(async (inquiry, token) =>
+    {
+      await inquiry.SendDataAsync("a\n%"u8.ToArray(), token).ConfigureAwait(false);
+      await inquiry.FinishAsync(token).ConfigureAwait(false);
     });
     await using var client = await AssuanClient.FromStreamAsync(peer, callback,
       cancellationToken: TestContext.Current.CancellationToken);
@@ -89,10 +90,11 @@ public sealed class GreetingHandlerTests {
     var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     ClientInquiry? borrowed = null;
-    var callback = new Callback(async (inquiry, _) => {
+    var callback = new Callback(async (inquiry, _) =>
+    {
       borrowed = inquiry;
       started.SetResult();
-      await release.Task; // Ignores cancellation deliberately.
+      await release.Task.ConfigureAwait(false); // Ignores cancellation deliberately.
     });
     var opening = AssuanClient.FromStreamAsync(peer, callback,
       new ClientOptions(greetingTimeout: TimeSpan.FromMilliseconds(100)), TestContext.Current.CancellationToken);
@@ -102,7 +104,8 @@ public sealed class GreetingHandlerTests {
     Assert.True(peer.Closed);
     Assert.Equal("prompt"u8.ToArray(), borrowed!.Arguments.ToArray());
     release.SetResult();
-    Assert.True(SpinWait.SpinUntil(() => {
+    Assert.True(SpinWait.SpinUntil(() =>
+    {
       try {
         _ = borrowed.Arguments.Length;
         return false;

@@ -38,17 +38,18 @@ public sealed class TcpTests {
                new IPEndPoint(IPAddress.Loopback, 0),
                new IPEndPoint(IPAddress.Any, 12345), new IPEndPoint(IPAddress.IPv6Any, 12345)
              }) {
-      var error = await Assert.ThrowsAsync<TransportException>(() => TcpConnector.ConnectAsync(endpoint, cancellationToken: token));
+      var error = await Assert.ThrowsAsync<TransportException>(()
+        => TcpConnector.ConnectAsync(endpoint, cancellationToken: token));
       Assert.Equal(TransportErrorKind.InvalidEndpoint, error.Kind);
     }
 
     var address = new IPEndPoint(IPAddress.Loopback, 12345);
     Assert.Equal(TransportErrorKind.Timeout,
-      (await Assert.ThrowsAsync<TransportException>(() => TcpConnector.ConnectAsync(address, TimeSpan.Zero, token))).Kind);
-    foreach (var invalid in new[] { TimeSpan.FromTicks(-1), TimeSpan.MaxValue }) {
+      (await Assert.ThrowsAsync<TransportException>(() => TcpConnector.ConnectAsync(address, TimeSpan.Zero, token)))
+      .Kind);
+    foreach (var invalid in new[] { TimeSpan.FromTicks(-1), TimeSpan.MaxValue })
       Assert.Equal(TransportErrorKind.InvalidOptions,
         (await Assert.ThrowsAsync<TransportException>(() => TcpConnector.ConnectAsync(address, invalid, token))).Kind);
-    }
 
     using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(token);
     await cancelled.CancelAsync();
@@ -71,7 +72,8 @@ public sealed class TcpTests {
     await using var listener = TcpAcceptor.Bind(new IPEndPoint(IPAddress.Loopback, 0));
     using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     await cancelled.CancelAsync();
-    var error = await Assert.ThrowsAsync<TransportException>(async () => await listener.AcceptAsync(cancelled.Token));
+    var error = await Assert.ThrowsAsync<TransportException>(async ()
+      => await listener.AcceptAsync(cancelled.Token).ConfigureAwait(false));
     Assert.Equal(TransportErrorKind.Cancelled, error.Kind);
     var accepting = listener.AcceptAsync(TestContext.Current.CancellationToken);
     await using var client = await TcpConnector.ConnectAsync(listener.Endpoint,

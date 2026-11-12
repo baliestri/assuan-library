@@ -69,7 +69,7 @@ public sealed class RecoveryTests {
     Assert.False(json.RootElement.GetProperty("requiresManualInspection").GetBoolean());
   }
 
-  private static Dictionary<string, object> Baseline() => new() {
+  private static Dictionary<string, object> Baseline() => new(StringComparer.Ordinal) {
     ["preparedSha"] = new string('a', 40), ["checkedOutSha"] = new string('a', 40),
     ["ciSha"] = new string('a', 40), ["interopSha"] = new string('a', 40),
     ["ciResult"] = "success", ["interopResult"] = "success",
@@ -88,14 +88,13 @@ public sealed class RecoveryTests {
                "-NoProfile", "-NonInteractive", "-File",
                Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Simulate-Release.ps1"),
                "-InputJson", JsonSerializer.Serialize(scenario)
-             }) {
+             })
       start.ArgumentList.Add(argument);
-    }
 
     using var process = Process.Start(start)!;
     var stdout = process.StandardOutput.ReadToEndAsync();
     var stderr = process.StandardError.ReadToEndAsync();
-    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
-    return (process.ExitCode, await stdout + await stderr);
+    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+    return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
   }
 }

@@ -7,13 +7,13 @@ using AssuanLibrary.Docs;
 namespace AssuanLibrary.Tests.Documentation;
 
 public sealed class ManifestTests {
-  internal static readonly string _repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
-  internal static readonly string _manifest = Path.Combine(_repository, "docs", "site", "sources.json");
+  internal readonly static string Repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
+  internal readonly static string Manifest = Path.Combine(Repository, "docs", "site", "sources.json");
 
   [Fact]
   public void ReviewedManifestHasUniqueSortedInRepositorySourcesAndDestinations() {
-    Assert.True(File.Exists(_manifest));
-    using var json = JsonDocument.Parse(File.ReadAllText(_manifest));
+    Assert.True(File.Exists(Manifest));
+    using var json = JsonDocument.Parse(File.ReadAllText(Manifest));
     var sources = json.RootElement.GetProperty("sources").EnumerateArray().ToArray();
     Assert.NotEmpty(sources);
     var sourcePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -30,17 +30,19 @@ public sealed class ManifestTests {
       Assert.True(destinations.Add(destination));
       Assert.False(Path.IsPathRooted(source) || source.Split('/', '\\').Contains(".."));
       Assert.False(Path.IsPathRooted(destination) || destination.Split('/', '\\').Contains(".."));
-      Assert.True(File.Exists(Path.Combine(_repository, source)) || item.GetProperty("optional").GetBoolean());
+      Assert.True(File.Exists(Path.Combine(Repository, source)) || item.GetProperty("optional").GetBoolean());
       Assert.False(item.GetProperty("includeInFull").GetBoolean() &&
                    !item.GetProperty("includeInIndex").GetBoolean());
     }
 
-    Assert.Contains(sources, entry => entry.GetProperty("source").GetString() == "docs/nuget/README.md");
+    Assert.Contains(sources,
+      entry => string.Equals(entry.GetProperty("source").GetString(), "docs/nuget/README.md",
+        StringComparison.Ordinal));
   }
 
   [Fact]
   public void OperationalSourcesAreNotAccidentallyInTheFullUserCorpus() {
-    using var json = JsonDocument.Parse(File.ReadAllText(_manifest));
+    using var json = JsonDocument.Parse(File.ReadAllText(Manifest));
     Assert.DoesNotContain(json.RootElement.GetProperty("sources").EnumerateArray(), item =>
       item.GetProperty("source").GetString() is { } source &&
       source.Contains("operations", StringComparison.OrdinalIgnoreCase) &&

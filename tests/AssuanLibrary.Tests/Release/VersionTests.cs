@@ -15,15 +15,17 @@ public sealed class VersionTests {
     using var fixture = new ReleaseFixture();
     var result = await fixture.PrepareAsync(version);
     Assert.NotEqual(0, result.ExitCode);
-    Assert.Equal(ReleaseFixture.HistoricalChangelog, File.ReadAllText(Path.Combine(fixture.Root, "CHANGELOG.md")));
+    Assert.Equal(ReleaseFixture.HistoricalChangelog,
+      await File.ReadAllTextAsync(Path.Combine(fixture.Root, "CHANGELOG.md"), TestContext.Current.CancellationToken));
   }
 
   [Fact]
   public async Task RejectsDirtyCheckoutMovedHeadAndExistingReleaseRefs() {
     using var fixture = new ReleaseFixture();
-    File.AppendAllText(Path.Combine(fixture.Root, "feature.txt"), "dirty\n");
+    var token = TestContext.Current.CancellationToken;
+    await File.AppendAllTextAsync(Path.Combine(fixture.Root, "feature.txt"), "dirty\n", token);
     Assert.NotEqual(0, (await fixture.PrepareAsync()).ExitCode);
-    File.WriteAllText(Path.Combine(fixture.Root, "feature.txt"), "Version two.\n");
+    await File.WriteAllTextAsync(Path.Combine(fixture.Root, "feature.txt"), "Version two.\n", token);
     Assert.NotEqual(0, (await fixture.PrepareAsync(extra: ["-ExpectedSha", new string('a', 40)])).ExitCode);
     fixture.Git("tag", "v2.0.0");
     Assert.NotEqual(0, (await fixture.PrepareAsync()).ExitCode);
@@ -33,7 +35,8 @@ public sealed class VersionTests {
   public async Task RejectsMainThatIsNotAnAncestorOfDevelop() {
     using var fixture = new ReleaseFixture();
     fixture.Git("switch", "main");
-    File.WriteAllText(Path.Combine(fixture.Root, "main-only.txt"), "diverged\n");
+    await File.WriteAllTextAsync(Path.Combine(fixture.Root, "main-only.txt"), "diverged\n",
+      TestContext.Current.CancellationToken);
     fixture.Git("add", "main-only.txt");
     fixture.Git("commit", "-m", "fix: change published branch");
     fixture.Git("push", "origin", "main"); // Only the disposable bare fixture under artifacts.
@@ -52,22 +55,26 @@ public sealed class VersionTests {
   public async Task DryRunReportsVersionEditsWithoutChangingTrackedFiles() {
     using var fixture = new ReleaseFixture();
     var project = Path.Combine(fixture.Root, "src", "AssuanLibrary", "AssuanLibrary.csproj");
-    var before = File.ReadAllText(project);
+    var token = TestContext.Current.CancellationToken;
+    var before = await File.ReadAllTextAsync(project, token);
     var result = await fixture.PrepareAsync(extra: ["-ExpectedSha", fixture.Head]);
     Assert.Equal(0, result.ExitCode);
     using var proposal = JsonDocument.Parse(result.Output);
     Assert.Equal(fixture.Head, proposal.RootElement.GetProperty("sourceSha").GetString());
-    Assert.Contains(proposal.RootElement.GetProperty("files").EnumerateArray(), item =>
-      item.GetString() == "src/AssuanLibrary/AssuanLibrary.csproj");
-    Assert.Equal(before, File.ReadAllText(project));
-    Assert.Equal(ReleaseFixture.HistoricalChangelog, File.ReadAllText(Path.Combine(fixture.Root, "CHANGELOG.md")));
+    Assert.Contains(proposal.RootElement.GetProperty("files").EnumerateArray(),
+      item => string.Equals(item.GetString(), "src/AssuanLibrary/AssuanLibrary.csproj", StringComparison.Ordinal));
+    Assert.Equal(before, await File.ReadAllTextAsync(project, token));
+    Assert.Equal(ReleaseFixture.HistoricalChangelog,
+      await File.ReadAllTextAsync(Path.Combine(fixture.Root, "CHANGELOG.md"), token));
   }
 
   [Fact]
   public async Task InsertsTheVersionWhenTheMainPackageHasNoVersionProperty() {
-    using var fixture = new ReleaseFixture(versionProperty: false);
+    using var fixture = new ReleaseFixture(false);
     Assert.Equal(0, (await fixture.PrepareAsync(dryRun: false)).ExitCode);
-    var project = File.ReadAllText(Path.Combine(fixture.Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"));
+    var project = await File.ReadAllTextAsync(
+      Path.Combine(fixture.Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"),
+      TestContext.Current.CancellationToken);
     Assert.Contains("<Version>2.0.0</Version>", project);
   }
 
@@ -86,7 +93,8 @@ public sealed class VersionTests {
     Assert.Equal(prepared, fixture.Head);
 
     fixture.Git("switch", "-c", "advance");
-    File.WriteAllText(Path.Combine(fixture.Root, "reviewed-fix.txt"), "new candidate\n");
+    await File.WriteAllTextAsync(Path.Combine(fixture.Root, "reviewed-fix.txt"), "new candidate\n",
+      TestContext.Current.CancellationToken);
     fixture.Git("add", "reviewed-fix.txt");
     fixture.Git("commit", "-m", "fix(ci): correct reusable SHA selection");
     fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.0"); // Disposable bare fixture only.
@@ -107,9 +115,8 @@ public sealed class VersionTests {
     using var fixture = new ReleaseFixture(patchRelease: true);
     var preview = await fixture.PrepareAsync("2.0.1");
     Assert.True(preview.ExitCode == 0, preview.Output);
-    foreach (var version in new[] { "2.0.0", "2.0.1-rc.1", "2.0.1+build", "3.0.0" }) {
+    foreach (var version in new[] { "2.0.0", "2.0.1-rc.1", "2.0.1+build", "3.0.0" })
       Assert.NotEqual(0, (await fixture.PrepareAsync(version)).ExitCode);
-    }
   }
 
   [Fact]
@@ -123,25 +130,26 @@ public sealed class VersionTests {
   public async Task PatchPreparationUpdatesPackageReadmeAndLeavesDryRunUntouched() {
     using var fixture = new ReleaseFixture(patchRelease: true);
     var path = Path.Combine(fixture.Root, "docs", "nuget", "README.md");
-    var before = File.ReadAllText(path);
+    var token = TestContext.Current.CancellationToken;
+    var before = await File.ReadAllTextAsync(path, token);
     var preview = await fixture.PrepareAsync("2.0.1");
     Assert.True(preview.ExitCode == 0, preview.Output);
-    Assert.Equal(before, File.ReadAllText(path));
+    Assert.Equal(before, await File.ReadAllTextAsync(path, token));
     using var proposal = JsonDocument.Parse(preview.Output);
-    Assert.Contains(proposal.RootElement.GetProperty("files").EnumerateArray(), item =>
-      item.GetString() == "docs/nuget/README.md");
-    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);
-    var prepared = File.ReadAllText(path);
+    Assert.Contains(proposal.RootElement.GetProperty("files").EnumerateArray(),
+      item => string.Equals(item.GetString(), "docs/nuget/README.md", StringComparison.Ordinal));
+    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", false)).ExitCode);
+    var prepared = await File.ReadAllTextAsync(path, token);
     Assert.Contains("dotnet add package AssuanLibrary --version 2.0.1", prepared);
     Assert.Contains("/assuan-library/2.0.1/guides/", prepared);
   }
 
   [Fact]
   public void FixtureUsesThePublishedReadmeEvenWhenTheSourceIsPreparedForAPatch() {
-    const string prepared = "dotnet add package AssuanLibrary --version 2.0.1\n" +
+    const string PREPARED = "dotnet add package AssuanLibrary --version 2.0.1\n" +
                             "https://baliestri.github.io/assuan-library/2.0.1/guides/getting-started.html\n" +
                             "https://github.com/baliestri/assuan-library/tree/v2.0.1/examples/AssuanLibrary.Examples\n";
-    var baseline = ReleaseFixture.BaselinePackageReadme(prepared);
+    var baseline = ReleaseFixture.BaselinePackageReadme(PREPARED);
     Assert.Contains("dotnet add package AssuanLibrary --version 2.0.0", baseline);
     Assert.Contains("/assuan-library/2.0.0/guides/", baseline);
     Assert.Contains("/tree/v2.0.0/examples/", baseline);
@@ -151,7 +159,7 @@ public sealed class VersionTests {
   [Fact]
   public async Task PatchResumeRequiresMatchingPreparedBranch() {
     using var fixture = new ReleaseFixture(patchRelease: true);
-    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", dryRun: false)).ExitCode);
+    Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", false)).ExitCode);
     fixture.Git("switch", "-c", "release/v2.0.1");
     fixture.Git("add", "CHANGELOG.md", "README.adoc", "docs/guides/getting-started.md",
       "src/AssuanLibrary/AssuanLibrary.csproj", "docs/nuget/README.md");

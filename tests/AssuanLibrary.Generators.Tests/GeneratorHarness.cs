@@ -9,7 +9,7 @@ namespace AssuanLibrary.Generators.Tests;
 
 internal static class GeneratorHarness {
   internal static Result Compile(string source, bool includeGenerator = true,
-  params MetadataReference[] extraReferences) {
+    params MetadataReference[] extraReferences) {
     var parse = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
     var runtime = (string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")
                   ?? throw new InvalidOperationException("Trusted platform assemblies are unavailable.");
@@ -38,7 +38,8 @@ internal static class GeneratorHarness {
       (CSharpCompilation)output);
   }
 
-  internal sealed record Result(string[] GeneratedSources,
+  internal sealed record Result(
+    string[] GeneratedSources,
     string[] GeneratedHints,
     Diagnostic[] GeneratorDiagnostics,
     Diagnostic[] OutputCompilationErrors,

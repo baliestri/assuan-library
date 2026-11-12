@@ -10,28 +10,37 @@ namespace AssuanLibrary.Tests.Transport;
 public sealed class UnixSecurityTests {
   [Fact]
   public async Task PrivateParentCreatesRestrictedSocketAndCleanupPreservesFutureReplacements() {
-    if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
     using var fixture = new UnixFixture();
     var path = fixture.Socket();
     await using var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(path));
     Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite,
       File.GetUnixFileMode(listener.Endpoint.Path) & (UnixFileMode)0x1ff);
     listener.Cleanup();
-    Assert.False(UnixNative.TryInspectNoFollow(path, out _));
+    Assert.False(UnixNative.TryInspectNoFollow(path, out var _));
     listener.Cleanup();
-    File.WriteAllText(path, "replacement");
+    var token = TestContext.Current.CancellationToken;
+    await File.WriteAllTextAsync(path, "replacement", token);
     listener.Cleanup();
-    Assert.Equal("replacement", File.ReadAllText(path));
+    Assert.Equal("replacement", await File.ReadAllTextAsync(path, token));
   }
 
   [Fact]
   public void PermissiveOrSymlinkedParentAndExistingEndpointAreRejected() {
-    if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
     using var fixture = new UnixFixture();
     var parent = Path.Combine(fixture.Root, "private");
     Directory.CreateDirectory(parent);
     File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite |
-      UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute);
+                                 UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute);
     Assert.Equal(TransportErrorKind.AccessPolicy, Assert.Throws<TransportException>(() =>
       UnixAcceptor.Bind(LocalEndpoint.Unix(Path.Combine(parent, "socket")))).Kind);
     File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
@@ -51,40 +60,53 @@ public sealed class UnixSecurityTests {
 
   [Fact]
   public async Task CleanupRejectsReplacedSocketOrParentWithoutDeletingReplacement() {
-    if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
     using var fixture = new UnixFixture();
     var parent = Path.Combine(fixture.Root, "parent");
     Directory.CreateDirectory(parent);
     File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
     var path = Path.Combine(parent, "socket");
     await using var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(path));
+    var token = TestContext.Current.CancellationToken;
     File.Delete(path);
-    File.WriteAllText(path, "new owner");
+    await File.WriteAllTextAsync(path, "new owner", token);
     Assert.Equal(TransportErrorKind.AccessPolicy, Assert.Throws<TransportException>(listener.Cleanup).Kind);
-    Assert.Equal("new owner", File.ReadAllText(path));
+    Assert.Equal("new owner", await File.ReadAllTextAsync(path, token));
     File.Delete(path);
     Directory.Move(parent, Path.Combine(fixture.Root, "old-parent"));
     Directory.CreateDirectory(parent);
     File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-    File.WriteAllText(path, "replacement parent");
+    await File.WriteAllTextAsync(path, "replacement parent", token);
     Assert.Equal(TransportErrorKind.AccessPolicy, Assert.Throws<TransportException>(listener.Cleanup).Kind);
-    Assert.Equal("replacement parent", File.ReadAllText(path));
+    Assert.Equal("replacement parent", await File.ReadAllTextAsync(path, token));
   }
 
   [Fact]
   public async Task DisposingListenerDoesNotUnlinkItsPath() {
-    if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
     using var fixture = new UnixFixture();
     var path = fixture.Socket();
     var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(path));
-    Assert.True(UnixNative.TryInspectNoFollow(path, out _), "Socket path missing immediately after bind.");
+    Assert.True(UnixNative.TryInspectNoFollow(path, out var _), "Socket path missing immediately after bind.");
     await listener.DisposeAsync();
-    Assert.True(UnixNative.TryInspectNoFollow(path, out _), "Socket path was removed when listener was disposed.");
+    Assert.True(UnixNative.TryInspectNoFollow(path, out var _), "Socket path was removed when listener was disposed.");
   }
 
   [Fact]
   public async Task CleanupPreservesAReplacementSocketWithTheSamePath() {
-    if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
     using var fixture = new UnixFixture();
     var path = fixture.Socket();
     await using var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(path));
@@ -93,6 +115,6 @@ public sealed class UnixSecurityTests {
     replacement.Bind(new UnixDomainSocketEndPoint(path));
     replacement.Listen();
     Assert.Equal(TransportErrorKind.AccessPolicy, Assert.Throws<TransportException>(listener.Cleanup).Kind);
-    Assert.True(UnixNative.TryInspectNoFollow(path, out _));
+    Assert.True(UnixNative.TryInspectNoFollow(path, out var _));
   }
 }

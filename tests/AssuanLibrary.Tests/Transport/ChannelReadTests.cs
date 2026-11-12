@@ -55,7 +55,8 @@ public sealed class ChannelReadTests {
     await using var empty = new AssuanChannel(new ScriptedDuplexStream([]));
     Assert.False(await empty.ReadLineOrEofAsync(TimeSpan.FromSeconds(1), token));
     await using var partial = new AssuanChannel(new ScriptedDuplexStream("unfinished"u8.ToArray()));
-    var error = await Assert.ThrowsAsync<TransportException>(() => partial.ReadLineOrEofAsync(TimeSpan.FromSeconds(1), token));
+    var error = await Assert.ThrowsAsync<TransportException>(()
+      => partial.ReadLineOrEofAsync(TimeSpan.FromSeconds(1), token));
     Assert.Equal(TransportErrorKind.Framing, error.Kind);
     Assert.Equal(ProtocolErrorKind.UnexpectedEof, error.ProtocolCause);
     await using var required = new AssuanChannel(new ScriptedDuplexStream([]));

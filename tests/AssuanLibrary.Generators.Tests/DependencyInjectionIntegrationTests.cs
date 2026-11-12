@@ -15,19 +15,19 @@ public sealed class DependencyInjectionIntegrationTests {
   [Fact]
   public async Task GeneratedDiCreatesStatePerSessionAndFreshOwnedClientsPerCall() {
     var result = GeneratorHarness.Compile("""
-                                          using AssuanLibrary.Generated;
-                                          using Microsoft.Extensions.DependencyInjection;
-                                          public sealed class State { }
-                                          public static class Consumer {
-                                            public static int Created;
-                                            public static void Configure(IServiceCollection services) {
-                                              services.AddAssuanServer<State>(_ => { Created++; return new State(); },
-                                                AssuanLibrary.Server.ServerOptions.Default,
-                                                new AssuanLibrary.Server.DefaultSessionHooks<State>());
-                                              services.AddAssuanClientFactory(AssuanLibrary.Client.ClientOptions.Default);
-                                            }
-                                          }
-                                          """, extraReferences: [
+      using AssuanLibrary.Generated;
+      using Microsoft.Extensions.DependencyInjection;
+      public sealed class State { }
+      public static class Consumer {
+        public static int Created;
+        public static void Configure(IServiceCollection services) {
+          services.AddAssuanServer<State>(_ => { Created++; return new State(); },
+            AssuanLibrary.Server.ServerOptions.Default,
+            new AssuanLibrary.Server.DefaultSessionHooks<State>());
+          services.AddAssuanClientFactory(AssuanLibrary.Client.ClientOptions.Default);
+        }
+      }
+      """, extraReferences: [
       MetadataReference.CreateFromFile(typeof(IServiceCollection).Assembly.Location),
       MetadataReference.CreateFromFile(typeof(ServiceProvider).Assembly.Location)
     ]);
@@ -44,7 +44,8 @@ public sealed class DependencyInjectionIntegrationTests {
     var serverType = typeof(AssuanServer<>).MakeGenericType(stateType);
     var server = provider.GetRequiredService(serverType);
     Assert.Equal(0, consumer.GetField("Created")!.GetValue(null));
-    var factoryType = assembly.GetType("AssuanLibrary.Generated.AssuanDependencyInjectionExtensions+AssuanClientFactory")!;
+    var factoryType =
+      assembly.GetType("AssuanLibrary.Generated.AssuanDependencyInjectionExtensions+AssuanClientFactory")!;
     var factory = provider.GetRequiredService(factoryType);
     var clients = new List<IAsyncDisposable>();
     for (var index = 0; index < 2; ++index) {
@@ -52,27 +53,32 @@ public sealed class DependencyInjectionIntegrationTests {
       var opening = (Task)factoryType.GetMethod("FromStreamAsync")!.Invoke(factory,
         [stream, TestContext.Current.CancellationToken])!;
       await opening;
-      clients.Add(Assert.IsAssignableFrom<IAsyncDisposable>(opening.GetType().GetProperty("Result")!.GetValue(opening)));
+      clients.Add(
+        Assert.IsAssignableFrom<IAsyncDisposable>(opening.GetType().GetProperty("Result")!.GetValue(opening)));
     }
 
     Assert.NotSame(clients[0], clients[1]);
-    foreach (var client in clients) {
-      await client.DisposeAsync();
-    }
+    foreach (var client in clients) await client.DisposeAsync();
 
-    await using var listener = TcpAcceptor.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-    using var stop = new CancellationTokenSource();
-    var serving = (Task)serverType.GetMethod("ServeAsync")!.Invoke(server, [listener, stop.Token])!;
-    using var peer = new TcpClient(AddressFamily.InterNetwork);
-    var token = TestContext.Current.CancellationToken;
-    await peer.ConnectAsync(listener.Endpoint.Address, listener.Endpoint.Port, token);
-    var line = new byte[3];
-    await peer.GetStream().ReadExactlyAsync(line, token);
-    Assert.Equal("OK\n"u8.ToArray(), line);
-    await peer.GetStream().WriteAsync("BYE\n"u8.ToArray(), token);
-    await peer.GetStream().ReadExactlyAsync(line, token);
-    await stop.CancelAsync();
-    await serving.WaitAsync(TimeSpan.FromSeconds(2), token);
+    await ServeOneSessionAsync(serverType, server);
     Assert.Equal(1, consumer.GetField("Created")!.GetValue(null));
+  }
+
+  private static async Task ServeOneSessionAsync(Type serverType, object server) {
+    var listener = TcpAcceptor.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+    await using (listener.ConfigureAwait(false)) {
+      using var stop = new CancellationTokenSource();
+      var serving = (Task)serverType.GetMethod("ServeAsync")!.Invoke(server, [listener, stop.Token])!;
+      using var peer = new TcpClient(AddressFamily.InterNetwork);
+      var token = TestContext.Current.CancellationToken;
+      await peer.ConnectAsync(listener.Endpoint.Address, listener.Endpoint.Port, token).ConfigureAwait(false);
+      var line = new byte[3];
+      await peer.GetStream().ReadExactlyAsync(line, token).ConfigureAwait(false);
+      Assert.Equal("OK\n"u8.ToArray(), line);
+      await peer.GetStream().WriteAsync("BYE\n"u8.ToArray(), token).ConfigureAwait(false);
+      await peer.GetStream().ReadExactlyAsync(line, token).ConfigureAwait(false);
+      await stop.CancelAsync().ConfigureAwait(false);
+      await serving.WaitAsync(TimeSpan.FromSeconds(2), token).ConfigureAwait(false);
+    }
   }
 }

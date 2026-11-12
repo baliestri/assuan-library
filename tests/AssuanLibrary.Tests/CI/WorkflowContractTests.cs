@@ -80,6 +80,32 @@ public sealed partial class WorkflowContractTests {
   }
 
   [Fact]
+  public void DependencyUpdatesTargetTheIntegrationBranchAndLeaveManualPinsAlone() {
+    var yaml = File.ReadAllText(Path.Combine(Repository, ".github", "dependabot.yml"))
+      .Replace("\r\n", "\n", StringComparison.Ordinal);
+    Assert.Contains("version: 2", yaml, StringComparison.Ordinal);
+    Assert.Contains("package-ecosystem: nuget", yaml, StringComparison.Ordinal);
+    Assert.Contains("package-ecosystem: github-actions", yaml, StringComparison.Ordinal);
+    Assert.Equal(2, yaml.Split("package-ecosystem:").Length - 1);
+    Assert.Equal(2, yaml.Split("target-branch: develop").Length - 1);
+    Assert.Contains("prefix: build(deps)", yaml, StringComparison.Ordinal);
+    Assert.Contains("prefix: ci(deps)", yaml, StringComparison.Ordinal);
+    // The SDK pin is asserted above and documented for contributors, so it stays a manual change.
+    Assert.DoesNotContain("package-ecosystem: dotnet-sdk", yaml, StringComparison.Ordinal);
+    Assert.Contains("dependency-name: Microsoft.CodeAnalysis.CSharp", yaml, StringComparison.Ordinal);
+    Assert.True(File.Exists(Path.Combine(Repository, "SECURITY.md")));
+  }
+
+  [Theory]
+  [InlineData("ci.yml")]
+  [InlineData("interop.yml")]
+  public void BranchPushesAreValidatedOnceThroughTheirPullRequest(string workflow) {
+    var yaml = File.ReadAllText(Path.Combine(Repository, ".github", "workflows", workflow))
+      .Replace("\r\n", "\n", StringComparison.Ordinal);
+    Assert.Contains("  push:\n    branches: [main, develop]\n  pull_request:\n", yaml, StringComparison.Ordinal);
+  }
+
+  [Fact]
   public void CiGuideAndWorkflowValidatorStayInTheRepository() {
     Assert.True(File.Exists(Path.Combine(Repository, "docs", "guides", "continuous-integration.md")));
     Assert.True(File.Exists(Path.Combine(Repository, "scripts", "ci", "Verify-Workflows.ps1")));
@@ -101,6 +127,10 @@ public sealed partial class WorkflowContractTests {
     Assert.Contains("ASSUAN_GPG_AGENT_PATH", yaml, StringComparison.Ordinal);
     Assert.Contains("ASSUAN_GPG_CONNECT_AGENT_PATH", yaml, StringComparison.Ordinal);
     Assert.Contains("scoop install main/gnupg", yaml, StringComparison.Ordinal);
+    Assert.DoesNotContain("get.scoop.sh", yaml, StringComparison.OrdinalIgnoreCase);
+    Assert.Matches(@"\$installerCommit = '[0-9a-f]{40}'", yaml);
+    Assert.Matches(@"\$installerSha256 = '[0-9a-f]{64}'", yaml);
+    Assert.Contains("Scoop installer checksum mismatch.", yaml, StringComparison.Ordinal);
     Assert.Contains(@"apps\gnupg\current\bin", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("choco install", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.Contains("persist-credentials: false", yaml, StringComparison.Ordinal);

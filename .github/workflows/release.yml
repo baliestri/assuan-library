@@ -74,7 +74,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release preparation failed.' }
           git switch -c "release/v$($env:RELEASE_VERSION)"
           if ($LASTEXITCODE -ne 0) { throw 'Release branch could not be created.' }
-          git add -- CHANGELOG.md README.adoc docs/guides/getting-started.md docs/nuget/README.md src/AssuanLibrary/AssuanLibrary.csproj
+          git add -- CHANGELOG.md README.md wiki/Getting-Started.md src/AssuanLibrary/PACKAGE.md src/AssuanLibrary/AssuanLibrary.csproj
           if ($LASTEXITCODE -ne 0) { throw 'Release edits could not be staged.' }
           git diff --cached --quiet
           if ($LASTEXITCODE -ne 1) { throw 'Release preparation produced no staged changes.' }
@@ -148,24 +148,6 @@ jobs:
       - run: dotnet build AssuanLibrary.slnx -c Release --no-restore
       - name: Pack the only NuGet package
         run: dotnet pack src/AssuanLibrary/AssuanLibrary.csproj -c Release --no-build --no-restore "-p:PackageVersion=${RELEASE_VERSION}" -o artifacts/release-candidate
-      - name: Build and compare two documentation bundles
-        shell: pwsh
-        run: |
-          foreach ($output in @('artifacts/release-docs/one', 'artifacts/release-docs/two')) {
-            dotnet run --project tools/AssuanLibrary.Docs -c Release --no-restore -- build --version $env:RELEASE_VERSION --base-url https://baliestri.github.io/assuan-library/ --output $output
-            if ($LASTEXITCODE -ne 0) { throw 'Documentation generation failed.' }
-          }
-          $leftRoot = "artifacts/release-docs/one/$($env:RELEASE_VERSION)"
-          $rightRoot = "artifacts/release-docs/two/$($env:RELEASE_VERSION)"
-          $left = @(Get-ChildItem $leftRoot -File -Recurse | ForEach-Object {
-            $name = [IO.Path]::GetRelativePath((Resolve-Path $leftRoot).Path, $_.FullName)
-            "${name}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
-          } | Sort-Object)
-          $right = @(Get-ChildItem $rightRoot -File -Recurse | ForEach-Object {
-            $name = [IO.Path]::GetRelativePath((Resolve-Path $rightRoot).Path, $_.FullName)
-            "${name}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
-          } | Sort-Object)
-          if (Compare-Object $left $right) { throw 'Documentation bundles differ.' }
       - name: Bind and verify the original artifacts
         shell: pwsh
         env:
@@ -176,17 +158,15 @@ jobs:
           $root = $env:GITHUB_WORKSPACE
           $candidate = Join-Path $root 'artifacts/release-candidate'
           $package = Join-Path $candidate "AssuanLibrary.$($env:RELEASE_VERSION).nupkg"
-          $built = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Build-ReleaseArtifacts.ps1 -Root $root -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -PackagePath $package -BundlePath (Join-Path $root "artifacts/release-docs/one/$($env:RELEASE_VERSION)") -OutputDirectory $candidate
+          $built = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Build-ReleaseArtifacts.ps1 -Root $root -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -PackagePath $package -OutputDirectory $candidate
           if ($LASTEXITCODE -ne 0) { throw 'Artifact assembly failed.' }
-          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $root -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -DocsArchive (Join-Path $candidate "docs-v$($env:RELEASE_VERSION).zip") -ChecksumPath (Join-Path $candidate "docs-v$($env:RELEASE_VERSION).sha256") -ManifestPath (Join-Path $candidate 'release-artifacts.json')
+          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $root -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -ManifestPath (Join-Path $candidate 'release-artifacts.json')
           if ($LASTEXITCODE -ne 0) { throw 'Artifact verification failed.' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-v${{ inputs.version }}-${{ needs.prepare.outputs.prepared_sha }}
           path: |
             artifacts/release-candidate/AssuanLibrary.${{ inputs.version }}.nupkg
-            artifacts/release-candidate/docs-v${{ inputs.version }}.zip
-            artifacts/release-candidate/docs-v${{ inputs.version }}.sha256
             artifacts/release-candidate/release-artifacts.json
           if-no-files-found: error
 
@@ -206,9 +186,7 @@ jobs:
           path: artifacts/release-download
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: |
-            artifacts/release-download/AssuanLibrary.${{ inputs.version }}.nupkg
-            artifacts/release-download/docs-v${{ inputs.version }}.zip
+          subject-path: artifacts/release-download/AssuanLibrary.${{ inputs.version }}.nupkg
 
   promote:
     needs: [prepare, ci, interop, build, attest]
@@ -273,8 +251,7 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:NUGET_USERNAME)) { throw 'NuGet trusted-publishing owner is not configured.' }
           $package = "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg"
-          $docs = "artifacts/release-download/docs-v$($env:RELEASE_VERSION)"
-          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -DocsArchive "$docs.zip" -ChecksumPath "$docs.sha256" -ManifestPath artifacts/release-download/release-artifacts.json
+          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -ManifestPath artifacts/release-download/release-artifacts.json
           if ($LASTEXITCODE -ne 0) { throw 'Downloaded artifact verification failed.' }
       - name: Obtain a short-lived NuGet key by OIDC
         id: login
@@ -298,7 +275,6 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
-      actions: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -316,8 +292,7 @@ jobs:
           INTEROP_SHA: ${{ needs.interop.outputs.source_sha }}
         run: |
           $package = "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg"
-          $docs = "artifacts/release-download/docs-v$($env:RELEASE_VERSION)"
-          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -DocsArchive "$docs.zip" -ChecksumPath "$docs.sha256" -ManifestPath artifacts/release-download/release-artifacts.json
+          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -ManifestPath artifacts/release-download/release-artifacts.json
           if ($LASTEXITCODE -ne 0) { throw 'Downloaded artifact verification failed.' }
       - name: Wait for registry visibility and confirm the published identity
         shell: pwsh
@@ -328,36 +303,32 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'NuGet registry response requires manual inspection.' }
           $compared = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Compare-RegistryPackage.ps1 -OriginalPath "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg" -Version $env:RELEASE_VERSION -RegistryPath $registryPackage
           if ($LASTEXITCODE -ne 0) { throw 'Published package differs from the validated artifact.' }
-      - name: Create the GitHub Release with the original documentation assets
+      - name: Create the GitHub Release with the original package attached
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "v$($env:RELEASE_VERSION)"
-          $assets = @("docs-v$($env:RELEASE_VERSION).zip", "docs-v$($env:RELEASE_VERSION).sha256")
+          $asset = "AssuanLibrary.$($env:RELEASE_VERSION).nupkg"
           gh release view $tag --json tagName *> $null
           if ($LASTEXITCODE -eq 0) {
-            # A previous attempt of this job already created the release: accept only identical assets.
+            # A previous attempt of this job already created the release: accept only the identical asset.
             $existing = 'artifacts/release-existing'
             [IO.Directory]::CreateDirectory($existing) | Out-Null
             $listed = @(gh release view $tag --json assets --jq '.assets[].name')
-            if ($LASTEXITCODE -ne 0 -or (Compare-Object ($listed | Sort-Object) ($assets | Sort-Object))) {
+            if ($LASTEXITCODE -ne 0 -or $listed.Count -ne 1 -or $listed[0] -cne $asset) {
               throw 'An existing GitHub Release has different assets; inspect before continuing.'
             }
             gh release download $tag --dir $existing
-            if ($LASTEXITCODE -ne 0) { throw 'Existing GitHub Release assets could not be compared.' }
-            foreach ($asset in $assets) {
-              $original = (Get-FileHash -LiteralPath "artifacts/release-download/$asset" -Algorithm SHA256).Hash
-              $published = (Get-FileHash -LiteralPath (Join-Path $existing $asset) -Algorithm SHA256).Hash
-              if ($original -cne $published) { throw 'An existing GitHub Release asset differs from the original.' }
-            }
+            if ($LASTEXITCODE -ne 0) { throw 'The existing GitHub Release asset could not be compared.' }
+            $original = (Get-FileHash -LiteralPath "artifacts/release-download/$asset" -Algorithm SHA256).Hash
+            $published = (Get-FileHash -LiteralPath (Join-Path $existing $asset) -Algorithm SHA256).Hash
+            if ($original -cne $published) { throw 'The existing GitHub Release asset differs from the original.' }
           }
           else {
-            gh release create $tag "artifacts/release-download/$($assets[0])" "artifacts/release-download/$($assets[1])" --verify-tag --title "AssuanLibrary $($env:RELEASE_VERSION)" --notes "See the changelog and versioned documentation for AssuanLibrary $($env:RELEASE_VERSION)."
+            gh release create $tag "artifacts/release-download/$asset" --verify-tag --title "AssuanLibrary $($env:RELEASE_VERSION)" --notes "See the changelog for AssuanLibrary $($env:RELEASE_VERSION). The attached package is the one published to nuget.org."
             if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation requires manual inspection.' }
           }
-          gh workflow run docs.yml --ref main
-          if ($LASTEXITCODE -ne 0) { throw 'Pages dispatch failed; use the original release assets for recovery.' }
 
   sync:
     needs: [prepare, confirm]

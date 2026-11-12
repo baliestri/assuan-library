@@ -2,7 +2,7 @@
 # locked restore, CI and Interop gates as any other pull request.
 #
 # Not covered here and updated by hand:
-#   - the .NET SDK pin in global.json (asserted by the workflow contract tests and CONTRIBUTING.adoc);
+#   - the .NET SDK pin in global.json (asserted by the workflow contract tests and CONTRIBUTING.md);
 #   - scripts/release/tools.json (git-cliff and typos archives pinned by SHA-256);
 #   - the actionlint container digest in .github/workflows/ci.yml;
 #   - the Scoop installer commit and SHA-256 in .github/workflows/interop.yml.

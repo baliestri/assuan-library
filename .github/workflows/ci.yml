@@ -88,7 +88,7 @@ jobs:
       - name: Run platform and package-consumer tests
         run: dotnet test AssuanLibrary.slnx -c Release --no-restore -- --filter-not-namespace AssuanLibrary.Tests.Documentation
 
-  docs:
+  package:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
@@ -106,28 +106,10 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore AssuanLibrary.slnx --locked-mode
       - run: dotnet build AssuanLibrary.slnx -c Release --no-restore
-      - name: Inspect NuGet README, API links, snippets and deterministic bundles
+      - name: Inspect the NuGet README, documentation links and compiled snippets
         run: dotnet test --project tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj -c Release --no-restore -- --filter-namespace AssuanLibrary.Tests.Documentation
       - name: Exercise all four installed-package consumers
         run: dotnet test --project tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj -c Release --no-restore -- --filter-class '*PackageConsumerTests'
-      - name: Build two fresh versioned documentation bundles
-        shell: pwsh
-        run: |
-          dotnet run --project tools/AssuanLibrary.Docs -c Release --no-restore -- build --version 2.0.0 --base-url https://baliestri.github.io/assuan-library/ --output artifacts/ci-docs/one
-          if ($LASTEXITCODE -ne 0) { throw 'First documentation build failed.' }
-          dotnet run --project tools/AssuanLibrary.Docs -c Release --no-restore -- build --version 2.0.0 --base-url https://baliestri.github.io/assuan-library/ --output artifacts/ci-docs/two
-          if ($LASTEXITCODE -ne 0) { throw 'Second documentation build failed.' }
-          $first = 'artifacts/ci-docs/one/2.0.0'
-          $second = 'artifacts/ci-docs/two/2.0.0'
-          $left = @(Get-ChildItem -LiteralPath $first -File -Recurse | ForEach-Object {
-            $relative = [IO.Path]::GetRelativePath((Resolve-Path $first).Path, $_.FullName)
-            "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
-          } | Sort-Object)
-          $right = @(Get-ChildItem -LiteralPath $second -File -Recurse | ForEach-Object {
-            $relative = [IO.Path]::GetRelativePath((Resolve-Path $second).Path, $_.FullName)
-            "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
-          } | Sort-Object)
-          if (Compare-Object $left $right) { throw 'Documentation bundles differ.' }
 
   format:
     needs: prepare
@@ -168,7 +150,7 @@ jobs:
 
   gate:
     if: always()
-    needs: [prepare, matrix, docs, format, workflows]
+    needs: [prepare, matrix, package, format, workflows]
     runs-on: ubuntu-latest
     outputs:
       source_sha: ${{ steps.check.outputs.source_sha }}
@@ -192,7 +174,7 @@ jobs:
         run: |
           & ./scripts/ci/Assert-CheckoutSha.ps1 -Sha $env:SOURCE_SHA -Repository $env:GITHUB_WORKSPACE
           $needs = $env:NEEDS_JSON | ConvertFrom-Json -AsHashtable
-          $required = @('prepare', 'matrix', 'docs', 'format', 'workflows')
+          $required = @('prepare', 'matrix', 'package', 'format', 'workflows')
           $results = @{}
           foreach ($job in $required) { $results[$job] = $needs[$job].result }
           & ./scripts/ci/Assert-Gate.ps1 -Sha $env:SOURCE_SHA -RequiredJobsJson (ConvertTo-Json -InputObject $required -Compress) -ResultsJson (ConvertTo-Json -InputObject $results -Compress) -OutputFile $env:GITHUB_OUTPUT

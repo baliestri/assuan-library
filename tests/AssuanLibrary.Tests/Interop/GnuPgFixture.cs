@@ -2,7 +2,6 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics;
-using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.Interop;
 
@@ -11,7 +10,7 @@ internal sealed class GnuPgFixture : IAsyncDisposable {
 
   internal GnuPgFixture(GnuPgTools tools) {
     Tools = tools;
-    var root = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
+    var root = RepositoryRoot.Path;
     Home = Path.Combine(root, "artifacts", "g", Guid.NewGuid().ToString("N")[..12]);
     Directory.CreateDirectory(Home);
     if (!OperatingSystem.IsWindows()) {

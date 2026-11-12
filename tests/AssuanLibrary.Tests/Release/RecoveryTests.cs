@@ -15,8 +15,7 @@ public sealed class RecoveryTests {
   [InlineData("TagConflict", "Built")]
   [InlineData("NuGetTimeoutAfterUpload", "PublishingNuGet")]
   [InlineData("ReleaseAssetMismatch", "PublishedNuGet")]
-  [InlineData("PagesBundleMissing", "GithubRelease")]
-  [InlineData("DevelopMoved", "Pages")]
+  [InlineData("DevelopMoved", "GithubRelease")]
   public async Task UnsafeTransitionsStopAtTheirPhaseWithoutRetryOrForce(string defect, string expectedPhase) {
     var scenario = Baseline();
     switch (defect) {
@@ -41,9 +40,6 @@ public sealed class RecoveryTests {
         break;
       case "ReleaseAssetMismatch":
         scenario["githubAssetsMatch"] = false;
-        break;
-      case "PagesBundleMissing":
-        scenario["pagesBundlePresent"] = false;
         break;
       case "DevelopMoved":
         scenario["developCanFastForward"] = false;
@@ -88,7 +84,7 @@ public sealed class RecoveryTests {
     ["ciResult"] = "success", ["interopResult"] = "success",
     ["branchExists"] = false, ["mainStillAncestor"] = true, ["tagConflict"] = false,
     ["artifactsValid"] = true, ["uploadResult"] = "success", ["registryContainsVersion"] = true,
-    ["githubAssetsMatch"] = true, ["pagesBundlePresent"] = true, ["developCanFastForward"] = true,
+    ["githubAssetsMatch"] = true, ["developCanFastForward"] = true,
     ["ignoredToken"] = "SECRET_MARKER"
   };
 

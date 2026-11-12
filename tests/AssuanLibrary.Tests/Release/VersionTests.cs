@@ -83,7 +83,7 @@ public sealed class VersionTests {
     using var fixture = new ReleaseFixture();
     Assert.Equal(0, (await fixture.PrepareAsync(dryRun: false)).ExitCode);
     fixture.Git("switch", "-c", "release/v2.0.0");
-    fixture.Git("add", "CHANGELOG.md", "README.adoc", "docs/guides/getting-started.md",
+    fixture.Git("add", "CHANGELOG.md", "README.md", "wiki/Getting-Started.md",
       "src/AssuanLibrary/AssuanLibrary.csproj");
     fixture.Git("commit", "-m", "chore(release): prepare for 2.0.0");
     fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.0"); // Disposable bare fixture only.
@@ -129,7 +129,7 @@ public sealed class VersionTests {
   [Fact]
   public async Task PatchPreparationUpdatesPackageReadmeAndLeavesDryRunUntouched() {
     using var fixture = new ReleaseFixture(patchRelease: true);
-    var path = Path.Combine(fixture.Root, "docs", "nuget", "README.md");
+    var path = Path.Combine(fixture.Root, "src", "AssuanLibrary", "PACKAGE.md");
     var token = TestContext.Current.CancellationToken;
     var before = await File.ReadAllTextAsync(path, token);
     var preview = await fixture.PrepareAsync("2.0.1");
@@ -137,22 +137,25 @@ public sealed class VersionTests {
     Assert.Equal(before, await File.ReadAllTextAsync(path, token));
     using var proposal = JsonDocument.Parse(preview.Output);
     Assert.Contains(proposal.RootElement.GetProperty("files").EnumerateArray(),
-      item => string.Equals(item.GetString(), "docs/nuget/README.md", StringComparison.Ordinal));
+      item => string.Equals(item.GetString(), "src/AssuanLibrary/PACKAGE.md", StringComparison.Ordinal));
     Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", false)).ExitCode);
     var prepared = await File.ReadAllTextAsync(path, token);
     Assert.Contains("dotnet add package AssuanLibrary --version 2.0.1", prepared, StringComparison.Ordinal);
-    Assert.Contains("/assuan-library/2.0.1/guides/", prepared, StringComparison.Ordinal);
+    // Links follow main, which holds the latest release, so preparing a version never rewrites them.
+    Assert.Contains("/blob/main/wiki/", prepared, StringComparison.Ordinal);
+    Assert.Contains("/tree/main/examples/", prepared, StringComparison.Ordinal);
+    Assert.DoesNotContain("2.0.0", prepared, StringComparison.Ordinal);
   }
 
   [Fact]
   public void FixtureUsesThePublishedReadmeEvenWhenTheSourceIsPreparedForAPatch() {
     const string PREPARED = "dotnet add package AssuanLibrary --version 2.0.1\n" +
-                            "https://baliestri.github.io/assuan-library/2.0.1/guides/getting-started.html\n" +
-                            "https://github.com/baliestri/assuan-library/tree/v2.0.1/examples/AssuanLibrary.Examples\n";
+                            "https://github.com/baliestri/assuan-library/blob/main/wiki/Getting-Started.md\n" +
+                            "https://github.com/baliestri/assuan-library/tree/main/examples/AssuanLibrary.Examples\n";
     var baseline = ReleaseFixture.BaselinePackageReadme(PREPARED);
     Assert.Contains("dotnet add package AssuanLibrary --version 2.0.0", baseline, StringComparison.Ordinal);
-    Assert.Contains("/assuan-library/2.0.0/guides/", baseline, StringComparison.Ordinal);
-    Assert.Contains("/tree/v2.0.0/examples/", baseline, StringComparison.Ordinal);
+    Assert.Contains("/blob/main/wiki/", baseline, StringComparison.Ordinal);
+    Assert.Contains("/tree/main/examples/", baseline, StringComparison.Ordinal);
     Assert.DoesNotContain("2.0.1", baseline, StringComparison.Ordinal);
   }
 
@@ -161,8 +164,8 @@ public sealed class VersionTests {
     using var fixture = new ReleaseFixture(patchRelease: true);
     Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", false)).ExitCode);
     fixture.Git("switch", "-c", "release/v2.0.1");
-    fixture.Git("add", "CHANGELOG.md", "README.adoc", "docs/guides/getting-started.md",
-      "src/AssuanLibrary/AssuanLibrary.csproj", "docs/nuget/README.md");
+    fixture.Git("add", "CHANGELOG.md", "README.md", "wiki/Getting-Started.md",
+      "src/AssuanLibrary/AssuanLibrary.csproj", "src/AssuanLibrary/PACKAGE.md");
     fixture.Git("commit", "-m", "chore(release): prepare for 2.0.1");
     fixture.Git("push", "origin", "HEAD:refs/heads/release/v2.0.1");
     var sha = fixture.Head;

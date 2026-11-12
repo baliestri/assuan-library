@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.Release;
 
@@ -16,19 +15,18 @@ internal sealed partial class ReleaseFixture : IDisposable {
     var origin = Path.Combine(_parent, "origin.git");
     Directory.CreateDirectory(Root);
     Directory.CreateDirectory(Path.Combine(Root, "src", "AssuanLibrary"));
-    Directory.CreateDirectory(Path.Combine(Root, "docs", "nuget"));
-    Directory.CreateDirectory(Path.Combine(Root, "docs", "guides"));
+    Directory.CreateDirectory(Path.Combine(Root, "wiki"));
     File.WriteAllText(Path.Combine(Root, ".gitignore"), "artifacts/\n");
     File.WriteAllText(Path.Combine(Root, "CHANGELOG.md"), HistoricalChangelog);
     File.WriteAllText(Path.Combine(Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"),
       $"<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework>{(versionProperty ? "<Version>1.2.0</Version>" : "")}</PropertyGroup></Project>\n");
     foreach (var path in new[] {
-               "README.adoc", "docs/nuget/README.md", "docs/guides/getting-started.md",
+               "README.md", "src/AssuanLibrary/PACKAGE.md", "wiki/Getting-Started.md",
                "cliff.toml"
              })
       File.Copy(Path.Combine(ToolsRoot, path), Path.Combine(Root, path));
 
-    var packageReadme = Path.Combine(Root, "docs", "nuget", "README.md");
+    var packageReadme = Path.Combine(Root, "src", "AssuanLibrary", "PACKAGE.md");
     File.WriteAllText(packageReadme, BaselinePackageReadme(File.ReadAllText(packageReadme)));
 
     Git("init", "-b", "main");
@@ -59,7 +57,7 @@ internal sealed partial class ReleaseFixture : IDisposable {
   }
 
   internal string Root { get; }
-  internal static string ToolsRoot { get; } = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
+  internal static string ToolsRoot { get; } = RepositoryRoot.Path;
 
   internal static string HistoricalChangelog
     => "# Assuan Library .NET Changelog\n\n## [1.2.0] - historical\n\nLegacy entry.\n";
@@ -83,12 +81,8 @@ internal sealed partial class ReleaseFixture : IDisposable {
       throw new InvalidDataException("The fixture requires exactly one package installation command.");
     }
 
-    var version = matches[0].Groups["version"].Value;
     return content.Replace(matches[0].Value, "dotnet add package AssuanLibrary --version 2.0.0",
-        StringComparison.Ordinal)
-      .Replace($"https://baliestri.github.io/assuan-library/{version}/",
-        "https://baliestri.github.io/assuan-library/2.0.0/", StringComparison.Ordinal)
-      .Replace($"/tree/v{version}/examples/", "/tree/v2.0.0/examples/", StringComparison.Ordinal);
+      StringComparison.Ordinal);
   }
 
   internal string Git(params string[] arguments)

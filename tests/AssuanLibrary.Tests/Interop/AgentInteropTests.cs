@@ -2,7 +2,6 @@
 // See the LICENSE file in the repository root for full license text.
 
 using AssuanLibrary.Client;
-using AssuanLibrary.Docs;
 using AssuanLibrary.Transport.Discovery;
 
 namespace AssuanLibrary.Tests.Interop;
@@ -23,7 +22,7 @@ public sealed class AgentInteropTests {
     Assert.Throws<InvalidOperationException>(() => GnuPgTools.Require("relative/gpgconf", "relative/gpg-agent",
       "relative/gpg-connect-agent"));
 
-    var root = Path.Combine(DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory),
+    var root = Path.Combine(RepositoryRoot.Path,
       "artifacts", "interop-config-tests", Guid.NewGuid().ToString("N"));
     var first = Path.Combine(root, "first");
     var second = Path.Combine(root, "second");

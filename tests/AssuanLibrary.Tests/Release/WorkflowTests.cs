@@ -1,7 +1,6 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace AssuanLibrary.Tests.Release;
@@ -15,38 +14,39 @@ public sealed partial class WorkflowTests {
 
   [Fact]
   public void ContributorGuideDescribesTheCurrentSolutionAndChecks() {
-    var text = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, "CONTRIBUTING.adoc"));
+    var text = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, "CONTRIBUTING.md"));
     Assert.Contains("AssuanLibrary.slnx", text, StringComparison.Ordinal);
     Assert.Contains("net10.0", text, StringComparison.Ordinal);
     Assert.Contains("netstandard2.0", text, StringComparison.Ordinal);
     Assert.Contains("--locked-mode", text, StringComparison.Ordinal);
     Assert.Contains("dotnet format", text, StringComparison.Ordinal);
-    Assert.Contains("docs/nuget/README.md", text, StringComparison.Ordinal);
+    Assert.Contains("PACKAGE.md", text, StringComparison.Ordinal);
     Assert.Contains("git-cliff", text, StringComparison.Ordinal);
     Assert.Contains("macOS", text, StringComparison.Ordinal);
     Assert.DoesNotContain("AssuanLibrary.Sample", text, StringComparison.Ordinal);
     Assert.DoesNotContain("AssuanLibrary.Extensions.DependencyInjection", text, StringComparison.Ordinal);
     Assert.DoesNotMatch(@"AssuanLibrary\.sln(?!x)", text);
-    Assert.True(File.Exists(Path.Combine(ReleaseFixture.ToolsRoot, "docs", "guides", "releasing.md")));
   }
 
   [Fact]
-  public void ReleaseGuideIsOperationalAndExcludedFromTheUserCorpus() {
+  public void ReleaseProcessIsDescribedForContributorsNotInTheWiki() {
     var root = ReleaseFixture.ToolsRoot;
-    var guide = File.ReadAllText(Path.Combine(root, "docs", "guides", "releasing.md"));
+    var guide = File.ReadAllText(Path.Combine(root, "CONTRIBUTING.md"));
+    var start = guide.IndexOf("\n## Releasing\n", StringComparison.Ordinal);
+    var end = guide.IndexOf("\n## Repository conventions\n", StringComparison.Ordinal);
+    Assert.True(start > 0 && end > start);
+    var releasing = guide[start..end];
     foreach (var value in new[] {
-               "v2.0.0", "OIDC", "NuGet", "Pages", "git-cliff",
-               "prepared SHA", "recovery", "docs-v<version>.zip", "version=2.0.1"
+               "v2.0.0", "OIDC", "NuGet", "git-cliff", "prepared SHA", "recovery",
+               "version=2.0.1", "Re-run failed jobs", "resume_sha", "attestation"
              })
-      Assert.Contains(value, guide, StringComparison.OrdinalIgnoreCase);
+      Assert.Contains(value, releasing, StringComparison.OrdinalIgnoreCase);
 
-    Assert.Contains("-DryRun", guide, StringComparison.Ordinal);
-    using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "docs", "site", "sources.json")));
-    var entry = Assert.Single(manifest.RootElement.GetProperty("sources").EnumerateArray(),
-      item => string.Equals(item.GetProperty("source").GetString(), "docs/guides/releasing.md",
-        StringComparison.Ordinal));
-    Assert.True(entry.GetProperty("includeInIndex").GetBoolean());
-    Assert.False(entry.GetProperty("includeInFull").GetBoolean());
+    Assert.Contains("-DryRun", releasing, StringComparison.Ordinal);
+    // The site and its documentation archive no longer exist, and process pages stay out of the wiki.
+    Assert.DoesNotContain("Pages", releasing, StringComparison.Ordinal);
+    Assert.DoesNotContain("docs-v", releasing, StringComparison.Ordinal);
+    Assert.Empty(Directory.EnumerateFiles(Path.Combine(root, "wiki"), "*eleas*"));
   }
 
   [Fact]
@@ -67,7 +67,10 @@ public sealed partial class WorkflowTests {
     Assert.Contains("environment: release", yaml, StringComparison.Ordinal);
     Assert.Contains("id-token: write", yaml, StringComparison.Ordinal);
     Assert.Contains("NuGet/login@", yaml, StringComparison.Ordinal);
-    Assert.Contains("docs-v${{ inputs.version }}.zip", yaml, StringComparison.Ordinal);
+    Assert.Contains("AssuanLibrary.${{ inputs.version }}.nupkg", yaml, StringComparison.Ordinal);
+    Assert.DoesNotContain("docs-v", yaml, StringComparison.Ordinal);
+    Assert.DoesNotContain("docs.yml", yaml, StringComparison.Ordinal);
+    Assert.DoesNotContain("actions: write", yaml, StringComparison.Ordinal);
     Assert.Contains("RELEASE_VERSION: ${{ inputs.version }}", yaml, StringComparison.Ordinal);
     Assert.Contains("-Version $env:RELEASE_VERSION", yaml, StringComparison.Ordinal);
     Assert.Contains("git push --atomic", yaml, StringComparison.Ordinal);
@@ -139,31 +142,9 @@ public sealed partial class WorkflowTests {
     Assert.Contains("Compare-RegistryPackage.ps1", confirm, StringComparison.Ordinal);
     Assert.Contains("download-artifact@", confirm, StringComparison.Ordinal);
     Assert.Contains("gh release create", confirm, StringComparison.Ordinal);
+    Assert.Contains("\"AssuanLibrary.$($env:RELEASE_VERSION).nupkg\"", confirm, StringComparison.Ordinal);
+    Assert.DoesNotContain("gh workflow run", confirm, StringComparison.Ordinal);
     Assert.Contains("needs: [prepare, confirm]", yaml[syncStart..], StringComparison.Ordinal);
-  }
-
-  [Fact]
-  public void PagesWorkflowBuildsReadOnlyAndDeploysWithSeparatePermissions() {
-    var yaml = ReadWorkflow("docs.yml");
-    Assert.Contains("workflow_dispatch:", yaml, StringComparison.Ordinal);
-    Assert.Contains("workflow_call:", yaml, StringComparison.Ordinal);
-    Assert.Contains("CALL_INPUTS:", yaml, StringComparison.Ordinal);
-    Assert.Contains("$call.Contains('source_sha')", yaml, StringComparison.Ordinal);
-    Assert.Contains("cancel-in-progress: false", yaml, StringComparison.Ordinal);
-    Assert.Contains("Collect-Pages.ps1", yaml, StringComparison.Ordinal);
-    Assert.Contains("Assemble-Pages.ps1", yaml, StringComparison.Ordinal);
-    Assert.Contains("upload-pages-artifact@", yaml, StringComparison.Ordinal);
-    Assert.Contains("deploy-pages@", yaml, StringComparison.Ordinal);
-    var deployStart = yaml.IndexOf("\n  deploy:\n", StringComparison.Ordinal);
-    Assert.DoesNotContain("pages: write", yaml[..deployStart], StringComparison.Ordinal);
-    Assert.DoesNotContain("id-token: write", yaml[..deployStart], StringComparison.Ordinal);
-    Assert.Contains("pages: write", yaml[deployStart..], StringComparison.Ordinal);
-    Assert.Contains("id-token: write", yaml[deployStart..], StringComparison.Ordinal);
-    Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
-    Assert.DoesNotContain("dotnet pack", yaml, StringComparison.OrdinalIgnoreCase);
-    var actions = UsesRegex.Matches(yaml);
-    Assert.NotEmpty(actions);
-    Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
   }
 
   [Fact]

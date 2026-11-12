@@ -9,12 +9,12 @@ public sealed class CatalogTests {
   [Fact]
   public void ReadmeDocumentsAllExampleEntryPointsAndTheBreakingVersion() {
     var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-    var readme = File.ReadAllText(Path.Combine(repository, "README.adoc"));
+    var readme = File.ReadAllText(Path.Combine(repository, "README.md"));
     foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" })
       Assert.Contains($"--example {name}", readme, StringComparison.Ordinal);
 
     Assert.Contains("--list", readme, StringComparison.Ordinal);
-    Assert.Contains("2.0.0", readme, StringComparison.Ordinal);
+    Assert.Contains("Version 2.0 replaces the published 1.x API", readme, StringComparison.Ordinal);
     Assert.Contains("dotnet run --project examples/AssuanLibrary.Examples", readme, StringComparison.Ordinal);
   }
 

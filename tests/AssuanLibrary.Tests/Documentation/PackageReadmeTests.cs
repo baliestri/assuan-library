@@ -9,8 +9,9 @@ namespace AssuanLibrary.Tests.Documentation;
 public sealed class PackageReadmeTests {
   [Fact]
   public async Task MainPackageIncludesNuGetRootReadmeAndBundledAnalyzer() {
-    var repository = ManifestTests.Repository;
-    Assert.True(File.Exists(Path.Combine(repository, "docs", "nuget", "README.md")));
+    var repository = RepositoryRoot.Path;
+    var source = Path.Combine(repository, "src", "AssuanLibrary", "PACKAGE.md");
+    Assert.True(File.Exists(source));
     var packages = Path.Combine(repository, "artifacts", "docs-package-tests");
     Directory.CreateDirectory(packages);
     var version = $"2.0.0-docs.{Guid.NewGuid():N}";
@@ -50,10 +51,13 @@ public sealed class PackageReadmeTests {
       .OpenAsync(TestContext.Current.CancellationToken));
     var markdown = await readme.ReadToEndAsync(TestContext.Current.CancellationToken);
     Assert.Contains("net10.0", markdown, StringComparison.Ordinal);
-    Assert.Equal(
-      await File.ReadAllTextAsync(Path.Combine(repository, "docs", "nuget", "README.md"),
-        TestContext.Current.CancellationToken), markdown);
+    Assert.Equal(await File.ReadAllTextAsync(source, TestContext.Current.CancellationToken), markdown);
+    // nuget.org renders this file outside the repository, so every link must be absolute.
     Assert.DoesNotContain("../", markdown, StringComparison.Ordinal);
-    Assert.Contains("https://", markdown, StringComparison.Ordinal);
+    Assert.DoesNotContain("](wiki/", markdown, StringComparison.Ordinal);
+    Assert.DoesNotContain("baliestri.github.io", markdown, StringComparison.Ordinal);
+    Assert.Contains("https://github.com/baliestri/assuan-library/blob/main/wiki/", markdown, StringComparison.Ordinal);
+    Assert.DoesNotContain("/blob/v", markdown, StringComparison.Ordinal);
+    Assert.DoesNotContain("/tree/v", markdown, StringComparison.Ordinal);
   }
 }

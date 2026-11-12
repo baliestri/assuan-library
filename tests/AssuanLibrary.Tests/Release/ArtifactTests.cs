@@ -11,7 +11,7 @@ namespace AssuanLibrary.Tests.Release;
 
 public sealed class ArtifactTests {
   [Fact]
-  public async Task MatchingCommitPackageAndDocumentationCanBeVerifiedOffline() {
+  public async Task MatchingCommitAndPackageCanBeVerifiedOffline() {
     using var fixture = new ArtifactFixture();
     Assert.Equal(0, (await fixture.VerifyAsync()).ExitCode);
   }
@@ -47,61 +47,45 @@ public sealed class ArtifactTests {
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
   }
 
-  [Theory]
-  [InlineData("../escape.txt")]
-  [InlineData("2.0.0/../escape.txt")]
-  [InlineData("/absolute.txt")]
-  public async Task RejectsDocumentationArchivePathsOutsideTheVersion(string unsafePath) {
-    using var fixture = new ArtifactFixture();
-    fixture.WriteDocs(unsafePath);
-    fixture.RefreshHashes();
-    Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
-  }
-
   [Fact]
-  public async Task RejectsSymbolicLinksInsideTheDocumentationArchive() {
-    using var fixture = new ArtifactFixture();
-    fixture.WriteDocs("2.0.0/link", true);
-    fixture.RefreshHashes();
-    Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
-  }
-
-  [Fact]
-  public async Task RejectsDocumentationWithoutTheFullLlmGuide() {
-    using var fixture = new ArtifactFixture();
-    fixture.WriteDocs(missingPath: "2.0.0/llms-full.txt");
-    fixture.RefreshHashes();
-    Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
-  }
-
-  [Fact]
-  public async Task RejectsChecksumManifestGateAndCheckoutMismatches() {
+  public async Task RejectsPackageHashManifestGateAndCheckoutMismatches() {
     using var fixture = new ArtifactFixture();
     Assert.NotEqual(0, (await fixture.VerifyAsync(ciSha: new string('b', 40))).ExitCode);
     Assert.NotEqual(0, (await fixture.VerifyAsync(new string('b', 40),
       new string('b', 40), new string('b', 40))).ExitCode);
     var token = TestContext.Current.CancellationToken;
-    await File.WriteAllTextAsync(fixture.ChecksumPath, $"{new string('0', 64)}  docs-v2.0.0.zip\n", token);
+    var manifest = await File.ReadAllTextAsync(fixture.ManifestPath, token);
+    await File.WriteAllTextAsync(fixture.ManifestPath,
+      manifest.Replace(fixture.SourceSha, new string('b', 40), StringComparison.Ordinal), token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
     fixture.RefreshHashes();
-    await File.WriteAllTextAsync(fixture.ManifestPath,
-      (await File.ReadAllTextAsync(fixture.ManifestPath, token)).Replace(fixture.SourceSha, new string('b', 40),
-        StringComparison.Ordinal),
-      token);
+    Assert.Equal(0, (await fixture.VerifyAsync()).ExitCode);
+    // The manifest binds the exact bytes: a repacked but otherwise valid package no longer matches it.
+    fixture.WritePackage();
+    await using (var archive = await ZipFile.OpenAsync(fixture.PackagePath, ZipArchiveMode.Update, token)) {
+      await using var extra = await archive.CreateEntry("extra.txt").OpenAsync(token);
+      extra.Write("changed after binding"u8);
+    }
+
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
   }
 
   [Fact]
-  public async Task TwoEquivalentBundlesProduceTheSameImmutableArchive() {
+  public async Task ThePackageIsBoundToItsCommitOnceAndNeverRebound() {
     using var fixture = new ArtifactFixture();
     var first = await fixture.BuildAsync("first");
     var second = await fixture.BuildAsync("second");
-    Assert.Equal(0, first.ExitCode);
-    Assert.Equal(0, second.ExitCode);
-    var left = Path.Combine(fixture.OutputRoot, "first", "docs-v2.0.0.zip");
-    var right = Path.Combine(fixture.OutputRoot, "second", "docs-v2.0.0.zip");
+    Assert.True(first.ExitCode == 0, first.Output);
+    Assert.True(second.ExitCode == 0, second.Output);
     var token = TestContext.Current.CancellationToken;
-    Assert.Equal(await File.ReadAllBytesAsync(left, token), await File.ReadAllBytesAsync(right, token));
+    var left = await File.ReadAllTextAsync(Path.Combine(fixture.OutputRoot, "first", "release-artifacts.json"), token);
+    var right = await File.ReadAllTextAsync(Path.Combine(fixture.OutputRoot, "second", "release-artifacts.json"),
+      token);
+    Assert.Equal(left, right);
+    using var manifest = JsonDocument.Parse(left);
+    Assert.Equal(fixture.SourceSha, manifest.RootElement.GetProperty("sourceSha").GetString());
+    Assert.Equal("AssuanLibrary.2.0.0.nupkg", manifest.RootElement.GetProperty("packageName").GetString());
+    Assert.False(manifest.RootElement.TryGetProperty("docsName", out var _));
     Assert.NotEqual(0, (await fixture.BuildAsync("first")).ExitCode);
   }
 
@@ -136,17 +120,12 @@ public sealed class ArtifactTests {
       var directory = Path.Combine(_git.Root, "artifacts", "candidate");
       Directory.CreateDirectory(directory);
       PackagePath = Path.Combine(directory, $"AssuanLibrary.{version}.nupkg");
-      DocsPath = Path.Combine(directory, $"docs-v{version}.zip");
-      ChecksumPath = Path.Combine(directory, $"docs-v{version}.sha256");
       ManifestPath = Path.Combine(directory, "release-artifacts.json");
       WritePackage();
-      WriteDocs();
       RefreshHashes();
     }
 
     internal string PackagePath { get; }
-    private string DocsPath { get; }
-    internal string ChecksumPath { get; }
     internal string ManifestPath { get; }
     internal string SourceSha => _git.Head;
     internal string OutputRoot => Path.Combine(_git.Root, "artifacts", "built");
@@ -197,37 +176,13 @@ public sealed class ArtifactTests {
       }
     }
 
-    internal void WriteDocs(string? additionalPath = null, bool symlink = false, string? missingPath = null) {
-      File.Delete(DocsPath);
-      using var archive = ZipFile.Open(DocsPath, ZipArchiveMode.Create);
-      foreach (var path in new[] {
-                 $"{_version}/site/index.html", $"{_version}/site/api/toc.html",
-                 $"{_version}/llms.txt", $"{_version}/llms-full.txt", $"{_version}/metadata.json"
-               })
-        if (!string.Equals(path, missingPath, StringComparison.Ordinal)) {
-          Add(archive, path, path);
-        }
-
-      if (additionalPath is not null) {
-        var added = Add(archive, additionalPath, "unexpected");
-        if (symlink) {
-          added.ExternalAttributes = unchecked((int)0xA0000000);
-        }
-      }
-    }
-
-    internal void RefreshHashes() {
-      var docsHash = Hash(DocsPath);
-      File.WriteAllText(ChecksumPath, $"{docsHash}  docs-v{_version}.zip\n");
-      File.WriteAllText(ManifestPath, JsonSerializer.Serialize(new {
+    internal void RefreshHashes()
+      => File.WriteAllText(ManifestPath, JsonSerializer.Serialize(new {
         version = _version,
         sourceSha = _git.Head,
         packageName = Path.GetFileName(PackagePath),
-        packageSha256 = Hash(PackagePath),
-        docsName = Path.GetFileName(DocsPath),
-        docsSha256 = docsHash
+        packageSha256 = Hash(PackagePath)
       }));
-    }
 
     internal async Task<(int ExitCode, string Output)> VerifyAsync(string? preparedSha = null,
       string? ciSha = null, string? interopSha = null) {
@@ -240,8 +195,7 @@ public sealed class ArtifactTests {
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Verify-Release.ps1"),
                  "-Root", _git.Root, "-Version", _version, "-PreparedSha", preparedSha ?? _git.Head,
                  "-CiSha", ciSha ?? _git.Head, "-InteropSha", interopSha ?? _git.Head,
-                 "-PackagePath", PackagePath, "-DocsArchive", DocsPath,
-                 "-ChecksumPath", ChecksumPath, "-ManifestPath", ManifestPath
+                 "-PackagePath", PackagePath, "-ManifestPath", ManifestPath
                })
         start.ArgumentList.Add(argument);
 
@@ -254,16 +208,6 @@ public sealed class ArtifactTests {
     }
 
     internal async Task<(int ExitCode, string Output)> BuildAsync(string name) {
-      var bundle = Path.Combine(_git.Root, "artifacts", "bundles", name, _version);
-      foreach (var path in new[] {
-                 "site/index.html", "site/api/toc.html", "llms.txt",
-                 "llms-full.txt", "metadata.json"
-               }) {
-        var filename = Path.Combine(bundle, path);
-        Directory.CreateDirectory(Path.GetDirectoryName(filename)!);
-        await File.WriteAllTextAsync(filename, path, TestContext.Current.CancellationToken).ConfigureAwait(false);
-      }
-
       var start = new ProcessStartInfo("pwsh") {
         WorkingDirectory = ReleaseFixture.ToolsRoot, UseShellExecute = false,
         RedirectStandardOutput = true, RedirectStandardError = true
@@ -272,7 +216,7 @@ public sealed class ArtifactTests {
                  "-NoProfile", "-NonInteractive", "-File",
                  Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Build-ReleaseArtifacts.ps1"),
                  "-Root", _git.Root, "-Version", _version, "-PreparedSha", _git.Head, "-PackagePath", PackagePath,
-                 "-BundlePath", bundle, "-OutputDirectory", Path.Combine(OutputRoot, name)
+                 "-OutputDirectory", Path.Combine(OutputRoot, name)
                })
         start.ArgumentList.Add(argument);
 
@@ -307,12 +251,11 @@ public sealed class ArtifactTests {
     private static string Hash(string path)
       => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
-    private static ZipArchiveEntry Add(ZipArchive archive, string path, string content) {
+    private static void Add(ZipArchive archive, string path, string content) {
       var entry = archive.CreateEntry(path);
       using var stream = entry.Open();
       var bytes = Encoding.UTF8.GetBytes(content);
       stream.Write(bytes);
-      return entry;
     }
   }
 }

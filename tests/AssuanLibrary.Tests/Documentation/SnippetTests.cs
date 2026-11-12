@@ -14,9 +14,9 @@ public sealed partial class SnippetTests {
   private static partial Regex SnippetRegex { get; }
 
   [Fact]
-  public void NuGetAndGettingStartedSnippetsCompileAgainstPublicRuntime() {
-    var root = ManifestTests.Repository;
-    foreach (var path in new[] { "docs/nuget/README.md", "docs/guides/getting-started.md" }) {
+  public void ReadmePackageAndGettingStartedSnippetsCompileAgainstPublicRuntime() {
+    var root = RepositoryRoot.Path;
+    foreach (var path in new[] { "README.md", "src/AssuanLibrary/PACKAGE.md", "wiki/Getting-Started.md" }) {
       var content = File.ReadAllText(Path.Combine(root, path));
       var snippet = Assert.Single(SnippetRegex.Matches(content)).Groups["code"].Value;
       Assert.Empty(Errors(snippet));
@@ -25,7 +25,7 @@ public sealed partial class SnippetTests {
 
   [Fact]
   public void CompiledExampleSnippetMatchesPublishedPrimitiveWorkflow() {
-    var root = ManifestTests.Repository;
+    var root = RepositoryRoot.Path;
     var code = File.ReadAllText(Path.Combine(root, "examples/AssuanLibrary.Examples/SExpressionExample.cs"));
     var start = code.IndexOf("// <snippet:sexpressions>", StringComparison.Ordinal);
     var end = code.IndexOf("// </snippet:sexpressions>", StringComparison.Ordinal);

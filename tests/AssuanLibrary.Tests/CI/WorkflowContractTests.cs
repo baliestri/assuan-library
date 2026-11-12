@@ -4,12 +4,11 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.CI;
 
 public sealed partial class WorkflowContractTests {
-  private readonly static string Repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
+  private readonly static string Repository = RepositoryRoot.Path;
 
   [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@(?<ref>[^\s#]+)", RegexOptions.ExplicitCapture, 5000)]
   private static partial Regex UsesRegex { get; }
@@ -38,7 +37,7 @@ public sealed partial class WorkflowContractTests {
 
     foreach (var project in new[] {
                "src/AssuanLibrary.Generators", "src/AssuanLibrary",
-               "examples/AssuanLibrary.Examples", "tools/AssuanLibrary.Docs",
+               "examples/AssuanLibrary.Examples",
                "tests/AssuanLibrary.GpgconfFixture", "tests/AssuanLibrary.Generators.Tests",
                "tests/AssuanLibrary.Tests"
              }) {
@@ -64,7 +63,9 @@ public sealed partial class WorkflowContractTests {
     Assert.Contains("$call.Contains('source_sha')", yaml, StringComparison.Ordinal);
     Assert.Contains("Assert-Gate.ps1", yaml, StringComparison.Ordinal);
     Assert.Contains("if: always()", yaml, StringComparison.Ordinal);
-    Assert.Contains("needs: [prepare, matrix, docs, format, workflows]", yaml, StringComparison.Ordinal);
+    Assert.Contains("needs: [prepare, matrix, package, format, workflows]", yaml, StringComparison.Ordinal);
+    Assert.DoesNotContain("docfx", yaml, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("tools/AssuanLibrary.Docs", yaml, StringComparison.Ordinal);
     Assert.Contains("dotnet restore AssuanLibrary.slnx --locked-mode", yaml, StringComparison.Ordinal);
     Assert.Contains("dotnet format AssuanLibrary.slnx --verify-no-changes", yaml, StringComparison.Ordinal);
     Assert.Contains("--filter-class", yaml, StringComparison.Ordinal);
@@ -77,6 +78,7 @@ public sealed partial class WorkflowContractTests {
     Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
     Assert.Equal(6, CmdletRegex.Count(yaml));
     Assert.Equal(6, CheckoutRegex.Count(yaml));
+    Assert.False(File.Exists(Path.Combine(Repository, ".github", "workflows", "docs.yml")));
   }
 
   [Fact]
@@ -107,7 +109,9 @@ public sealed partial class WorkflowContractTests {
 
   [Fact]
   public void CiGuideAndWorkflowValidatorStayInTheRepository() {
-    Assert.True(File.Exists(Path.Combine(Repository, "docs", "guides", "continuous-integration.md")));
+    var guide = File.ReadAllText(Path.Combine(Repository, "CONTRIBUTING.md"));
+    Assert.Contains("## Continuous integration", guide, StringComparison.Ordinal);
+    Assert.Contains("Verify-Workflows.ps1", guide, StringComparison.Ordinal);
     Assert.True(File.Exists(Path.Combine(Repository, "scripts", "ci", "Verify-Workflows.ps1")));
   }
 

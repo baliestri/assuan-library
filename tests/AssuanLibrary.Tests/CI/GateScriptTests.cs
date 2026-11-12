@@ -3,12 +3,11 @@
 
 using System.Diagnostics;
 using System.Text.Json;
-using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.CI;
 
 public sealed class GateScriptTests {
-  private readonly static string Repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
+  private readonly static string Repository = RepositoryRoot.Path;
   private readonly static string ValidSha = new('a', 40);
 
   [Theory]

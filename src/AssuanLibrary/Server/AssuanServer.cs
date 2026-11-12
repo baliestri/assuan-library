@@ -35,18 +35,21 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
   public int PendingSessionCount => _supervisor.PendingCount;
 
   /// <summary>Requests that active operations stop without claiming handlers have terminated.</summary>
-  public ValueTask DisposeAsync() {
+  public async ValueTask DisposeAsync() {
     if (Interlocked.Exchange(ref _disposed, 1) != 0) {
-      return ValueTask.CompletedTask;
+      return;
     }
 
-    try { Volatile.Read(ref _admissionStop)?.Cancel(); }
+    try {
+      if (Volatile.Read(ref _admissionStop) is { } admissionStop) {
+        await admissionStop.CancelAsync().ConfigureAwait(false);
+      }
+    }
     catch (ObjectDisposedException) {
       /* The admission loop has already stopped. */
     }
 
     _supervisor.RequestStopAll();
-    return ValueTask.CompletedTask;
   }
 
   /// <summary>Registers a handler before any sessions are accepted.</summary>
@@ -168,7 +171,7 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
     _ = pending.ContinueWith(async completed =>
     {
       if (completed.IsCompletedSuccessfully) {
-        try { await completed.Result.Stream.DisposeAsync().ConfigureAwait(false); }
+        try { await (await completed.ConfigureAwait(false)).Stream.DisposeAsync().ConfigureAwait(false); }
         catch { ServerDiagnostics.Report(ServerErrorKind.Transport); }
       }
       else { _ = completed.Exception; }

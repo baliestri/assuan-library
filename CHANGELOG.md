@@ -1,5 +1,70 @@
 # Assuan Library .NET Changelog
 
+## [2.1.0](https://github.com/baliestri/assuan-library/compare/v2.0.1..v2.1.0) - 2026-11-12
+
+### ⛰️  Features
+
+- *(release)* Confirm NuGet visibility in a re-runnable job - ([1f325f7](https://github.com/baliestri/assuan-library/commit/1f325f70f69e373d71403877b001c39a7d4ac62f))
+
+### 🐛 Bug Fixes
+
+- *(client)* Honor the injected clock while awaiting inquiry responses - ([be0d2d1](https://github.com/baliestri/assuan-library/commit/be0d2d121983fa67b40532fe04d3feada85b4a65))
+- *(examples)* Format S-expression lines before awaiting output - ([b583a93](https://github.com/baliestri/assuan-library/commit/b583a936242eac0f5df5486f7c4435bb9c9f70c6))
+- *(protocol)* Pin secret buffers in managed memory - ([722c786](https://github.com/baliestri/assuan-library/commit/722c78662a8a398373480cf686cba8f8ea5c5983))
+- *(server)* Await admission cancellation when disposing - ([33b6a62](https://github.com/baliestri/assuan-library/commit/33b6a627944d5a5f250741b61b183a57b00e70c0))
+- *(tests)* Normalize line endings when reading the contributor guide - ([ba8adc7](https://github.com/baliestri/assuan-library/commit/ba8adc7ceea781615d8951bc050e26c96e436224))
+- *(transport)* Add current-user check to Unix connector - ([774e0f2](https://github.com/baliestri/assuan-library/commit/774e0f2206083319789cacfa2df78a0beb0bbb32))
+- *(transport)* Require fully qualified gpgconf paths - ([6060c95](https://github.com/baliestri/assuan-library/commit/6060c959e20a626731705ad0724c9a507d64b66e))
+- *(transport)* Restrict named pipe clients to trusted owners - ([f5fc54a](https://github.com/baliestri/assuan-library/commit/f5fc54af1b531b29caf7243b639192e974ff1bc9))
+
+### 🚜 Refactor
+
+- *(examples)* Apply inspection cleanups - ([baec8b4](https://github.com/baliestri/assuan-library/commit/baec8b4ffabde411406d93a604db27b017d37606))
+- *(examples)* Split example types and apply analyzer fixes - ([c780d4e](https://github.com/baliestri/assuan-library/commit/c780d4ed88ef050aeeb2dcdfdfe8c97a5741bd07))
+- *(generators)* Extract validation helpers and apply inspection cleanups - ([1cd69ef](https://github.com/baliestri/assuan-library/commit/1cd69ef050b01fb6ce4728577dfc36ea8158df3a))
+- *(generators)* Extract handler and group validation helpers - ([68275e7](https://github.com/baliestri/assuan-library/commit/68275e74aae1b5c466df02b99027ecb0bff21026))
+- *(src)* Apply inspection cleanups to client, server and transport - ([63171bc](https://github.com/baliestri/assuan-library/commit/63171bc823037620a0e43679f10341f318e6f1db))
+- *(src)* Move each public type into its own file - ([1ad5e95](https://github.com/baliestri/assuan-library/commit/1ad5e95c1e7f63232762b2b955fd3a0c3b8de50f))
+- *(tests)* Apply inspection cleanups - ([d714acb](https://github.com/baliestri/assuan-library/commit/d714acbf73e171ba22318de312bfcbc128fda1f1))
+- *(tests)* Use async file I/O and apply analyzer fixes - ([d2493d4](https://github.com/baliestri/assuan-library/commit/d2493d4002949012a7fb828c3ecb3a3af7a7621b))
+- *(transport)* Simplify pipe connection error handling - ([0b6e88f](https://github.com/baliestri/assuan-library/commit/0b6e88fa2595a8da339947b1336453b8689de5c5))
+
+### 📚 Documentation
+
+- *(security)* Document transport and secret-handling boundaries - ([2107619](https://github.com/baliestri/assuan-library/commit/2107619f8de05209bcc0cec764202981484382e7))
+- *(wiki)* Move reference guides to wiki and drop the DocFX site - ([c207c0f](https://github.com/baliestri/assuan-library/commit/c207c0f854e7bb643d9e4f70d93417adeb0e6dcb))
+- Replace AsciiDoc README and CONTRIBUTING with Markdown - ([c026ea5](https://github.com/baliestri/assuan-library/commit/c026ea512ee1bbd9360c6d52cffe00d82a6b4816))
+- Add security policy - ([8ee064c](https://github.com/baliestri/assuan-library/commit/8ee064ca5c19f263d2471fa0ef5c01d589fd5178))
+
+### 🎨 Styling
+
+- *(docs)* Reflow prose and changelog entries - ([1469733](https://github.com/baliestri/assuan-library/commit/1469733359d2f519d408f93c67de80b7c227261b))
+
+### 🧪 Testing
+
+- *(ci)* Cover workflow contracts for new policies - ([2fe6736](https://github.com/baliestri/assuan-library/commit/2fe6736f9444766de9f3da4bb7500daeadb5a8a2))
+- *(consumers)* Read package versions from central props - ([14158bc](https://github.com/baliestri/assuan-library/commit/14158bc78259ea3e79e88da23a9c4ccf207ff82c))
+- *(docs)* Check wiki links and package README - ([e6c2321](https://github.com/baliestri/assuan-library/commit/e6c23213a49818643e12d6d6396dea09600fcc8b))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Add Dependabot for NuGet and GitHub Actions - ([1e22462](https://github.com/baliestri/assuan-library/commit/1e2246287bca00fd5977799e9d2e2a92558efcdc))
+- *(editorconfig)* Update editor configuration - ([2caedd4](https://github.com/baliestri/assuan-library/commit/2caedd40980516cf81540736f6cadb14c64c157e))
+- *(license)* Relicense under zlib/libpng - ([86ff360](https://github.com/baliestri/assuan-library/commit/86ff360934dca78e9780bca5061849e5a3ee6945))
+- *(repo)* Stop tracking the IDE migration file - ([d203fae](https://github.com/baliestri/assuan-library/commit/d203faebfca825b9aff55cc4367cad784f327cbf))
+- *(workflows)* Run documentation checks in a package job - ([aaf015e](https://github.com/baliestri/assuan-library/commit/aaf015e275d3f774cf6bed0185ab3ada8c11cf9b))
+- *(workflows)* Restrict branch pushes and pin the Scoop installer - ([1bfb968](https://github.com/baliestri/assuan-library/commit/1bfb968282e2f74f85614960705163847a8fa9fc))
+
+### Build
+
+- *(analyzers)* Enable Meziantou.Analyzer for all projects - ([c29a879](https://github.com/baliestri/assuan-library/commit/c29a879b5400150cb56b4917b3239058542ac448))
+- *(deps)* Update package versions and drop Shouldly - ([ce962b9](https://github.com/baliestri/assuan-library/commit/ce962b9fb6cc7fe2f7e82630eee1741c142a83db))
+- *(format)* Check formatting with the ReSharper tools - ([74ec282](https://github.com/baliestri/assuan-library/commit/74ec28291cbee8cb83d40dd523844dd76a06e83f))
+- *(nuget)* Add NuGet.config restricting sources to nuget.org - ([8d71dca](https://github.com/baliestri/assuan-library/commit/8d71dca2e426a9012a9010c5910129d475bf0e53))
+- *(package)* Embed symbols and source links - ([01504e7](https://github.com/baliestri/assuan-library/commit/01504e75bbbd97cef2130404a1c62c8e642d5e1f))
+- *(release)* Publish only the NuGet package - ([c9b2f63](https://github.com/baliestri/assuan-library/commit/c9b2f63dd1b5bfe197b020a424428b3685240726))
+- *(sdk)* Pin .NET SDK 10.0.403 with latestPatch rollForward - ([c06ac8e](https://github.com/baliestri/assuan-library/commit/c06ac8ec9dc3c2ca716d9938c9c4a9efa8f931a1))
+
 ## [2.0.1](https://github.com/baliestri/assuan-library/compare/v2.0.0..v2.0.1) - 2026-10-12
 
 ### 🐛 Bug Fixes

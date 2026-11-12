@@ -17,7 +17,7 @@ Assuan protocol, including integrations with existing GnuPG agents.
 ## Install
 
 ```shell
-dotnet add package AssuanLibrary --version 2.0.1
+dotnet add package AssuanLibrary --version 2.1.0
 ```
 
 The package targets **`net10.0`**. Version 2.0 replaces the published 1.x API; 1.x code and examples are not

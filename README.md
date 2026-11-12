@@ -31,7 +31,7 @@ Assuan protocol, including integrations with an existing GnuPG agent.
 ## Install
 
 ```shell
-dotnet add package AssuanLibrary --version 2.0.1
+dotnet add package AssuanLibrary --version 2.1.0
 ```
 
 The one package contains the runtime and the generator; there is no second package to install.

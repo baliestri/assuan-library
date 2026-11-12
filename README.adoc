@@ -117,4 +117,4 @@ A new output version cannot replace an existing bundle; no website or package is
 == Contribution and license
 
 See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for contribution guidance; it is being updated for the 2.0 layout.
-The library is licensed under MIT; see link:LICENSE.md[LICENSE.md].
+The library is licensed under the zlib/libpng License; see link:LICENSE.md[LICENSE.md].

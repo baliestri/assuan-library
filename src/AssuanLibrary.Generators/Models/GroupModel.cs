@@ -99,7 +99,7 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
         (type.GetMembers("CreateHooks").Length != 0 ||
          type.GetMembers("__AssuanOptionHooks").Length != 0 ||
          Enumerable.Range(0, optionModels.Length).Any(index =>
-           type.GetMembers("__assuan_option_" + index).Length != 0))) {
+           type.GetMembers($"__assuan_option_{index}").Length != 0))) {
       return "ASG002";
     }
 
@@ -107,8 +107,10 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
         methods.Any(item => item.ErrorId is not null) ||
         optionModels.Any(item => item.ErrorId is not null) ||
         stateCount != 1 ||
-        methods.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != methods.Length ||
-        optionModels.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != optionModels.Length) {
+        methods.Select(item => item.Name).Distinct(StringComparer.Ordinal).Take(methods.Length + 1).Count() !=
+        methods.Length ||
+        optionModels.Select(item => item.Name).Distinct(StringComparer.Ordinal).Take(optionModels.Length + 1).Count() !=
+        optionModels.Length) {
       return "ASG008";
     }
 

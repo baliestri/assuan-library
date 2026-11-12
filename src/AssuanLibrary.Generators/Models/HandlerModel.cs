@@ -18,7 +18,7 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
     Accessibility = access;
     StaticType = staticType;
     Method = method;
-    Property = method + "Handler";
+    Property = $"{method}Handler";
     StateType = state;
     Name = name;
     Description = description;
@@ -71,10 +71,10 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
                       => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
                          declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     var error = !supported ? "ASG001" : null;
-    var property = method.Name + "Handler";
+    var property = $"{method.Name}Handler";
     var signature = HasHandlerSignature(method, token);
     if (error is null &&
-        (!signature || type.GetMembers(method.Name).OfType<IMethodSymbol>().Count() != 1)) {
+        (!signature || type.GetMembers(method.Name).OfType<IMethodSymbol>().Take(2).Count() != 1)) {
       error = "ASG006";
     }
 
@@ -103,7 +103,7 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
       : "global::System.Object";
     var ns = type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString();
     var access = type.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public ? "public" : "internal";
-    var methodIdentifier = SyntaxFacts.GetKeywordKind(method.Name) == SyntaxKind.None ? method.Name : "@" + method.Name;
+    var methodIdentifier = SyntaxFacts.GetKeywordKind(method.Name) == SyntaxKind.None ? method.Name : $"@{method.Name}";
     return new HandlerModel(ns, type.Name, access, type.IsStatic, methodIdentifier,
       state, name, description, error, error is null ? default : location);
   }

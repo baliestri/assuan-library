@@ -63,17 +63,18 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
                     string.Equals(parameter.ContainingNamespace.ToDisplayString(), "AssuanLibrary.Server",
                       StringComparison.Ordinal);
     if (error is null &&
-        (!signature || type.GetMembers(method.Name).OfType<IMethodSymbol>().Count() != 1)) {
+        (!signature || type.GetMembers(method.Name).OfType<IMethodSymbol>().Take(2).Count() != 1)) {
       error = "ASG009";
     }
 
     if (error is null &&
-        (!ValidName(name) || type.GetMembers().OfType<IMethodSymbol>().Count(other =>
-          other.GetAttributes().Any(item
-            => string.Equals(item.AttributeClass?.ToDisplayString(),
-                 "AssuanLibrary.Attributes.AssuanOptionHandlerAttribute", StringComparison.Ordinal) &&
-               item.ConstructorArguments.Length > 0 &&
-               string.Equals(item.ConstructorArguments[0].Value as string, name, StringComparison.Ordinal))) != 1)) {
+        (!ValidName(name) || type.GetMembers().OfType<IMethodSymbol>().Where(other =>
+            other.GetAttributes().Any(item
+              => string.Equals(item.AttributeClass?.ToDisplayString(),
+                   "AssuanLibrary.Attributes.AssuanOptionHandlerAttribute", StringComparison.Ordinal) &&
+                 item.ConstructorArguments.Length > 0 &&
+                 string.Equals(item.ConstructorArguments[0].Value as string, name, StringComparison.Ordinal))).Take(2)
+          .Count() != 1)) {
       error = "ASG010";
     }
 
@@ -88,7 +89,7 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
       ? ((INamedTypeSymbol)method.Parameters[1].Type).TypeArguments[0]
       .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
       : "global::System.Object";
-    var identifier = SyntaxFacts.GetKeywordKind(method.Name) == SyntaxKind.None ? method.Name : "@" + method.Name;
+    var identifier = SyntaxFacts.GetKeywordKind(method.Name) == SyntaxKind.None ? method.Name : $"@{method.Name}";
     return new OptionModel(identifier, name, state, error, error is null ? default : location);
   }
 

@@ -9,6 +9,7 @@
 .idea/**/dictionaries
 .idea/**/shelf
 .idea/**/copilot
+.idea/**/copilot.*.xml
 
 # AWS User-specific
 .idea/**/aws.xml

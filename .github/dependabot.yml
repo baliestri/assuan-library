@@ -1,0 +1,46 @@
+# Dependency updates are proposed against the integration branch and validated by the same
+# locked restore, CI and Interop gates as any other pull request.
+#
+# Not covered here and updated by hand:
+#   - the .NET SDK pin in global.json (asserted by the workflow contract tests and CONTRIBUTING.adoc);
+#   - scripts/release/tools.json (git-cliff and typos archives pinned by SHA-256);
+#   - the actionlint container digest in .github/workflows/ci.yml;
+#   - the Scoop installer commit and SHA-256 in .github/workflows/interop.yml.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build(deps)
+    groups:
+      microsoft-extensions:
+        patterns:
+          - Microsoft.Extensions.*
+      testing:
+        patterns:
+          - xunit*
+          - Microsoft.NET.Test.Sdk
+          - coverlet.*
+          - Moq
+    ignore:
+      # The generator's Roslyn reference sets the minimum compiler a consumer needs; raising it is
+      # a deliberate compatibility decision, not a routine update.
+      - dependency-name: Microsoft.CodeAnalysis.CSharp
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci(deps)

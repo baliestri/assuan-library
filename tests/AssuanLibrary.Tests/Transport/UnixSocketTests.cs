@@ -25,6 +25,24 @@ public sealed class UnixSocketTests {
   }
 
   [Fact]
+  public async Task AClientMayRequireTheServerToRunAsTheCurrentUser() {
+    if (!OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
+      return;
+    }
+
+    using var fixture = new UnixFixture();
+    await using var listener = UnixAcceptor.Bind(LocalEndpoint.Unix(fixture.Socket()));
+    var token = TestContext.Current.CancellationToken;
+    var accepting = listener.AcceptAsync(token);
+    await using var client =
+      await UnixConnector.ConnectToCurrentUserAsync(listener.Endpoint, cancellationToken: token);
+    await using var peer = (await accepting).Stream;
+    Assert.True(client.CanWrite);
+    listener.Cleanup();
+  }
+
+  [Fact]
   public async Task NonAsciiDirectoryAndSocketNamesReachNativeUnixCallsAsUtf8() {
     if (OperatingSystem.IsWindows()) {
       return;

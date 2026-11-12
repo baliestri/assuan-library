@@ -48,6 +48,12 @@ internal static partial class UnixNative {
     StringMarshalling = StringMarshalling.Utf8)]
   private static partial int MacLStat(string path, [Out] byte[] result);
 
+  // On Intel macOS the unsuffixed symbol is the legacy 32-bit-inode variant, whose layout differs
+  // from the one ParseMetadata reads. Apple silicon only has the 64-bit-inode layout, unsuffixed.
+  [LibraryImport("libSystem.B.dylib", EntryPoint = "lstat$INODE64", SetLastError = true,
+    StringMarshalling = StringMarshalling.Utf8)]
+  private static partial int MacLStatInode64(string path, [Out] byte[] result);
+
   [LibraryImport("libc", EntryPoint = "realpath", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
   private static partial IntPtr LinuxRealPath(string path, IntPtr resolved);
 
@@ -116,7 +122,13 @@ internal static partial class UnixNative {
     EnsureSupported();
     var buffer = new byte[STAT_BUFFER_BYTES];
     int result;
-    try { result = OperatingSystem.IsLinux() ? LinuxLStat(path, buffer) : MacLStat(path, buffer); }
+    try {
+      result = OperatingSystem.IsLinux()
+        ? LinuxLStat(path, buffer)
+        : RuntimeInformation.ProcessArchitecture == Architecture.X64
+          ? MacLStatInode64(path, buffer)
+          : MacLStat(path, buffer);
+    }
     catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) {
       throw new TransportException(TransportErrorKind.AccessPolicy, error);
     }

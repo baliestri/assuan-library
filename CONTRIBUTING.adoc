@@ -1,10 +1,12 @@
 = Contributing to AssuanLibrary
 
-Thanks for contributing to the binary-safe Assuan client/server library. Version 2.0 is a complete API break from the published 1.x package; use the current guides and examples rather than adapting a 1.x snippet by name alone.
+Thanks for contributing to the binary-safe Assuan client/server library.
+Version 2.0 is a complete API break from the published 1.x package; use the current guides and examples rather than adapting a 1.x snippet by name alone.
 
 == Before starting
 
-Search existing issues and pull requests, and discuss substantial protocol or API changes before implementing them. Report security vulnerabilities through a private GitHub Security Advisory when available, or contact the maintainer listed in link:LICENSE.md[LICENSE.md]; do not post secrets or private agent paths in a public issue.
+Search existing issues and pull requests, and discuss substantial protocol or API changes before implementing them.
+Report security vulnerabilities through a private GitHub Security Advisory when available, or contact the maintainer listed in link:LICENSE.md[LICENSE.md]; do not post secrets or private agent paths in a public issue.
 
 == Checkout and project layout
 
@@ -16,7 +18,9 @@ The solution is `AssuanLibrary.slnx`, with a .NET *10.0.403* SDK pin in `global.
 * `tests/` — runtime, generator, package-consumer, documentation, CI and release-fixture tests.
 * `tools/AssuanLibrary.Docs/` and `docs/site/` — pinned DocFX bundle generation and the reviewed guide manifest.
 
-`Directory.Packages.props` centrally selects NuGet versions; each project has a `packages.lock.json`. Use an SDK matching `global.json`. Keep local package caches, downloaded tools and generated output in ignored `artifacts/` within this checkout.
+`Directory.Packages.props` centrally selects NuGet versions; each project has a `packages.lock.json`.
+Use an SDK matching `global.json`.
+Keep local package caches, downloaded tools and generated output in ignored `artifacts/` within this checkout.
 
 == Build, test and format
 
@@ -31,14 +35,24 @@ dotnet format AssuanLibrary.slnx --verify-no-changes --no-restore
 dotnet run --project examples/AssuanLibrary.Examples -- --example custom-transport
 ----
 
-Warnings are errors. Windows runs named-pipe, current-user DACL and native agent-nonce tests; Linux and macOS run Unix peer-credential and cleanup tests. The separate hosted Interop gate requires real GnuPG tools on all three operating systems. A local deterministic fixture is useful for regressions but is not proof of real-agent interoperability or macOS coverage.
+Warnings are errors.
+Windows runs named-pipe, current-user DACL and native agent-nonce tests; Linux and macOS run Unix peer-credential and cleanup tests.
+The separate hosted Interop gate requires real GnuPG tools on all three operating systems.
+A local deterministic fixture is useful for regressions but is not proof of real-agent interoperability or macOS coverage.
 
-The repository entrance remains `README.adoc`; the NuGet package displays `docs/nuget/README.md`, packed as `README.md` at the package root. Keep public XML comments, guides, compiled examples and tests aligned when changing an API. The documentation tool builds a fresh versioned DocFX/`llms.txt`/`llms-full.txt` bundle; see link:docs/guides/operations.md[documentation operations]. It never overwrites an existing version directory.
+The repository entrance remains `README.adoc`; the NuGet package displays `docs/nuget/README.md`, packed as `README.md` at the package root.
+Keep public XML comments, guides, compiled examples and tests aligned when changing an API.
+The documentation tool builds a fresh versioned DocFX/`llms.txt`/`llms-full.txt` bundle; see link:docs/guides/operations.md[documentation operations].
+It never overwrites an existing version directory.
 
 == Changes and pull requests
 
-Use focused Conventional Commits, such as `feat(client): add a response operation`, `fix(transport): reject an invalid endpoint`, or `docs(server): clarify handler lifetime`. Mark a breaking change with `!` and explain its impact. `git-cliff` uses these commits to generate `CHANGELOG.md`; do not manually rewrite historical 1.x entries.
+Use focused Conventional Commits, such as `feat(client): add a response operation`, `fix(transport): reject an invalid endpoint`, or `docs(server): clarify handler lifetime`.
+Mark a breaking change with `!` and explain its impact. `git-cliff` uses these commits to generate `CHANGELOG.md`; do not manually rewrite historical 1.x entries.
 
-Pull requests should explain the motivation, cover changed behavior with relevant tests, update user-facing documentation and pass the locked restore, Release build/test, format and workflow checks. Avoid printing command payloads, secrets, nonce bytes or private homedir paths in tests and diagnostics. TCP authentication is application policy; examples on loopback do not add it implicitly.
+Pull requests should explain the motivation, cover changed behavior with relevant tests, update user-facing documentation and pass the locked restore, Release build/test, format and workflow checks.
+Avoid printing command payloads, secrets, nonce bytes or private homedir paths in tests and diagnostics.
+TCP authentication is application policy; examples on loopback do not add it implicitly.
 
-Maintainers should use link:docs/guides/releasing.md[the release and recovery guide] for the protected 2.0.0 workflow. A local build or passing fixture does not authorize a tag, NuGet upload or Pages deployment.
+Maintainers should use link:docs/guides/releasing.md[the release and recovery guide] for the protected 2.0.0 workflow.
+A local build or passing fixture does not authorize a tag, NuGet upload or Pages deployment.

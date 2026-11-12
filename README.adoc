@@ -1,6 +1,7 @@
 = AssuanLibrary (.NET)
 
-AssuanLibrary is an asynchronous .NET library for applications that communicate using the Assuan protocol. It is designed around binary-safe client and server sessions, bounded protocol processing, and pluggable transports such as TCP, Unix domain sockets, Windows named pipes, and custom streams.
+AssuanLibrary is an asynchronous .NET library for applications that communicate using the Assuan protocol.
+It is designed around binary-safe client and server sessions, bounded protocol processing, and pluggable transports such as TCP, Unix domain sockets, Windows named pipes, and custom streams.
 
 == Status
 
@@ -33,7 +34,8 @@ See link:docs/client-inquiries.md[the client inquiry guide] for END/CAN, manual 
 See link:docs/generators.md[the generators guide] for command groups and OPTION routing.
 See link:docs/integrations.md[the optional integrations guide] for generated DI/Logging and single-package installation.
 See link:docs/s-expressions.md[the S-expression guide] for canonical binary values and ownership.
-See link:docs/guides/security.md[security and ownership] and link:docs/guides/troubleshooting.md[troubleshooting] for operational boundaries. The link:docs/nuget/README.md[NuGet README] is packed as `README.md` at the package root.
+See link:docs/guides/security.md[security and ownership] and link:docs/guides/troubleshooting.md[troubleshooting] for operational boundaries.
+The link:docs/nuget/README.md[NuGet README] is packed as `README.md` at the package root.
 
 With the `tcp-server` example listening on loopback port 9000, a client can send a public Assuan command and read its decoded response:
 
@@ -54,11 +56,13 @@ while (await transaction.ReadNextAsync() is { } response) {
 transaction.Finish();
 ----
 
-For development from a source checkout, reference `src/AssuanLibrary/AssuanLibrary.csproj` directly from a .NET 10 project to use the implemented functionality. The published 1.x package has a different API.
+For development from a source checkout, reference `src/AssuanLibrary/AssuanLibrary.csproj` directly from a .NET 10 project to use the implemented functionality.
+The published 1.x package has a different API.
 
 == Examples and installation
 
-Run the single console application to list available scenarios. Its first menu entry runs an Assuan server and client over in-memory streams without an external service, and displays a fixed public binary response:
+Run the single console application to list available scenarios.
+Its first menu entry runs an Assuan server and client over in-memory streams without an external service, and displays a fixed public binary response:
 
 [source,shell]
 ----
@@ -67,7 +71,9 @@ dotnet run --project examples/AssuanLibrary.Examples -- --example custom-transpo
 dotnet run --project examples/AssuanLibrary.Examples -- --example sexpressions
 ----
 
-For a loopback TCP demonstration, run these in separate terminals with the same explicit port. The client verifies that `ECHO sample` returns `sample`. Stop the server with Ctrl+C. This demonstration does not authenticate a TCP peer.
+For a loopback TCP demonstration, run these in separate terminals with the same explicit port.
+The client verifies that `ECHO sample` returns `sample`.
+Stop the server with Ctrl+C. This demonstration does not authenticate a TCP peer.
 
 [source,shell]
 ----
@@ -75,18 +81,25 @@ dotnet run --project examples/AssuanLibrary.Examples -- --example tcp-server --p
 dotnet run --project examples/AssuanLibrary.Examples -- --example tcp-client --port 9000
 ----
 
-To query an *existing* GnuPG agent, supply a trusted `gpgconf` executable. Add `--homedir <path>` deliberately; if omitted, `gpgconf` uses its configured default. The example does not start an agent or display secrets.
+To query an *existing* GnuPG agent, supply a trusted `gpgconf` executable.
+Add `--homedir <path>` deliberately; if omitted, `gpgconf` uses its configured default.
+The example does not start an agent or display secrets.
 
 [source,shell]
 ----
 dotnet run --project examples/AssuanLibrary.Examples -- --example agent-info --gpgconf <path>
 ----
 
-`dotnet add package AssuanLibrary --version 2.0.1` installs the runtime and analyzer in one package. Version 2.0.0 is **breaking** relative to the published 1.x API. Streams, event leases and secret buffers require explicit disposal. Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
+`dotnet add package AssuanLibrary --version 2.0.1` installs the runtime and analyzer in one package.
+Version 2.0.0 is **breaking** relative to the published 1.x API.
+Streams, event leases and secret buffers require explicit disposal.
+Clients are serial per connection, and the Windows agent path must be connected through its resolved endpoint to send the nonce.
 
 == Build and test
 
-The solution is `AssuanLibrary.slnx` and the main library targets `net10.0`. The generator project targets `netstandard2.0` for compiler-host compatibility. Dependencies use `Directory.Packages.props`.
+The solution is `AssuanLibrary.slnx` and the main library targets `net10.0`.
+The generator project targets `netstandard2.0` for compiler-host compatibility.
+Dependencies use `Directory.Packages.props`.
 
 [source,shell]
 ----
@@ -95,10 +108,13 @@ dotnet build AssuanLibrary.slnx -c Release
 dotnet test --project tests/AssuanLibrary.Tests/AssuanLibrary.Tests.csproj -c Release
 ----
 
-The solution selects the Microsoft.Testing.Platform runner in `global.json` for its xUnit v3 projects. Run generator tests separately with `dotnet test --project tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj -c Release`.
+The solution selects the Microsoft.Testing.Platform runner in `global.json` for its xUnit v3 projects.
+Run generator tests separately with `dotnet test --project tests/AssuanLibrary.Generators.Tests/AssuanLibrary.Generators.Tests.csproj -c Release`.
 
-Build the versioned public site and LLM navigation locally with the pinned DocFX tool as described in link:docs/guides/operations.md[documentation operations]. A new output version cannot replace an existing bundle; no website or package is published by this command.
+Build the versioned public site and LLM navigation locally with the pinned DocFX tool as described in link:docs/guides/operations.md[documentation operations].
+A new output version cannot replace an existing bundle; no website or package is published by this command.
 
 == Contribution and license
 
-See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for contribution guidance; it is being updated for the 2.0 layout. The library is licensed under MIT; see link:LICENSE.md[LICENSE.md].
+See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for contribution guidance; it is being updated for the 2.0 layout.
+The library is licensed under MIT; see link:LICENSE.md[LICENSE.md].

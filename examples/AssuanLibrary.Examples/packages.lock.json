@@ -4,9 +4,9 @@
     "net10.0": {
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[3.0.326, )",
-        "resolved": "3.0.326",
-        "contentHash": "cHGMh3DK3WcMi0mRnj0IKAqAVqYncMCBM9tcmS0QXz9DXp+xE+JiiB9OF8lC5jVEzaX3WqSn/UhhUXk04WsXaA=="
+        "requested": "[3.0.328, )",
+        "resolved": "3.0.328",
+        "contentHash": "li+M2krIICDjuVSOlF0Ue5Y51/8cTOsiDO6iSQejbgZTonmVJ8eHvC5su6nR1QIqVGdlbENJOd8hM3oqb/MiwQ=="
       },
       "assuanlibrary": {
         "type": "Project"

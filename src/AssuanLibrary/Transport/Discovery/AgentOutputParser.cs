@@ -11,11 +11,8 @@ internal static class AgentOutputParser {
 
   internal static byte[] ParseUnix(ReadOnlySpan<byte> output) {
     var path = WithoutTerminator(output, false);
-    if (path[0] != (byte)'/') {
-      throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput);
-    }
 
-    return path.ToArray();
+    return path[0] != (byte)'/' ? throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput) : path.ToArray();
   }
 
   internal static string ParseWindows(ReadOnlySpan<byte> output) {

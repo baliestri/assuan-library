@@ -37,9 +37,7 @@ public sealed class ClientHandshake : IAsyncDisposable {
 
   /// <summary>Reads one borrowed greeting event or returns null after its final OK/ERR.</summary>
   public async Task<ClientEventLease?> ReadNextAsync(CancellationToken cancellationToken = default) {
-    if (Volatile.Read(ref _disposed) != 0) {
-      throw new ObjectDisposedException(nameof(ClientHandshake));
-    }
+    ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     if (Volatile.Read(ref _leaseActive) != 0) {
       throw new InvalidOperationException("Release the previous greeting event first.");
@@ -75,9 +73,7 @@ public sealed class ClientHandshake : IAsyncDisposable {
 
   /// <summary>Transfers a ready client only after a final OK and release of its event lease.</summary>
   public AssuanClient Finish() {
-    if (Volatile.Read(ref _disposed) != 0) {
-      throw new ObjectDisposedException(nameof(ClientHandshake));
-    }
+    ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     if (Volatile.Read(ref _leaseActive) != 0 ||
         Volatile.Read(ref _reading) != 0) {

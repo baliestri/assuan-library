@@ -45,9 +45,7 @@ public sealed class ServerInquiry : IAsyncDisposable {
 
   /// <summary>Gets the next leased decoded segment, or null after END or CAN.</summary>
   public async Task<InquiryChunk?> ReadNextAsync(CancellationToken cancellationToken = default) {
-    if (_finished) {
-      throw new ObjectDisposedException(nameof(ServerInquiry));
-    }
+    ObjectDisposedException.ThrowIf(_finished, this);
 
     if (Volatile.Read(ref _chunkActive) != 0) {
       throw new InvalidOperationException("Release the current data chunk first.");
@@ -108,9 +106,7 @@ public sealed class ServerInquiry : IAsyncDisposable {
 
   /// <summary>Applies a previously observed terminator without draining further bytes.</summary>
   public InquiryOutcome Finish() {
-    if (_finished) {
-      throw new ObjectDisposedException(nameof(ServerInquiry));
-    }
+    ObjectDisposedException.ThrowIf(_finished, this);
 
     if (Volatile.Read(ref _chunkActive) != 0 ||
         Volatile.Read(ref _reading) != 0 ||

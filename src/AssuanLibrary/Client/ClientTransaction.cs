@@ -46,9 +46,7 @@ public sealed class ClientTransaction : IAsyncDisposable {
 
   /// <summary>Reads the next borrowed event, or null after the final response has been observed.</summary>
   public async Task<ClientEventLease?> ReadNextAsync(CancellationToken cancellationToken = default) {
-    if (Volatile.Read(ref _disposed) != 0) {
-      throw new ObjectDisposedException(nameof(ClientTransaction));
-    }
+    ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     if (Volatile.Read(ref _leaseActive) != 0) {
       throw new InvalidOperationException("Release the previous event first.");
@@ -84,9 +82,7 @@ public sealed class ClientTransaction : IAsyncDisposable {
 
   /// <summary>Completes only after final OK/ERR and release of its event lease.</summary>
   public void Finish() {
-    if (Volatile.Read(ref _disposed) != 0) {
-      throw new ObjectDisposedException(nameof(ClientTransaction));
-    }
+    ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     if (Volatile.Read(ref _leaseActive) != 0 ||
         Volatile.Read(ref _reading) != 0) {

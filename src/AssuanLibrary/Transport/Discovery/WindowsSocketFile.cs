@@ -78,11 +78,9 @@ internal static class WindowsSocketFile {
         used += read;
       }
 
-      if (deadline.Remaining == TimeSpan.Zero) {
-        throw new DiscoveryException(DiscoveryErrorKind.Timeout);
-      }
-
-      return Parse(scratch.AsSpan(0, used));
+      return deadline.Remaining == TimeSpan.Zero
+        ? throw new DiscoveryException(DiscoveryErrorKind.Timeout)
+        : Parse(scratch.AsSpan(0, used));
     }
     catch (DiscoveryException) {
       throw;

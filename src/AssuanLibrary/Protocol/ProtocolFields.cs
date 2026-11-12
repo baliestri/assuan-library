@@ -17,8 +17,7 @@ internal static class ProtocolFields {
     }
 
     foreach (var value in token)
-      if (value is < 33 or > 126 ||
-          value == (byte)'%') {
+      if (value is < 33 or > 126 or (byte)'%') {
         throw new ProtocolException(ProtocolErrorKind.InvalidToken);
       }
   }

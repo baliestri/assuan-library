@@ -56,9 +56,12 @@ internal sealed class PipeByteStream(PipeStream stream) : Stream {
     base.Dispose(disposing);
   }
 
-  public override ValueTask DisposeAsync() {
-    Dispose();
-    return ValueTask.CompletedTask;
+  public override async ValueTask DisposeAsync() {
+    if (Interlocked.Exchange(ref _stream, null) is { } inner) {
+      await inner.DisposeAsync().ConfigureAwait(false);
+    }
+
+    await base.DisposeAsync().ConfigureAwait(false);
   }
 
   public override string ToString()

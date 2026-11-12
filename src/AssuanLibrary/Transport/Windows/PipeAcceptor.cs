@@ -68,12 +68,11 @@ public sealed class PipeAcceptor : IAssuanAcceptor {
   }
 
   /// <summary>Closes only the waiting listener instance, not streams already accepted.</summary>
-  public ValueTask DisposeAsync() {
-    if (Interlocked.Exchange(ref _disposed, 1) == 0) {
-      Interlocked.Exchange(ref _waiting, null)?.Dispose();
+  public async ValueTask DisposeAsync() {
+    if (Interlocked.Exchange(ref _disposed, 1) == 0 &&
+        Interlocked.Exchange(ref _waiting, null) is { } waiting) {
+      await waiting.DisposeAsync().ConfigureAwait(false);
     }
-
-    return ValueTask.CompletedTask;
   }
 
   /// <summary>Creates an exclusive first instance with protected current-user DACL.</summary>

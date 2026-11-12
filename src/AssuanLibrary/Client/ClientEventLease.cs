@@ -46,11 +46,8 @@ public sealed class ClientEventLease : IDisposable {
     get
     {
       CheckOpen();
-      if (Kind != ClientEventKind.Status) {
-        throw new InvalidOperationException("The event has no keyword.");
-      }
 
-      return field;
+      return Kind != ClientEventKind.Status ? throw new InvalidOperationException("The event has no keyword.") : field;
     }
   }
 
@@ -63,11 +60,9 @@ public sealed class ClientEventLease : IDisposable {
         throw new InvalidOperationException("This event has no payload.");
       }
 
-      if (_sensitivity == PayloadSensitivity.Secret) {
-        throw new InvalidOperationException("Explicit secret exposure required.");
-      }
-
-      return _payload;
+      return _sensitivity == PayloadSensitivity.Secret
+        ? throw new InvalidOperationException("Explicit secret exposure required.")
+        : _payload;
     }
   }
 

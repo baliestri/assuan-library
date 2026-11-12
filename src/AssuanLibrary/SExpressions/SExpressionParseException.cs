@@ -1,12 +1,16 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Globalization;
+
 namespace AssuanLibrary.SExpressions;
 
 /// <summary>A parsing error with an optional zero-based byte offset, never including the input bytes.</summary>
 public sealed class SExpressionParseException : Exception {
   internal SExpressionParseException(SExpressionParseErrorKind kind, int? offset = null)
-    : base(offset is { } index ? $"{Describe(kind)} at byte {index}" : Describe(kind)) {
+    : base(offset is { } index
+      ? string.Create(CultureInfo.InvariantCulture, $"{Describe(kind)} at byte {index}")
+      : Describe(kind)) {
     Kind = kind;
     Offset = offset;
   }

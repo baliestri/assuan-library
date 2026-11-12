@@ -10,11 +10,10 @@ public static class SExpressionParser {
   /// <exception cref="SExpressionParseException">The input is invalid or exceeds the limits.</exception>
   public static SExpressionView ParseComplete(ReadOnlySpan<byte> input, SExpressionLimits? limits = null) {
     var view = Parse(input, limits ?? SExpressionLimits.Default, out var consumed);
-    if (consumed != input.Length) {
-      throw new SExpressionParseException(SExpressionParseErrorKind.TrailingData, consumed);
-    }
 
-    return view;
+    return consumed != input.Length
+      ? throw new SExpressionParseException(SExpressionParseErrorKind.TrailingData, consumed)
+      : view;
   }
 
   /// <summary>Parses one expression; the input limit includes the unexamined suffix.</summary>

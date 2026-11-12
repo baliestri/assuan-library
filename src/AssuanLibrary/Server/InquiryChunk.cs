@@ -23,11 +23,9 @@ public sealed class InquiryChunk : IDisposable {
     get
     {
       CheckOpen();
-      if (_sensitivity == PayloadSensitivity.Secret) {
-        throw new InvalidOperationException("Secret data requires explicit exposure.");
-      }
-
-      return _payload;
+      return _sensitivity == PayloadSensitivity.Secret
+        ? throw new InvalidOperationException("Secret data requires explicit exposure.")
+        : _payload;
     }
   }
 

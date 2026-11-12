@@ -48,13 +48,10 @@ public sealed class ServerSession<TState> : IAsyncDisposable {
   }
 
   /// <summary>Processes greeting and commands exactly once, closing the owned channel on completion.</summary>
-  public Task RunAsync(CancellationToken cancellationToken = default) {
-    if (Interlocked.Exchange(ref _started, 1) != 0) {
-      throw new InvalidOperationException("A server session can only run once.");
-    }
-
-    return RunCoreAsync(cancellationToken);
-  }
+  public Task RunAsync(CancellationToken cancellationToken = default)
+    => Interlocked.Exchange(ref _started, 1) != 0
+      ? throw new InvalidOperationException("A server session can only run once.")
+      : RunCoreAsync(cancellationToken);
 
   [SuppressMessage("Design", "MA0051:Method is too long",
     Justification = "The greeting, command loop and close sequence share one try/finally and its failure state; " +

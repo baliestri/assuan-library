@@ -1,13 +1,12 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
-using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;
 
 /// <summary>Owns session tasks and their permits until each operation has actually finished.</summary>
-internal sealed class SessionSupervisor<TState> {
+internal sealed class SessionSupervisor<TState> : IDisposable {
   private readonly SemaphoreSlim _permits;
   private readonly HashSet<SessionWork> _sessions = [];
   private readonly Lock _sync = new();
@@ -23,6 +22,10 @@ internal sealed class SessionSupervisor<TState> {
         return _sessions.Count;
       }
     }
+  }
+
+  public void Dispose() {
+    _permits.Dispose();
   }
 
   internal Task AcquireAsync(CancellationToken token)
@@ -82,16 +85,21 @@ internal sealed class SessionSupervisor<TState> {
   private static TaskCompletionSource NewSource()
     => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-  private sealed class SessionWork(SessionSupervisor<TState> owner) {
+  private sealed class SessionWork(SessionSupervisor<TState> owner) : IDisposable {
     private readonly CancellationTokenSource _stop = new();
     private SessionControl? _control;
 
-    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Local",
-      Justification = "Keeps the running session task reachable from its tracked work; nothing awaits it by design.")]
-    internal Task? Task { get; private set; }
+    private Task? Task { get; set; }
+
+    public void Dispose() {
+      _stop.Dispose();
+      Task?.Dispose();
+    }
 
     internal void Start(AcceptedConnection accepted, Func<TState> factory,
       CommandRegistry<TState> registry, ISessionHooks<TState> hooks, ServerOptions options) {
+      // Deliberately not started with _stop.Token: a work item cancelled before it starts would skip
+      // the finally below, leaking the accepted stream and the session's permit.
       Task = Task.Run(async () =>
       {
         var transferred = false;

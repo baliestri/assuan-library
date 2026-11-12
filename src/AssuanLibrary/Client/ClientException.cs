@@ -8,7 +8,7 @@ namespace AssuanLibrary.Client;
 /// <summary>A client failure whose diagnostics omit wire content and external error text.</summary>
 public sealed class ClientException : Exception {
   internal ClientException(ClientErrorKind kind, uint? remoteCode = null, Exception? technicalCause = null)
-    : base($"client operation failed: {kind}" + (remoteCode.HasValue ? $" ({remoteCode.Value})" : "")) {
+    : base($"client operation failed: {kind}{(remoteCode.HasValue ? $" ({remoteCode.Value})" : "")}") {
     Kind = kind;
     RemoteCode = remoteCode;
     TechnicalCause = technicalCause;

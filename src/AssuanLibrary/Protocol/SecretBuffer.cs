@@ -7,7 +7,7 @@ namespace AssuanLibrary.Protocol;
 
 /// <summary>Fixed-capacity managed secret bytes, wiped explicitly on clear or disposal.</summary>
 /// <remarks>
-///   Does not erase the caller's source, runtime/OS copies, swap, or crash dumps. Use <c>using</c> for
+///   Does not erase the caller's source, runtime/OS copies, swap, or crash dumps. Use <see langword="using" /> for
 ///   deterministic cleanup.
 /// </remarks>
 public sealed class SecretBuffer : IDisposable {

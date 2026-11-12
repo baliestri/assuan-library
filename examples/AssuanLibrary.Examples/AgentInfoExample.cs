@@ -38,6 +38,11 @@ internal sealed class AgentInfoExample : IExample {
       return 2;
     }
 
+    if (!Path.IsPathFullyQualified(executable)) {
+      await error.WriteLineAsync("Specify --gpgconf as a fully qualified path.").ConfigureAwait(false);
+      return 2;
+    }
+
     if (homedir is null) {
       await output.WriteLineAsync("agent-info: gpgconf will use its default homedir.").ConfigureAwait(false);
     }

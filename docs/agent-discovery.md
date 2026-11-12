@@ -1,6 +1,6 @@
 # Discover an existing GnuPG agent
 
-`AgentLocator` queries an **explicitly selected** `gpgconf` executable with `--list-dirs agent-socket`. It neither starts `gpg-agent` nor reads the Assuan greeting. Pass an optional homedir deliberately; without one, `gpgconf` uses its own configured default. Choose a trusted executable and configuration directory before exchanging secrets.
+`AgentLocator` queries an **explicitly selected** `gpgconf` executable with `--list-dirs agent-socket`. It neither starts `gpg-agent` nor reads the Assuan greeting. Pass an optional homedir deliberately; without one, `gpgconf` uses its own configured default. Choose a trusted executable and configuration directory before exchanging secrets. The executable must be a fully qualified path: a bare name or a relative path is rejected with `ArgumentException` instead of being resolved through the working directory or `PATH`.
 
 ```csharp
 using AssuanLibrary.Transport;

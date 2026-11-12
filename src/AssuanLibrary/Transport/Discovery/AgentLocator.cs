@@ -9,8 +9,14 @@ public sealed class AgentLocator {
   private readonly string? _homeDirectory;
 
   /// <summary>Stores explicit paths without starting a subprocess or agent.</summary>
+  /// <exception cref="ArgumentException">The executable is not a fully qualified path.</exception>
   public AgentLocator(string executablePath, string? homeDirectory = null) {
     ArgumentException.ThrowIfNullOrEmpty(executablePath);
+    // A bare or relative name would be resolved through the working directory and PATH.
+    if (!Path.IsPathFullyQualified(executablePath)) {
+      throw new ArgumentException("The gpgconf executable must be a fully qualified path.", nameof(executablePath));
+    }
+
     _executable = executablePath;
     _homeDirectory = homeDirectory;
   }

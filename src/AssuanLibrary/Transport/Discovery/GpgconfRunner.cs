@@ -20,6 +20,10 @@ internal static class GpgconfRunner {
   internal static async Task<SecretBuffer> RunAsync(string executable, string? homeDirectory,
     TransportDeadline deadline, CancellationToken cancellationToken) {
     ArgumentException.ThrowIfNullOrEmpty(executable);
+    if (!Path.IsPathFullyQualified(executable)) {
+      throw new ArgumentException("The gpgconf executable must be a fully qualified path.", nameof(executable));
+    }
+
     var start = new ProcessStartInfo(executable) {
       UseShellExecute = false,
       CreateNoWindow = true,

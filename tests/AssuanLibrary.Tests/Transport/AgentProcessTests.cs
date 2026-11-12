@@ -97,6 +97,17 @@ public sealed class AgentProcessTests {
     }
   }
 
+  [Theory]
+  [InlineData("gpgconf")]
+  [InlineData("./gpgconf")]
+  [InlineData("bin/gpgconf")]
+  public async Task ExecutableResolvedThroughTheWorkingDirectoryOrPathIsRejected(string relative) {
+    Assert.Equal("executablePath", Assert.Throws<ArgumentException>(() => new AgentLocator(relative)).ParamName);
+    var error = await Assert.ThrowsAsync<ArgumentException>(() => GpgconfRunner.RunAsync(relative, null,
+      new TransportDeadline(TimeSpan.FromSeconds(5)), TestContext.Current.CancellationToken));
+    Assert.Equal("executable", error.ParamName);
+  }
+
   [Fact]
   public async Task MissingExecutableReturnsTypedIoWithoutFormattingPath() {
     using var fixture = new AgentFixture();

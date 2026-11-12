@@ -6,7 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Authors>Bruno Sales</Authors>
     <Description>Binary-safe asynchronous Assuan client and server library for .NET 10, with TCP, Unix socket, Windows named pipe and custom stream transports, plus GnuPG agent integration.</Description>
-    <Copyright>Copyright (c) $([System.DateTime]::Now.Year) Bruno Sales &lt;me@baliestri.dev&gt;</Copyright>
+    <Copyright>Copyright (c) 2026 Bruno Sales &lt;me@baliestri.dev&gt;</Copyright>
     <PackageId>AssuanLibrary</PackageId>
     <PackageProjectUrl>https://github.com/baliestri/assuan-library</PackageProjectUrl>
     <PackageTags>assuan; gpg; gpgme; gnupg</PackageTags>
@@ -15,6 +15,16 @@
     <RepositoryUrl>https://github.com/baliestri/assuan-library</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Company>baliestri</Company>
+  </PropertyGroup>
+
+  <!-- The published assembly carries its own symbols and source links, so a consumer can step into the
+       exact released sources without a separate symbol package. -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)'=='true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>

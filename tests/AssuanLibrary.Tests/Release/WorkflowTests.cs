@@ -77,18 +77,69 @@ public sealed partial class WorkflowTests {
     Assert.DoesNotContain("--force", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("--skip-duplicate", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("secrets: inherit", yaml, StringComparison.OrdinalIgnoreCase);
-    var publishStart = yaml.IndexOf("\n  publish:\n", StringComparison.Ordinal);
-    var syncStart = yaml.IndexOf("\n  sync:\n", StringComparison.Ordinal);
-    var beforePublish = yaml[..publishStart];
-    var publish = yaml[publishStart..syncStart];
-    Assert.DoesNotContain("id-token: write", beforePublish, StringComparison.Ordinal);
-    Assert.DoesNotContain("nuget push", beforePublish, StringComparison.OrdinalIgnoreCase);
-    Assert.Contains("id-token: write", publish, StringComparison.Ordinal);
-    Assert.Contains("download-artifact@", publish, StringComparison.Ordinal);
-    Assert.Single(IdTokenWriteRegex.Matches(yaml));
+    // Exactly two jobs may request an OIDC token: provenance attestation and the protected upload.
+    Assert.Equal(2, IdTokenWriteRegex.Count(yaml));
     var actions = UsesRegex.Matches(yaml);
     Assert.NotEmpty(actions);
     Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
+  }
+
+  [Fact]
+  public void ProvenanceIsAttestedByAJobWithoutReleaseOrRepositoryWriteAccess() {
+    var yaml = ReadWorkflow("release.yml");
+    var attestStart = yaml.IndexOf("\n  attest:\n", StringComparison.Ordinal);
+    var promoteStart = yaml.IndexOf("\n  promote:\n", StringComparison.Ordinal);
+    var publishStart = yaml.IndexOf("\n  publish:\n", StringComparison.Ordinal);
+    Assert.True(attestStart > 0 && promoteStart > attestStart && publishStart > promoteStart);
+    var attest = yaml[attestStart..promoteStart];
+    Assert.Contains("needs: [prepare, build]", attest, StringComparison.Ordinal);
+    Assert.Contains("attestations: write", attest, StringComparison.Ordinal);
+    Assert.Contains("id-token: write", attest, StringComparison.Ordinal);
+    Assert.Contains("contents: read", attest, StringComparison.Ordinal);
+    Assert.Contains("attest-build-provenance@", attest, StringComparison.Ordinal);
+    Assert.Contains("download-artifact@", attest, StringComparison.Ordinal);
+    Assert.Contains("AssuanLibrary.${{ inputs.version }}.nupkg", attest, StringComparison.Ordinal);
+    Assert.DoesNotContain("environment:", attest, StringComparison.Ordinal);
+    Assert.DoesNotContain("contents: write", attest, StringComparison.Ordinal);
+    Assert.DoesNotContain("checkout@", attest, StringComparison.Ordinal);
+    Assert.DoesNotContain("run:", attest, StringComparison.Ordinal);
+    Assert.DoesNotContain("NuGet/login@", attest, StringComparison.Ordinal);
+    // No other job before the protected upload can obtain an OIDC token.
+    Assert.DoesNotContain("id-token: write", yaml[..attestStart], StringComparison.Ordinal);
+    Assert.DoesNotContain("id-token: write", yaml[promoteStart..publishStart], StringComparison.Ordinal);
+    Assert.Equal(1, yaml.Split("attestations: write").Length - 1);
+    Assert.Contains("needs: [prepare, ci, interop, build, attest]", yaml[promoteStart..publishStart],
+      StringComparison.Ordinal);
+  }
+
+  [Fact]
+  public void RegistryConfirmationIsASeparateRerunnableJobThatCannotUpload() {
+    var yaml = ReadWorkflow("release.yml");
+    var publishStart = yaml.IndexOf("\n  publish:\n", StringComparison.Ordinal);
+    var confirmStart = yaml.IndexOf("\n  confirm:\n", StringComparison.Ordinal);
+    var syncStart = yaml.IndexOf("\n  sync:\n", StringComparison.Ordinal);
+    Assert.True(publishStart > 0 && confirmStart > publishStart && syncStart > confirmStart);
+    var beforePublish = yaml[..publishStart];
+    var publish = yaml[publishStart..confirmStart];
+    var confirm = yaml[confirmStart..syncStart];
+    Assert.DoesNotContain("nuget push", beforePublish, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("environment: release", beforePublish, StringComparison.Ordinal);
+    Assert.Contains("id-token: write", publish, StringComparison.Ordinal);
+    Assert.Contains("download-artifact@", publish, StringComparison.Ordinal);
+    Assert.Contains("nuget push", publish, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("gh release", publish, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("contents: write", publish, StringComparison.Ordinal);
+    // Registry visibility is awaited in a separately re-runnable job that can never upload.
+    Assert.DoesNotContain("nuget push", confirm, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("id-token", confirm, StringComparison.Ordinal);
+    Assert.DoesNotContain("NuGet/login@", confirm, StringComparison.Ordinal);
+    Assert.DoesNotContain("environment: release", confirm, StringComparison.Ordinal);
+    Assert.Contains("needs: [prepare, ci, interop, publish]", confirm, StringComparison.Ordinal);
+    Assert.Contains("Wait-RegistryPackage.ps1", confirm, StringComparison.Ordinal);
+    Assert.Contains("Compare-RegistryPackage.ps1", confirm, StringComparison.Ordinal);
+    Assert.Contains("download-artifact@", confirm, StringComparison.Ordinal);
+    Assert.Contains("gh release create", confirm, StringComparison.Ordinal);
+    Assert.Contains("needs: [prepare, confirm]", yaml[syncStart..], StringComparison.Ordinal);
   }
 
   [Fact]

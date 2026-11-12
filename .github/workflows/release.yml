@@ -190,8 +190,28 @@ jobs:
             artifacts/release-candidate/release-artifacts.json
           if-no-files-found: error
 
+  # Signs a provenance statement for the exact verified bytes. This job can request an OIDC token but
+  # has no release environment, no repository write access and no registry credential.
+  attest:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-v${{ inputs.version }}-${{ needs.prepare.outputs.prepared_sha }}
+          path: artifacts/release-download
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/release-download/AssuanLibrary.${{ inputs.version }}.nupkg
+            artifacts/release-download/docs-v${{ inputs.version }}.zip
+
   promote:
-    needs: [prepare, ci, interop, build]
+    needs: [prepare, ci, interop, build, attest]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -229,8 +249,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      contents: write
-      actions: write
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -270,37 +289,78 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'NuGet OIDC credential was not issued.' }
           dotnet nuget push "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
           if ($LASTEXITCODE -ne 0) { throw 'NuGet upload outcome requires manual registry inspection; do not retry automatically.' }
-      - name: Confirm registry identity before creating a GitHub Release
+
+  # Everything after the accepted upload lives in its own job. nuget.org validates and indexes a
+  # version for an unpredictable time, so this job may be re-run alone without uploading again.
+  confirm:
+    needs: [prepare, ci, interop, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.prepared_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-v${{ inputs.version }}-${{ needs.prepare.outputs.prepared_sha }}
+          path: artifacts/release-download
+      - name: Verify the original artifacts again before comparing the registry
+        shell: pwsh
+        env:
+          PREPARED_SHA: ${{ needs.prepare.outputs.prepared_sha }}
+          CI_SHA: ${{ needs.ci.outputs.source_sha }}
+          INTEROP_SHA: ${{ needs.interop.outputs.source_sha }}
+        run: |
+          $package = "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg"
+          $docs = "artifacts/release-download/docs-v$($env:RELEASE_VERSION)"
+          $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $env:GITHUB_WORKSPACE -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -DocsArchive "$docs.zip" -ChecksumPath "$docs.sha256" -ManifestPath artifacts/release-download/release-artifacts.json
+          if ($LASTEXITCODE -ne 0) { throw 'Downloaded artifact verification failed.' }
+      - name: Wait for registry visibility and confirm the published identity
         shell: pwsh
         run: |
-          $uri = "https://api.nuget.org/v3-flatcontainer/assuanlibrary/$($env:RELEASE_VERSION)/assuanlibrary.$($env:RELEASE_VERSION).nupkg"
-          $found = $false
-          for ($attempt = 0; $attempt -lt 20; $attempt++) {
-            $probe = Invoke-WebRequest -Uri $uri -Method Head -SkipHttpErrorCheck
-            if ($probe.StatusCode -eq 200) { $found = $true; break }
-            if ($probe.StatusCode -ne 404) { throw 'NuGet registry response requires manual inspection.' }
-            Start-Sleep -Seconds 15
-          }
-          if (-not $found) { throw 'NuGet version visibility requires manual inspection.' }
-          [IO.Directory]::CreateDirectory('artifacts/registry') | Out-Null
           $registryPackage = "artifacts/registry/AssuanLibrary.$($env:RELEASE_VERSION).nupkg"
-          Invoke-WebRequest -Uri $uri -OutFile $registryPackage
-          Import-Module ./scripts/release/Artifacts.psm1
-          Assert-RegistryPackage -OriginalPath "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg" -RegistryPath $registryPackage -Version $env:RELEASE_VERSION
+          $waited = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Wait-RegistryPackage.ps1 -Version $env:RELEASE_VERSION -OutFile $registryPackage -TimeoutMinutes 45
+          if ($LASTEXITCODE -eq 2) { throw 'NuGet has not exposed the version yet; re-run only this failed job. Do not upload again.' }
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet registry response requires manual inspection.' }
+          $compared = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Compare-RegistryPackage.ps1 -OriginalPath "artifacts/release-download/AssuanLibrary.$($env:RELEASE_VERSION).nupkg" -Version $env:RELEASE_VERSION -RegistryPath $registryPackage
+          if ($LASTEXITCODE -ne 0) { throw 'Published package differs from the validated artifact.' }
       - name: Create the GitHub Release with the original documentation assets
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "v$($env:RELEASE_VERSION)" --json tagName *> $null
-          if ($LASTEXITCODE -eq 0) { throw 'An existing GitHub Release requires asset comparison before continuing.' }
-          gh release create "v$($env:RELEASE_VERSION)" "artifacts/release-download/docs-v$($env:RELEASE_VERSION).zip" "artifacts/release-download/docs-v$($env:RELEASE_VERSION).sha256" --verify-tag --title "AssuanLibrary $($env:RELEASE_VERSION)" --notes "See the changelog and versioned documentation for AssuanLibrary $($env:RELEASE_VERSION)."
-          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation requires manual inspection.' }
+          $tag = "v$($env:RELEASE_VERSION)"
+          $assets = @("docs-v$($env:RELEASE_VERSION).zip", "docs-v$($env:RELEASE_VERSION).sha256")
+          gh release view $tag --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            # A previous attempt of this job already created the release: accept only identical assets.
+            $existing = 'artifacts/release-existing'
+            [IO.Directory]::CreateDirectory($existing) | Out-Null
+            $listed = @(gh release view $tag --json assets --jq '.assets[].name')
+            if ($LASTEXITCODE -ne 0 -or (Compare-Object ($listed | Sort-Object) ($assets | Sort-Object))) {
+              throw 'An existing GitHub Release has different assets; inspect before continuing.'
+            }
+            gh release download $tag --dir $existing
+            if ($LASTEXITCODE -ne 0) { throw 'Existing GitHub Release assets could not be compared.' }
+            foreach ($asset in $assets) {
+              $original = (Get-FileHash -LiteralPath "artifacts/release-download/$asset" -Algorithm SHA256).Hash
+              $published = (Get-FileHash -LiteralPath (Join-Path $existing $asset) -Algorithm SHA256).Hash
+              if ($original -cne $published) { throw 'An existing GitHub Release asset differs from the original.' }
+            }
+          }
+          else {
+            gh release create $tag "artifacts/release-download/$($assets[0])" "artifacts/release-download/$($assets[1])" --verify-tag --title "AssuanLibrary $($env:RELEASE_VERSION)" --notes "See the changelog and versioned documentation for AssuanLibrary $($env:RELEASE_VERSION)."
+            if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation requires manual inspection.' }
+          }
           gh workflow run docs.yml --ref main
           if ($LASTEXITCODE -ne 0) { throw 'Pages dispatch failed; use the original release assets for recovery.' }
 
   sync:
-    needs: [prepare, publish]
+    needs: [prepare, confirm]
     runs-on: ubuntu-latest
     permissions:
       contents: write

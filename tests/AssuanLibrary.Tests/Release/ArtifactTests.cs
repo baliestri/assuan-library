@@ -190,7 +190,7 @@ public sealed class ArtifactTests {
       }
 
       if (!string.Equals(defect, "MissingLicense", StringComparison.Ordinal)) {
-        Add(archive, "LICENSE.md", "MIT License\n");
+        Add(archive, "LICENSE.md", "License text\n");
         if (string.Equals(defect, "DuplicateLicense", StringComparison.Ordinal)) {
           Add(archive, "LICENSE.md", "duplicate");
         }

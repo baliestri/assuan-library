@@ -1,7 +1,7 @@
 # Release and recovery operations
 
 The first release of this workflow was **v2.0.0**, a complete break from the published 1.x API. The next patch, **v2.0.1**, restores missing NuGet
-metadata and includes the MIT license file. This guide describes the protected process; reading it or running a local dry-run does not create a
+metadata and includes the license file. This guide describes the protected process; reading it or running a local dry-run does not create a
 branch, tag, package publication, GitHub Release or Pages deployment.
 
 ## Preconditions before a human dispatch
@@ -32,12 +32,21 @@ downloads may populate `artifacts/`, but dry-run never edits tracked files.
 3. **Build and verify:** From that same commit, pack the single `AssuanLibrary.<version>.nupkg` with `lib/net10.0`, the analyzer once under
    `analyzers/dotnet/cs`, XML docs, root NuGet `README.md` and `LICENSE.md`. Generate deterministic versioned documentation with DocFX, `llms.txt` and
    `llms-full.txt`; keep the original `docs-v<version>.zip` and `docs-v<version>.sha256`. Hashes and manifests bind the exact artifacts to the
-   prepared SHA. No publish job rebuilds them.
+   prepared SHA. No publish job rebuilds them. The assembly embeds its portable symbols and source links to the prepared commit, so no separate
+   symbol package exists. A dedicated `attest` job then signs a build-provenance statement for the nupkg and the documentation ZIP; it holds an OIDC
+   token but no `release` environment, repository write access or registry credential. Verify a downloaded package with
+   `gh attestation verify AssuanLibrary.<version>.nupkg --repo baliestri/assuan-library`.
 4. **Promote:** Recheck remote release branch, `main` ancestry and tag absence immediately before advancing `main` and creating `v<version>`. Never
    force-push or move an existing tag.
-5. **Publish:** In the protected `release` job only, obtain NuGet OIDC credentials and upload the previously verified nupkg once. Confirm the registry
-   version and package identity. Then create the GitHub Release with the original documentation ZIP and checksum, trigger the separate Pages workflow
-   explicitly, and synchronize `develop` with the published commit.
+5. **Publish:** In the protected `release` job only, obtain NuGet OIDC credentials and upload the previously verified nupkg once. That job does
+   nothing else.
+6. **Confirm:** A separate `confirm` job, without OIDC or the `release` environment, waits up to 45 minutes for nuget.org to finish validating and
+   indexing the version, downloads it and compares its identity with the original artifact. It then creates the GitHub Release with the original
+   documentation ZIP and checksum and triggers the separate Pages workflow explicitly. `develop` is synchronized with the published commit afterwards.
+
+nuget.org accepts an upload before the version becomes visible, and that delay varies. A `confirm` job that ran out of time has not lost anything:
+choose **Re-run failed jobs** on the same workflow run. Only `confirm` (and `sync`) run again; the upload job is never repeated. If a previous attempt
+already created the GitHub Release, the job accepts it only when both assets are byte-identical to the original ones.
 
 Pages began at `/2.0.0/`; the patch adds `/2.0.1/`. Its independent workflow verifies archived bundles from stable GitHub Releases 2.0.0+ before
 assembling the site; it does not regenerate historical bundles or reconstruct documentation for 1.x. Root navigation and LLM indexes select the
@@ -50,6 +59,7 @@ greatest stable SemVer version.
 | Before preparation                            | Correct the preflight condition, then dispatch again.                                                                                                       |
 | Prepared branch, gates failed                 | Inspect and rerun checks for the **same candidate SHA**; do not silently create a replacement commit.                                                       |
 | `main`/tag promoted, NuGet result uncertain   | Inspect nuget.org and the original artifact identity before any retry. Do not assume a timeout means no upload, and do not use `--skip-duplicate` as proof. |
+| Upload accepted, version not yet visible      | Re-run only the failed `confirm` job on the same run. Do not dispatch a new release and do not upload again.                                                |
 | NuGet confirmed, GitHub Release incomplete    | Reuse the existing tag, nupkg identity and original ZIP/hash; compare any existing assets instead of replacing divergent ones.                              |
 | GitHub Release complete, Pages failed         | Rerun `docs.yml` manually from verified release assets; do not rebuild an old bundle from `develop`.                                                        |
 | Package/site published, `develop` sync failed | Leave the published release intact and resolve the branch integration with a human review.                                                                  |

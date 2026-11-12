@@ -6,6 +6,12 @@ Reusable workflows inherit the caller's event name (for example, `workflow_dispa
 
 `interop.yml` selects and verifies the same kind of SHA independently. Its final gate rejects a failed, cancelled, skipped or missing platform matrix. A future release must compare **both** gate outputs with its prepared commit, not treat two green result labels as proof of matching source. `Assert-Gate.ps1` accepts `-UpstreamShasJson` for that explicit three-way comparison.
 
+Both workflows run for pull requests and for pushes to `main` and `develop` only, so a topic branch is validated once, through its pull request, rather than once per event.
+
+## Dependency updates
+
+`.github/dependabot.yml` proposes weekly NuGet and GitHub Actions updates against `develop`; each pull request passes the same locked restore and gates. NuGet updates cover `Directory.Packages.props`, the per-project `packages.lock.json` files and the local tool manifest. Action updates move the full commit SHA pins. Four pins stay manual because they are bound to reviewed values: the .NET SDK in `global.json`, the release tool archives in `scripts/release/tools.json`, the actionlint container digest in `ci.yml`, and the Scoop installer commit and SHA-256 in `interop.yml`. The generator's `Microsoft.CodeAnalysis.CSharp` reference is updated automatically for patch versions only, because a newer minor version raises the minimum compiler a consumer needs.
+
 ## Reproduce the checks locally
 
 Use the repository's pinned .NET 10 SDK. Set `NUGET_PACKAGES` and `DOTNET_CLI_HOME` to absolute paths under this checkout's ignored `artifacts/` directory, then run from the repository root:

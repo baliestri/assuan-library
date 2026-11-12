@@ -39,6 +39,13 @@ function Invoke-ReleaseSimulation {
   }
 
   $result.lastPhase = 'PublishingNuGet'
+  if ($Scenario.uploadResult -ceq 'success' -and $Scenario.registryVisible -eq $false) {
+    # nuget.org validates and indexes after accepting an upload. Waiting is safe; uploading again is not.
+    $result.lastPhase = 'AwaitingRegistry'
+    $result.nextStep = 'Re-run only the confirm job; the accepted upload must not be repeated.'
+    return [pscustomobject]$result
+  }
+
   if ($Scenario.uploadResult -cne 'success' -or $Scenario.registryContainsVersion -ne $true) {
     $result.requiresManualInspection = $true
     $result.nextStep = 'Inspect nuget.org and the original artifact before any upload retry.'

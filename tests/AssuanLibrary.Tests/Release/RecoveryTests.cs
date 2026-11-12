@@ -69,6 +69,19 @@ public sealed class RecoveryTests {
     Assert.False(json.RootElement.GetProperty("requiresManualInspection").GetBoolean());
   }
 
+  [Fact]
+  public async Task AnAcceptedUploadStillInvisibleOnTheRegistryIsWaitedForNotRepeated() {
+    var scenario = Baseline();
+    scenario["registryVisible"] = false;
+    var result = await RunAsync(scenario);
+    Assert.Equal(0, result.ExitCode);
+    using var json = JsonDocument.Parse(result.Output);
+    Assert.Equal("AwaitingRegistry", json.RootElement.GetProperty("lastPhase").GetString());
+    Assert.False(json.RootElement.GetProperty("requiresManualInspection").GetBoolean());
+    Assert.False(json.RootElement.GetProperty("attemptedSecondUpload").GetBoolean());
+    Assert.Contains("confirm", json.RootElement.GetProperty("nextStep").GetString(), StringComparison.Ordinal);
+  }
+
   private static Dictionary<string, object> Baseline() => new(StringComparer.Ordinal) {
     ["preparedSha"] = new string('a', 40), ["checkedOutSha"] = new string('a', 40),
     ["ciSha"] = new string('a', 40), ["interopSha"] = new string('a', 40),

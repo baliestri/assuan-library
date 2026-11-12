@@ -21,18 +21,14 @@ internal static class GroupEmitter {
       .Append(model.TypeName).Append(" {\n  public static void RegisterHandlers(")
       .Append("global::AssuanLibrary.Server.CommandRegistry<").Append(model.StateType).Append("> registry) {\n")
       .Append("    if (registry is null) throw new global::System.ArgumentNullException(nameof(registry));\n");
-    foreach (var name in model.HandlerProperties) {
-      output.Append("    registry.Register(").Append(name).Append(");\n");
-    }
+    foreach (var name in model.HandlerProperties) output.Append("    registry.Register(").Append(name).Append(");\n");
 
     output.Append("  }\n");
     output.Append("  public static void RegisterHandlers(")
       .Append("global::AssuanLibrary.Server.AssuanServer<").Append(model.StateType)
       .Append("> server) {\n")
       .Append("    if (server is null) throw new global::System.ArgumentNullException(nameof(server));\n");
-    foreach (var name in model.HandlerProperties) {
-      output.Append("    server.Register(").Append(name).Append(");\n");
-    }
+    foreach (var name in model.HandlerProperties) output.Append("    server.Register(").Append(name).Append(");\n");
 
     output.Append("  }\n");
     if (model.Options.Length != 0) {
@@ -82,11 +78,10 @@ internal static class GroupEmitter {
       .Append(" token) => _inner.ClosedAsync(state, reason, token);\n")
       .Append("    public ").Append(RESULT).Append(" OptionAsync(global::AssuanLibrary.Server.OptionRequest request, ")
       .Append(context).Append(" context, ").Append(CANCELLATION).Append(" token) {\n");
-    for (var index = 0; index < model.Options.Length; ++index) {
+    for (var index = 0; index < model.Options.Length; ++index)
       output.Append("      if (global::System.MemoryExtensions.SequenceEqual<byte>(request.Name.Span, ")
         .Append("new global::System.ReadOnlySpan<byte>(__assuan_option_").Append(index)
         .Append("))) return ").Append(model.Options[index].Method).Append("(request, context, token);\n");
-    }
 
     output.Append("      return _inner.OptionAsync(request, context, token);\n    }\n  }\n");
   }

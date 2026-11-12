@@ -12,7 +12,7 @@ namespace AssuanLibrary.Generators.Models;
 
 internal sealed class HandlerModel : IEquatable<HandlerModel> {
   private HandlerModel(string ns, string type, string access, bool staticType, string method,
-  string state, string name, string description, string? errorId, SourceLocation location) {
+    string state, string name, string description, string? errorId, SourceLocation location) {
     Namespace = ns;
     TypeName = type;
     Accessibility = access;
@@ -38,41 +38,41 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
   internal string? ErrorId { get; }
   internal SourceLocation Location { get; }
 
-  public bool Equals(HandlerModel? other) => other is not null && Namespace == other.Namespace &&
-                                             TypeName == other.TypeName && Accessibility == other.Accessibility && StaticType == other.StaticType &&
-                                             Method == other.Method && StateType == other.StateType && Name == other.Name &&
-                                             Description == other.Description && ErrorId == other.ErrorId &&
-                                             (ErrorId is null || (Location.Start == other.Location.Start &&
-                                                                  ReferenceEquals(Location.ToLocation().SourceTree,
-                                                                    other.Location.ToLocation().SourceTree)));
+  public bool Equals(HandlerModel? other) => other is not null &&
+                                             string.Equals(Namespace, other.Namespace, StringComparison.Ordinal) &&
+                                             string.Equals(TypeName, other.TypeName, StringComparison.Ordinal) &&
+                                             string.Equals(Accessibility, other.Accessibility,
+                                               StringComparison.Ordinal) &&
+                                             StaticType == other.StaticType &&
+                                             string.Equals(Method, other.Method, StringComparison.Ordinal) &&
+                                             string.Equals(StateType, other.StateType, StringComparison.Ordinal) &&
+                                             string.Equals(Name, other.Name, StringComparison.Ordinal) &&
+                                             string.Equals(Description, other.Description, StringComparison.Ordinal) &&
+                                             string.Equals(ErrorId, other.ErrorId, StringComparison.Ordinal) &&
+                                             (ErrorId is null || Location.Start == other.Location.Start &&
+                                               ReferenceEquals(Location.ToLocation().SourceTree,
+                                                 other.Location.ToLocation().SourceTree));
 
   internal static HandlerModel Extract(GeneratorAttributeSyntaxContext context,
-  CancellationToken token)
+    CancellationToken token)
     => ExtractFromSymbol((IMethodSymbol)context.TargetSymbol, context.Attributes[0], token);
 
   internal static HandlerModel ExtractFromSymbol(IMethodSymbol method, AttributeData attr,
-  CancellationToken token) {
+    CancellationToken token) {
     var type = method.ContainingType;
     var location = new SourceLocation(attr.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ??
                                       method.Locations[0]);
     var supported = type.ContainingType is null && type is {
-      Arity: 0, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or Microsoft.CodeAnalysis.Accessibility.Internal
-    } &&
-                    type.DeclaringSyntaxReferences.All(reference => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
-                                                                    declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
+                      Arity: 0,
+                      DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or
+                      Microsoft.CodeAnalysis.Accessibility.Internal
+                    } &&
+                    type.DeclaringSyntaxReferences.All(reference
+                      => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
+                         declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     var error = !supported ? "ASG001" : null;
     var property = method.Name + "Handler";
-    var signature = method is { IsStatic: true, IsGenericMethod: false, MethodKind: MethodKind.Ordinary } &&
-                    method.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax(token) is MethodDeclarationSyntax declaration &&
-                                                                      (declaration.Body is not null || declaration.ExpressionBody is not null)) &&
-                    method.Parameters.Length == 2 &&
-                    method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
-                    "global::System.Threading.Tasks.ValueTask" &&
-                    method.Parameters[1].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
-                    "global::System.Threading.CancellationToken" &&
-                    method.Parameters[0].Type is INamedTypeSymbol parameter &&
-                    parameter.OriginalDefinition.MetadataName == "CommandContext`1" &&
-                    parameter.ContainingNamespace.ToDisplayString() == "AssuanLibrary.Server";
+    var signature = HasHandlerSignature(method, token);
     if (error is null &&
         (!signature || type.GetMembers(method.Name).OfType<IMethodSymbol>().Count() != 1)) {
       error = "ASG006";
@@ -98,7 +98,8 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
     }
 
     var state = signature
-      ? ((INamedTypeSymbol)method.Parameters[0].Type).TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+      ? ((INamedTypeSymbol)method.Parameters[0].Type).TypeArguments[0]
+      .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
       : "global::System.Object";
     var ns = type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString();
     var access = type.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public ? "public" : "internal";
@@ -107,6 +108,22 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
       state, name, description, error, error is null ? default : location);
   }
 
+  private static bool HasHandlerSignature(IMethodSymbol method, CancellationToken token)
+    => method is { IsStatic: true, IsGenericMethod: false, MethodKind: MethodKind.Ordinary } &&
+       method.DeclaringSyntaxReferences.Any(reference
+         => reference.GetSyntax(token) is MethodDeclarationSyntax declaration &&
+            (declaration.Body is not null || declaration.ExpressionBody is not null)) &&
+       method.Parameters.Length == 2 &&
+       string.Equals(method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+         "global::System.Threading.Tasks.ValueTask", StringComparison.Ordinal) &&
+       string.Equals(method.Parameters[1].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+         "global::System.Threading.CancellationToken", StringComparison.Ordinal) &&
+       method.Parameters[0].Type is INamedTypeSymbol parameter &&
+       string.Equals(parameter.OriginalDefinition.MetadataName, "CommandContext`1",
+         StringComparison.Ordinal) &&
+       string.Equals(parameter.ContainingNamespace.ToDisplayString(), "AssuanLibrary.Server",
+         StringComparison.Ordinal);
+
   private static bool ValidName(string name) {
     if (name.Length is 0 or >= 1000 ||
         name[0] == '#' ||
@@ -114,13 +131,12 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
       return false;
     }
 
-    foreach (var ch in name) {
+    foreach (var ch in name)
       if (ch < 33 ||
           ch > 126 ||
           ch == '%') {
         return false;
       }
-    }
 
     return true;
   }
@@ -134,13 +150,12 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
       return true;
     }
 
-    for (var part = named; part is not null; part = part.ContainingType) {
+    for (var part = named; part is not null; part = part.ContainingType)
       if (part.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Private ||
-          (owner == Microsoft.CodeAnalysis.Accessibility.Public &&
-           part.DeclaredAccessibility != Microsoft.CodeAnalysis.Accessibility.Public)) {
+          owner == Microsoft.CodeAnalysis.Accessibility.Public &&
+          part.DeclaredAccessibility != Microsoft.CodeAnalysis.Accessibility.Public) {
         return false;
       }
-    }
 
     return named.TypeArguments.All(argument => VisibleState(argument, owner));
   }
@@ -150,8 +165,8 @@ internal sealed class HandlerModel : IEquatable<HandlerModel> {
 
   public override int GetHashCode() {
     unchecked {
-      var hash = (Namespace.GetHashCode() * 31) + TypeName.GetHashCode();
-      return (hash * 31) + (Method.GetHashCode() * 31) + Name.GetHashCode();
+      var hash = StringComparer.Ordinal.GetHashCode(Namespace) * 31 + StringComparer.Ordinal.GetHashCode(TypeName);
+      return hash * 31 + StringComparer.Ordinal.GetHashCode(Method) * 31 + StringComparer.Ordinal.GetHashCode(Name);
     }
   }
 }

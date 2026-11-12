@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System;
 using System.Collections.Generic;
 using AssuanLibrary.Generators.Generation;
 using AssuanLibrary.Generators.Models;
@@ -40,10 +41,10 @@ public sealed class AssuanIncrementalGenerator : IIncrementalGenerator {
   private static void EmitHandler(SourceProductionContext context, HandlerModel model) {
     if (model.ErrorId is { } id) {
       var descriptor = id switch {
-        "ASG001" => GeneratorDiagnostics._unsupportedType,
-        "ASG002" => GeneratorDiagnostics._invalidMember,
-        "ASG007" => GeneratorDiagnostics._invalidHandlerMetadata,
-        var _ => GeneratorDiagnostics._invalidHandler
+        "ASG001" => GeneratorDiagnostics.UnsupportedType,
+        "ASG002" => GeneratorDiagnostics.InvalidMember,
+        "ASG007" => GeneratorDiagnostics.InvalidHandlerMetadata,
+        var _ => GeneratorDiagnostics.InvalidHandler
       };
       context.ReportDiagnostic(Diagnostic.Create(descriptor, model.Location.ToLocation(),
         "invalid declaration", 0));
@@ -56,9 +57,9 @@ public sealed class AssuanIncrementalGenerator : IIncrementalGenerator {
   private static void EmitGroup(SourceProductionContext context, GroupModel model) {
     if (model.ErrorId is { } id) {
       var descriptor = id switch {
-        "ASG001" => GeneratorDiagnostics._unsupportedType,
-        "ASG002" => GeneratorDiagnostics._invalidMember,
-        var _ => GeneratorDiagnostics._invalidGroup
+        "ASG001" => GeneratorDiagnostics.UnsupportedType,
+        "ASG002" => GeneratorDiagnostics.InvalidMember,
+        var _ => GeneratorDiagnostics.InvalidGroup
       };
       context.ReportDiagnostic(Diagnostic.Create(descriptor, model.Location.ToLocation(),
         "invalid declaration", 0));
@@ -73,16 +74,17 @@ public sealed class AssuanIncrementalGenerator : IIncrementalGenerator {
       return;
     }
 
-    context.ReportDiagnostic(Diagnostic.Create(id == "ASG009"
-        ? GeneratorDiagnostics._invalidOptionSignature
-        : GeneratorDiagnostics._invalidOptionMetadata,
+    context.ReportDiagnostic(Diagnostic.Create(string.Equals(id, "ASG009"
+        , StringComparison.Ordinal)
+        ? GeneratorDiagnostics.InvalidOptionSignature
+        : GeneratorDiagnostics.InvalidOptionMetadata,
       model.Location.ToLocation(), "invalid declaration", 0));
   }
 
   private static void EmitIntegrations(SourceProductionContext context, IntegrationAvailability availability) {
     if (availability.Di) {
       if (availability.DiCollision) {
-        context.ReportDiagnostic(Diagnostic.Create(GeneratorDiagnostics._integrationCollision, Location.None,
+        context.ReportDiagnostic(Diagnostic.Create(GeneratorDiagnostics.IntegrationCollision, Location.None,
           "dependency injection type collision", 0));
       }
       else {
@@ -92,7 +94,7 @@ public sealed class AssuanIncrementalGenerator : IIncrementalGenerator {
 
     if (availability.Logging) {
       if (availability.LoggingCollision) {
-        context.ReportDiagnostic(Diagnostic.Create(GeneratorDiagnostics._integrationCollision, Location.None,
+        context.ReportDiagnostic(Diagnostic.Create(GeneratorDiagnostics.IntegrationCollision, Location.None,
           "logging type collision", 0));
       }
       else {

@@ -23,7 +23,8 @@ internal readonly struct IntegrationAvailability : IEquatable<IntegrationAvailab
 
   internal static IntegrationAvailability Detect(Compilation compilation) {
     var services = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.IServiceCollection");
-    var concreteServices = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.ServiceCollection");
+    var concreteServices =
+      compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.ServiceCollection");
     var provider = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.ServiceProvider");
     var methods = compilation.GetTypeByMetadataName(
       "Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions");
@@ -33,7 +34,9 @@ internal readonly struct IntegrationAvailability : IEquatable<IntegrationAvailab
              provider is { TypeKind: TypeKind.Class, DeclaredAccessibility: Accessibility.Public } &&
              methods is { DeclaredAccessibility: Accessibility.Public } &&
              methods.GetMembers("AddSingleton").OfType<IMethodSymbol>().Any(method =>
-               method.IsStatic && method is { IsExtensionMethod: true, IsGenericMethod: true, TypeParameters.Length: 1, Parameters.Length: 2 } &&
+               method.IsStatic && method is {
+                 IsExtensionMethod: true, IsGenericMethod: true, TypeParameters.Length: 1, Parameters.Length: 2
+               } &&
                SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, services));
 
     var logger = compilation.GetTypeByMetadataName("Microsoft.Extensions.Logging.ILogger");
@@ -41,7 +44,7 @@ internal readonly struct IntegrationAvailability : IEquatable<IntegrationAvailab
     var logging = logger is { TypeKind: TypeKind.Interface, DeclaredAccessibility: Accessibility.Public } &&
                   factory is { TypeKind: TypeKind.Interface, DeclaredAccessibility: Accessibility.Public } &&
                   logger.GetMembers("Log").OfType<IMethodSymbol>().Any(method => method.IsGenericMethod &&
-                                                                                 method.Parameters.Length == 5) &&
+                    method.Parameters.Length == 5) &&
                   factory.GetMembers("CreateLogger").OfType<IMethodSymbol>().Any(method =>
                     method.Parameters.Length == 1 && SymbolEqualityComparer.Default.Equals(method.ReturnType, logger));
     return new IntegrationAvailability(di, logging,

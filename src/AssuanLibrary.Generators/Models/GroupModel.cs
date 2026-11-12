@@ -13,7 +13,7 @@ namespace AssuanLibrary.Generators.Models;
 
 internal sealed class GroupModel : IEquatable<GroupModel> {
   private GroupModel(string ns, string type, string access, bool staticType, string state,
-  ImmutableArray<string> handlers, ImmutableArray<OptionEntry> options, string? errorId, SourceLocation location) {
+    ImmutableArray<string> handlers, ImmutableArray<OptionEntry> options, string? errorId, SourceLocation location) {
     Namespace = ns;
     TypeName = type;
     Accessibility = access;
@@ -36,15 +36,17 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
   internal SourceLocation Location { get; }
 
   public bool Equals(GroupModel? other)
-    => other is not null && Namespace == other.Namespace &&
-       TypeName == other.TypeName && Accessibility == other.Accessibility && StaticType == other.StaticType &&
-       StateType == other.StateType && ErrorId == other.ErrorId &&
+    => other is not null && string.Equals(Namespace, other.Namespace, StringComparison.Ordinal) &&
+       string.Equals(TypeName, other.TypeName, StringComparison.Ordinal) &&
+       string.Equals(Accessibility, other.Accessibility, StringComparison.Ordinal) && StaticType == other.StaticType &&
+       string.Equals(StateType, other.StateType, StringComparison.Ordinal) &&
+       string.Equals(ErrorId, other.ErrorId, StringComparison.Ordinal) &&
        HandlerProperties.SequenceEqual(other.HandlerProperties) && Options.SequenceEqual(other.Options) &&
-       (ErrorId is null || (Location.Start == other.Location.Start &&
-                            ReferenceEquals(Location.ToLocation().SourceTree, other.Location.ToLocation().SourceTree)));
+       (ErrorId is null || Location.Start == other.Location.Start &&
+         ReferenceEquals(Location.ToLocation().SourceTree, other.Location.ToLocation().SourceTree));
 
   internal static GroupModel Extract(GeneratorAttributeSyntaxContext context,
-  CancellationToken token) {
+    CancellationToken token) {
     var type = (INamedTypeSymbol)context.TargetSymbol;
     var attr = context.Attributes[0];
     var location = new SourceLocation(attr.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ??
@@ -52,51 +54,27 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
     var ns = type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString();
     var access = type.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public ? "public" : "internal";
     var supported = type.ContainingType is null && type is {
-      Arity: 0, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or Microsoft.CodeAnalysis.Accessibility.Internal
-    } &&
-                    type.DeclaringSyntaxReferences.All(reference => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
-                                                                    declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
+                      Arity: 0,
+                      DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public or
+                      Microsoft.CodeAnalysis.Accessibility.Internal
+                    } &&
+                    type.DeclaringSyntaxReferences.All(reference
+                      => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
+                         declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     var methods = type.GetMembers().OfType<IMethodSymbol>().Select(method => (Method: method,
-        Attribute: method.GetAttributes().FirstOrDefault(value => value.AttributeClass?.ToDisplayString() ==
-                                                                  "AssuanLibrary.Attributes.AssuanCommandHandlerAttribute")))
+        Attribute: method.GetAttributes().FirstOrDefault(value => string.Equals(value.AttributeClass?.ToDisplayString(),
+          "AssuanLibrary.Attributes.AssuanCommandHandlerAttribute", StringComparison.Ordinal))))
       .Where(item => item.Attribute is not null)
       .Select(item => HandlerModel.ExtractFromSymbol(item.Method, item.Attribute!, token)).ToArray();
     var optionModels = type.GetMembers().OfType<IMethodSymbol>().Select(method => (Method: method,
-        Attribute: method.GetAttributes().FirstOrDefault(value => value.AttributeClass?.ToDisplayString() ==
-                                                                  "AssuanLibrary.Attributes.AssuanOptionHandlerAttribute")))
+        Attribute: method.GetAttributes().FirstOrDefault(value => string.Equals(value.AttributeClass?.ToDisplayString(),
+          "AssuanLibrary.Attributes.AssuanOptionHandlerAttribute", StringComparison.Ordinal))))
       .Where(item => item.Attribute is not null)
       .Select(item => OptionModel.ExtractFromSymbol(item.Method, item.Attribute!, token)).ToArray();
     var states = methods.Where(item => item.ErrorId is null).Select(item => item.StateType)
       .Concat(optionModels.Where(item => item.ErrorId is null).Select(item => item.StateType))
       .Distinct(StringComparer.Ordinal).ToArray();
-    var error = !supported ? "ASG001" : null;
-    if (error is null &&
-        type.GetMembers("RegisterHandlers").Length != 0) {
-      error = "ASG002";
-    }
-
-    if (error is null &&
-        optionModels.Length != 0 &&
-        type.GetMembers("CreateHooks").Length != 0) {
-      error = "ASG002";
-    }
-
-    if (error is null &&
-        optionModels.Length != 0 &&
-        (type.GetMembers("__AssuanOptionHooks").Length != 0 ||
-         Enumerable.Range(0, optionModels.Length).Any(index =>
-           type.GetMembers("__assuan_option_" + index).Length != 0))) {
-      error = "ASG002";
-    }
-
-    if (error is null &&
-        (methods.Length + optionModels.Length == 0 || methods.Any(item => item.ErrorId is not null) ||
-         optionModels.Any(item => item.ErrorId is not null) || states.Length != 1 ||
-         methods.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != methods.Length ||
-         optionModels.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != optionModels.Length)) {
-      error = "ASG008";
-    }
-
+    var error = Diagnose(type, supported, methods, optionModels, states.Length);
     var properties = methods.OrderBy(item => item.Method, StringComparer.Ordinal)
       .Select(item => item.Property).ToImmutableArray();
     var options = optionModels.OrderBy(item => item.Name, StringComparer.Ordinal)
@@ -107,21 +85,47 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
       error, error is null ? default : location);
   }
 
+  private static string? Diagnose(INamedTypeSymbol type, bool supported, HandlerModel[] methods,
+    OptionModel[] optionModels, int stateCount) {
+    if (!supported) {
+      return "ASG001";
+    }
+
+    if (type.GetMembers("RegisterHandlers").Length != 0) {
+      return "ASG002";
+    }
+
+    if (optionModels.Length != 0 &&
+        (type.GetMembers("CreateHooks").Length != 0 ||
+         type.GetMembers("__AssuanOptionHooks").Length != 0 ||
+         Enumerable.Range(0, optionModels.Length).Any(index =>
+           type.GetMembers("__assuan_option_" + index).Length != 0))) {
+      return "ASG002";
+    }
+
+    if (methods.Length + optionModels.Length == 0 ||
+        methods.Any(item => item.ErrorId is not null) ||
+        optionModels.Any(item => item.ErrorId is not null) ||
+        stateCount != 1 ||
+        methods.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != methods.Length ||
+        optionModels.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != optionModels.Length) {
+      return "ASG008";
+    }
+
+    return null;
+  }
+
   public override bool Equals(object? obj)
     => obj is GroupModel other && Equals(other);
 
   public override int GetHashCode() {
     unchecked {
-      var hash = (Namespace.GetHashCode() * 31) + TypeName.GetHashCode();
-      hash = (hash * 31) + StateType.GetHashCode();
+      var hash = StringComparer.Ordinal.GetHashCode(Namespace) * 31 + StringComparer.Ordinal.GetHashCode(TypeName);
+      hash = hash * 31 + StringComparer.Ordinal.GetHashCode(StateType);
 
-      foreach (var property in HandlerProperties) {
-        hash = (hash * 31) + property.GetHashCode();
-      }
+      foreach (var property in HandlerProperties) hash = hash * 31 + StringComparer.Ordinal.GetHashCode(property);
 
-      foreach (var option in Options) {
-        hash = (hash * 31) + option.GetHashCode();
-      }
+      foreach (var option in Options) hash = hash * 31 + option.GetHashCode();
 
       return hash;
     }
@@ -137,12 +141,13 @@ internal sealed class GroupModel : IEquatable<GroupModel> {
     internal string Name { get; }
 
     public bool Equals(OptionEntry other)
-      => Method == other.Method && Name == other.Name;
+      => string.Equals(Method, other.Method, StringComparison.Ordinal) &&
+         string.Equals(Name, other.Name, StringComparison.Ordinal);
 
     public override bool Equals(object? obj)
       => obj is OptionEntry other && Equals(other);
 
     public override int GetHashCode()
-      => (Method.GetHashCode() * 31) + Name.GetHashCode();
+      => StringComparer.Ordinal.GetHashCode(Method) * 31 + StringComparer.Ordinal.GetHashCode(Name);
   }
 }

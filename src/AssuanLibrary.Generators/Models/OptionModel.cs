@@ -26,37 +26,42 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
   internal SourceLocation Location { get; }
 
   public bool Equals(OptionModel? other)
-    => other is not null && Method == other.Method &&
-       Name == other.Name && StateType == other.StateType && ErrorId == other.ErrorId &&
-       (ErrorId is null || (Location.Start == other.Location.Start &&
-                            ReferenceEquals(Location.ToLocation().SourceTree, other.Location.ToLocation().SourceTree)));
+    => other is not null && string.Equals(Method, other.Method, StringComparison.Ordinal) &&
+       string.Equals(Name, other.Name, StringComparison.Ordinal) &&
+       string.Equals(StateType, other.StateType, StringComparison.Ordinal) &&
+       string.Equals(ErrorId, other.ErrorId, StringComparison.Ordinal) &&
+       (ErrorId is null || Location.Start == other.Location.Start &&
+         ReferenceEquals(Location.ToLocation().SourceTree, other.Location.ToLocation().SourceTree));
 
   internal static OptionModel Extract(GeneratorAttributeSyntaxContext context,
-  CancellationToken token)
+    CancellationToken token)
     => ExtractFromSymbol((IMethodSymbol)context.TargetSymbol, context.Attributes[0], token);
 
   internal static OptionModel ExtractFromSymbol(IMethodSymbol method, AttributeData attr,
-  CancellationToken token) {
+    CancellationToken token) {
     var type = method.ContainingType;
     var location = new SourceLocation(attr.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ??
                                       method.Locations[0]);
-    var grouped = type.GetAttributes().Any(item => item.AttributeClass?.ToDisplayString() ==
-                                                   "AssuanLibrary.Attributes.AssuanHandlerGroupAttribute");
+    var grouped = type.GetAttributes().Any(item => string.Equals(item.AttributeClass?.ToDisplayString(),
+      "AssuanLibrary.Attributes.AssuanHandlerGroupAttribute", StringComparison.Ordinal));
     var name = attr.ConstructorArguments.Length > 0 ? attr.ConstructorArguments[0].Value as string ?? "" : "";
     var error = grouped ? null : "ASG010";
     var signature = method is { IsStatic: true, IsGenericMethod: false, MethodKind: MethodKind.Ordinary } &&
-                    method.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax(token) is MethodDeclarationSyntax declaration &&
-                                                                      (declaration.Body is not null || declaration.ExpressionBody is not null)) &&
+                    method.DeclaringSyntaxReferences.Any(reference
+                      => reference.GetSyntax(token) is MethodDeclarationSyntax declaration &&
+                         (declaration.Body is not null || declaration.ExpressionBody is not null)) &&
                     method.Parameters.Length == 3 &&
-                    method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
-                    "global::System.Threading.Tasks.ValueTask" &&
-                    method.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
-                    "global::AssuanLibrary.Server.OptionRequest" &&
-                    method.Parameters[2].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
-                    "global::System.Threading.CancellationToken" &&
+                    string.Equals(method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                      "global::System.Threading.Tasks.ValueTask", StringComparison.Ordinal) &&
+                    string.Equals(method.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                      "global::AssuanLibrary.Server.OptionRequest", StringComparison.Ordinal) &&
+                    string.Equals(method.Parameters[2].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                      "global::System.Threading.CancellationToken", StringComparison.Ordinal) &&
                     method.Parameters[1].Type is INamedTypeSymbol parameter &&
-                    parameter.OriginalDefinition.MetadataName == "CommandContext`1" &&
-                    parameter.ContainingNamespace.ToDisplayString() == "AssuanLibrary.Server";
+                    string.Equals(parameter.OriginalDefinition.MetadataName, "CommandContext`1",
+                      StringComparison.Ordinal) &&
+                    string.Equals(parameter.ContainingNamespace.ToDisplayString(), "AssuanLibrary.Server",
+                      StringComparison.Ordinal);
     if (error is null &&
         (!signature || type.GetMembers(method.Name).OfType<IMethodSymbol>().Count() != 1)) {
       error = "ASG009";
@@ -64,9 +69,11 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
 
     if (error is null &&
         (!ValidName(name) || type.GetMembers().OfType<IMethodSymbol>().Count(other =>
-          other.GetAttributes().Any(item => item.AttributeClass?.ToDisplayString() ==
-                                            "AssuanLibrary.Attributes.AssuanOptionHandlerAttribute" &&
-                                            item.ConstructorArguments.Length > 0 && item.ConstructorArguments[0].Value as string == name)) != 1)) {
+          other.GetAttributes().Any(item
+            => string.Equals(item.AttributeClass?.ToDisplayString(),
+                 "AssuanLibrary.Attributes.AssuanOptionHandlerAttribute", StringComparison.Ordinal) &&
+               item.ConstructorArguments.Length > 0 &&
+               string.Equals(item.ConstructorArguments[0].Value as string, name, StringComparison.Ordinal))) != 1)) {
       error = "ASG010";
     }
 
@@ -78,7 +85,8 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
     }
 
     var state = signature
-      ? ((INamedTypeSymbol)method.Parameters[1].Type).TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+      ? ((INamedTypeSymbol)method.Parameters[1].Type).TypeArguments[0]
+      .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
       : "global::System.Object";
     var identifier = SyntaxFacts.GetKeywordKind(method.Name) == SyntaxKind.None ? method.Name : "@" + method.Name;
     return new OptionModel(identifier, name, state, error, error is null ? default : location);
@@ -91,13 +99,12 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
       return false;
     }
 
-    foreach (var ch in name) {
+    foreach (var ch in name)
       if (ch < 33 ||
           ch > 126 ||
           ch == '%') {
         return false;
       }
-    }
 
     return true;
   }
@@ -107,7 +114,8 @@ internal sealed class OptionModel : IEquatable<OptionModel> {
 
   public override int GetHashCode() {
     unchecked {
-      return (((Method.GetHashCode() * 31) + Name.GetHashCode()) * 31) + StateType.GetHashCode();
+      return (StringComparer.Ordinal.GetHashCode(Method) * 31 + StringComparer.Ordinal.GetHashCode(Name)) * 31 +
+             StringComparer.Ordinal.GetHashCode(StateType);
     }
   }
 }

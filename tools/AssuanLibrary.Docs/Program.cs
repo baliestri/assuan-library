@@ -8,19 +8,19 @@ try {
   switch (args) {
     case ["build", "--version", var _, "--base-url", var _, "--output", var _]:
       Console.WriteLine(await DocumentationBuilder.BuildAsync(root, args[2], args[4], args[6],
-        CancellationToken.None));
+        CancellationToken.None).ConfigureAwait(false));
       return 0;
-    case ["verify", "--bundle", var _]: {
+    case ["verify", "--bundle", var _]:
+    {
       var bundle = Path.IsPathRooted(args[2]) ? args[2] : Path.Combine(root, args[2]);
       var errors = DocumentationBuilder.Verify(bundle);
-      foreach (var error in errors) {
-        Console.Error.WriteLine(error);
-      }
+      foreach (var error in errors) Console.Error.WriteLine(error);
 
       return errors.Count == 0 ? 0 : 1;
     }
     default:
-      Console.Error.WriteLine("Usage: build --version <version> --base-url <url> --output <root> | verify --bundle <path>");
+      Console.Error.WriteLine(
+        "Usage: build --version <version> --base-url <url> --output <root> | verify --bundle <path>");
       return 2;
   }
 }

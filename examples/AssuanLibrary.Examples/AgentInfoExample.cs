@@ -16,7 +16,7 @@ internal sealed class AgentInfoExample : IExample {
     for (var index = 0; index < args.Length; index += 2) {
       if (index + 1 == args.Length ||
           string.IsNullOrWhiteSpace(args[index + 1])) {
-        await error.WriteLineAsync("Specify --gpgconf <path> and optionally --homedir <path>.");
+        await error.WriteLineAsync("Specify --gpgconf <path> and optionally --homedir <path>.").ConfigureAwait(false);
         return 2;
       }
 
@@ -28,33 +28,36 @@ internal sealed class AgentInfoExample : IExample {
           homedir = args[index + 1];
           break;
         default:
-          await error.WriteLineAsync("Specify --gpgconf <path> and optionally --homedir <path>.");
+          await error.WriteLineAsync("Specify --gpgconf <path> and optionally --homedir <path>.").ConfigureAwait(false);
           return 2;
       }
     }
 
     if (executable is null) {
-      await error.WriteLineAsync("Specify --gpgconf <path> and optionally --homedir <path>.");
+      await error.WriteLineAsync("Specify --gpgconf <path> and optionally --homedir <path>.").ConfigureAwait(false);
       return 2;
     }
 
     if (homedir is null) {
-      await output.WriteLineAsync("agent-info: gpgconf will use its default homedir.");
+      await output.WriteLineAsync("agent-info: gpgconf will use its default homedir.").ConfigureAwait(false);
     }
 
-    using var resolved = await new AgentLocator(executable, homedir).ResolveAsync(token);
-    await using var client = await AssuanClient.ConnectAsync(resolved, cancellationToken: token);
-    var response = await client.CollectAsync("GETINFO", "version"u8.ToArray(),
-      new CollectLimits(64, 8), token);
-    var version = response.Data;
-    if (version.Length is 0 or > 64 ||
-        version[0] is < (byte)'0' or > (byte)'9' ||
-        version.Any(value => !char.IsAsciiLetterOrDigit((char)value) &&
-                             (char)value is not ('.' or '-' or '+' or '_'))) {
-      throw new InvalidOperationException("The agent returned an invalid version.");
-    }
+    using var resolved = await new AgentLocator(executable, homedir).ResolveAsync(token).ConfigureAwait(false);
+    var client = await AssuanClient.ConnectAsync(resolved, cancellationToken: token).ConfigureAwait(false);
+    await using (client.ConfigureAwait(false)) {
+      var response = await client.CollectAsync("GETINFO", "version"u8.ToArray(),
+        new CollectLimits(64, 8), token).ConfigureAwait(false);
+      var version = response.Data;
+      if (version.Length is 0 or > 64 ||
+          version[0] is < (byte)'0' or > (byte)'9' ||
+          version.Any(value => !char.IsAsciiLetterOrDigit((char)value) &&
+                               (char)value is not ('.' or '-' or '+' or '_'))) {
+        throw new InvalidOperationException("The agent returned an invalid version.");
+      }
 
-    await output.WriteLineAsync($"agent-info: GnuPG agent version {Encoding.ASCII.GetString(version)}");
-    return 0;
+      await output.WriteLineAsync($"agent-info: GnuPG agent version {Encoding.ASCII.GetString(version)}")
+        .ConfigureAwait(false);
+      return 0;
+    }
   }
 }

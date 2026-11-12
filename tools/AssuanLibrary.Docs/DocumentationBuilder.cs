@@ -9,20 +9,12 @@ using System.Text.RegularExpressions;
 
 namespace AssuanLibrary.Docs;
 
-/// <summary>One reviewed source in the versioned documentation manifest.</summary>
-public sealed record DocSource(int Order,
-  string Title,
-  string Source,
-  string Destination,
-  bool IncludeInIndex,
-  bool IncludeInFull,
-  bool Optional);
-
 /// <summary>Validates sources and creates an immutable-by-policy local documentation version.</summary>
 public static partial class DocumentationBuilder {
   private const string PUBLISHED_PREFIX = "https://baliestri.github.io/assuan-library/2.0.0/";
+  private const int REGEX_TIMEOUT_MILLISECONDS = 5000;
 
-  private static readonly JsonSerializerOptions _jsonOptions = new() {
+  private readonly static JsonSerializerOptions JsonOptions = new() {
     PropertyNameCaseInsensitive = true,
     WriteIndented = true
   };
@@ -31,12 +23,11 @@ public static partial class DocumentationBuilder {
   public static string FindRepositoryRoot(string directory) {
     for (var current = new DirectoryInfo(Path.GetFullPath(directory));
          current is not null;
-         current = current.Parent) {
+         current = current.Parent)
       if (File.Exists(Path.Combine(current.FullName, "AssuanLibrary.slnx")) &&
           File.Exists(Path.Combine(current.FullName, "docs", "site", "sources.json"))) {
         return current.FullName;
       }
-    }
 
     throw new DirectoryNotFoundException("AssuanLibrary checkout was not found.");
   }
@@ -57,8 +48,8 @@ public static partial class DocumentationBuilder {
     var previous = 0;
     foreach (var entry in entries.EnumerateArray()) {
       DocSource? source;
-      try { source = entry.Deserialize<DocSource>(_jsonOptions); }
-      catch (JsonException) { throw new InvalidDataException("Invalid manifest entry."); }
+      try { source = entry.Deserialize<DocSource>(JsonOptions); }
+      catch (JsonException error) { throw new InvalidDataException("Invalid manifest entry.", error); }
 
       if (source is null ||
           source.Order <= previous ||
@@ -94,12 +85,15 @@ public static partial class DocumentationBuilder {
 
   /// <summary>Builds metadata, HTML, curated Markdown and llms files without overwriting a version.</summary>
   public static async Task<string> BuildAsync(string repository, string version, string baseUrl,
-  string outputRoot, CancellationToken token) {
+    string outputRoot, CancellationToken token) {
     var root = Path.GetFullPath(repository);
-    if (!VersionRegex().IsMatch(version) ||
-        !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+    if (!VersionRegex().IsMatch(version)) {
+      throw new ArgumentException("Invalid version or base URL.", nameof(version));
+    }
+
+    if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
         uri.Scheme is not ("http" or "https")) {
-      throw new ArgumentException("Invalid version or base URL.");
+      throw new ArgumentException("Invalid version or base URL.", nameof(baseUrl));
     }
 
     var manifest = ReadManifest(root, Path.Combine(root, "docs", "site", "sources.json"));
@@ -113,6 +107,24 @@ public static partial class DocumentationBuilder {
     var baseLink = baseUrl.TrimEnd('/') + "/" + version + "/";
     var stage = Path.Combine(versionRoot, "_stage");
     Directory.CreateDirectory(stage);
+    await StageSourcesAsync(root, manifest, stage, baseLink, version, token).ConfigureAwait(false);
+    await RunDocfxAsync(root, stage, version, token).ConfigureAwait(false);
+    await PatchSiteAsync(versionRoot, stage, token).ConfigureAwait(false);
+    await WriteLlmsAsync(manifest, stage, versionRoot, baseLink, version, token).ConfigureAwait(false);
+    await File.WriteAllTextAsync(Path.Combine(versionRoot, "metadata.json"),
+        JsonSerializer.Serialize(new { version, baseUrl = baseLink, sourceCount = manifest.Count }, JsonOptions), token)
+      .ConfigureAwait(false);
+    var errors = Verify(versionRoot);
+    if (errors.Count != 0) {
+      throw new InvalidDataException("Documentation verification failed: " +
+                                     string.Join("; ", errors.Distinct(StringComparer.Ordinal).Take(20)));
+    }
+
+    return versionRoot;
+  }
+
+  private static async Task StageSourcesAsync(string root, IReadOnlyList<DocSource> manifest, string stage,
+    string baseLink, string version, CancellationToken token) {
     foreach (var source in manifest) {
       var origin = Path.Combine(root, source.Source);
       if (!File.Exists(origin)) {
@@ -121,13 +133,16 @@ public static partial class DocumentationBuilder {
 
       var destination = Path.Combine(stage, source.Destination);
       Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-      var markdown = RewriteUrls(File.ReadAllText(origin), baseLink, version);
-      await File.WriteAllTextAsync(destination, markdown, new UTF8Encoding(false), token);
+      var markdown = RewriteUrls(await File.ReadAllTextAsync(origin, token).ConfigureAwait(false), baseLink, version);
+      await File.WriteAllTextAsync(destination, markdown, new UTF8Encoding(false), token).ConfigureAwait(false);
     }
+  }
 
-    await RunDotnet(root, token, "tool", "restore");
+  private static async Task RunDocfxAsync(string root, string stage, string version, CancellationToken token) {
+    await RunDotnet(root, token, "tool", "restore").ConfigureAwait(false);
     await RunDotnet(root, token, "tool", "run", "docfx", "--", "metadata",
-      Path.Combine(root, "docs", "site", "docfx.json"), "--output", stage, "--noRestore", "--disableGitFeatures");
+        Path.Combine(root, "docs", "site", "docfx.json"), "--output", stage, "--noRestore", "--disableGitFeatures")
+      .ConfigureAwait(false);
     var tempConfig = Path.Combine(stage, "docfx.json");
     var config = new {
       build = new {
@@ -137,17 +152,22 @@ public static partial class DocumentationBuilder {
         globalMetadata = new { _appTitle = "AssuanLibrary " + version }
       }
     };
-    await File.WriteAllTextAsync(tempConfig, JsonSerializer.Serialize(config, _jsonOptions), token);
-    await RunDotnet(root, token, "tool", "run", "docfx", "--", "build", tempConfig, "--disableGitFeatures");
+    await File.WriteAllTextAsync(tempConfig, JsonSerializer.Serialize(config, JsonOptions), token)
+      .ConfigureAwait(false);
+    await RunDotnet(root, token, "tool", "run", "docfx", "--", "build", tempConfig, "--disableGitFeatures")
+      .ConfigureAwait(false);
+  }
+
+  private static async Task PatchSiteAsync(string versionRoot, string stage, CancellationToken token) {
     // The default DocFX theme links to #top without defining that anchor.
     // Give its back-to-top links a real target before validating the site.
     foreach (var page in Directory.EnumerateFiles(Path.Combine(versionRoot, "site"), "*.html",
                SearchOption.AllDirectories)) {
-      var html = await File.ReadAllTextAsync(page, token);
+      var html = await File.ReadAllTextAsync(page, token).ConfigureAwait(false);
       if (html.Contains("href=\"#top\"", StringComparison.Ordinal) &&
           !html.Contains("id=\"top\"", StringComparison.Ordinal)) {
         html = html.Replace("<body ", "<body id=\"top\" ", StringComparison.Ordinal);
-        await File.WriteAllTextAsync(page, html, new UTF8Encoding(false), token);
+        await File.WriteAllTextAsync(page, html, new UTF8Encoding(false), token).ConfigureAwait(false);
       }
     }
 
@@ -155,22 +175,25 @@ public static partial class DocumentationBuilder {
     // needed by static pages and would make equivalent output roots differ.
     var siteManifest = Path.Combine(versionRoot, "site", "manifest.json");
     if (File.Exists(siteManifest)) {
-      var manifestText = await File.ReadAllTextAsync(siteManifest, token);
+      var manifestText = await File.ReadAllTextAsync(siteManifest, token).ConfigureAwait(false);
       await File.WriteAllTextAsync(siteManifest, manifestText.Replace(
           stage.Replace('\\', '/'), "_stage", StringComparison.OrdinalIgnoreCase),
-        new UTF8Encoding(false), token);
+        new UTF8Encoding(false), token).ConfigureAwait(false);
     }
+  }
 
+  private static async Task WriteLlmsAsync(IReadOnlyList<DocSource> manifest, string stage, string versionRoot,
+    string baseLink, string version, CancellationToken token) {
     var index = new StringBuilder("# AssuanLibrary " + version + "\n\n");
     index.AppendLine("> .NET 10 Assuan library: reviewed guides and generated API reference.").AppendLine();
     index.AppendLine("## Guides");
-    foreach (var source in manifest.Where(item => item.IncludeInIndex)) {
+    foreach (var source in manifest.Where(item => item.IncludeInIndex))
       index.Append("- [").Append(source.Title).Append("](").Append(baseLink)
         .Append(source.Destination[..^3]).Append(".html): ")
         .Append(source.Title).AppendLine(" for .NET consumers.");
-    }
 
-    index.Append("\n- [Public API reference](").Append(baseLink).AppendLine("api/toc.html): exported types and members.");
+    index.Append("\n- [Public API reference](").Append(baseLink)
+      .AppendLine("api/toc.html): exported types and members.");
     index.Append("- [Selectable examples](https://github.com/baliestri/assuan-library/tree/v")
       .Append(version).AppendLine("/examples/AssuanLibrary.Examples): compiled .NET scenarios.");
     var full = new StringBuilder("# AssuanLibrary " + version + " — user guides\n\n");
@@ -178,26 +201,19 @@ public static partial class DocumentationBuilder {
     foreach (var source in manifest.Where(item => item.IncludeInFull)) {
       full.Append("\n---\n\n## ").Append(source.Title).Append("\n\nSource: ")
         .Append(baseLink).Append(source.Destination[..^3]).AppendLine(".html\n");
-      full.AppendLine(await File.ReadAllTextAsync(Path.Combine(stage, source.Destination), token));
+      full.AppendLine(await File.ReadAllTextAsync(Path.Combine(stage, source.Destination), token)
+        .ConfigureAwait(false));
     }
 
     foreach (var (name, content) in new[] {
                ("llms.txt", index.ToString()),
                ("llms-full.txt", full.ToString())
              }) {
-      await File.WriteAllTextAsync(Path.Combine(versionRoot, name), content, new UTF8Encoding(false), token);
-      await File.WriteAllTextAsync(Path.Combine(versionRoot, "site", name), content, new UTF8Encoding(false), token);
+      await File.WriteAllTextAsync(Path.Combine(versionRoot, name), content, new UTF8Encoding(false), token)
+        .ConfigureAwait(false);
+      await File.WriteAllTextAsync(Path.Combine(versionRoot, "site", name), content, new UTF8Encoding(false), token)
+        .ConfigureAwait(false);
     }
-
-    await File.WriteAllTextAsync(Path.Combine(versionRoot, "metadata.json"),
-      JsonSerializer.Serialize(new { version, baseUrl = baseLink, sourceCount = manifest.Count }, _jsonOptions), token);
-    var errors = Verify(versionRoot);
-    if (errors.Count != 0) {
-      throw new InvalidDataException("Documentation verification failed: " +
-                                     string.Join("; ", errors.Distinct().Take(20)));
-    }
-
-    return versionRoot;
   }
 
   /// <summary>Checks the generated public API, selected guides and versioned llms links.</summary>
@@ -212,11 +228,10 @@ public static partial class DocumentationBuilder {
                "llms.txt", "llms-full.txt", "metadata.json", "site/index.html",
                "site/api/AssuanLibrary.Client.AssuanClient.html",
                "site/api/AssuanLibrary.Server.ServerSession-1.html"
-             }) {
+             })
       if (!File.Exists(Path.Combine(root, relative))) {
         errors.Add("Missing required output: " + relative);
       }
-    }
 
     if (File.Exists(Path.Combine(root, "site/api/AssuanLibrary.Transport.UnixNative.html"))) {
       errors.Add("An internal API was published.");
@@ -225,12 +240,18 @@ public static partial class DocumentationBuilder {
     foreach (var asset in new[] {
                "site/styles/docfx.css", "site/styles/main.css",
                "site/styles/docfx.js"
-             }) {
+             })
       if (!File.Exists(Path.Combine(root, asset))) {
         errors.Add("Missing site asset: " + asset);
       }
-    }
 
+    VerifyLlmsLinks(root, errors);
+    VerifyStageLinks(root, errors);
+    VerifySiteLinks(root, errors);
+    return errors;
+  }
+
+  private static void VerifyLlmsLinks(string root, List<string> errors) {
     var metadataFile = Path.Combine(root, "metadata.json");
     if (File.Exists(metadataFile)) {
       using var metadata = JsonDocument.Parse(File.ReadAllText(metadataFile));
@@ -241,7 +262,7 @@ public static partial class DocumentationBuilder {
           continue;
         }
 
-        foreach (Match match in Regex.Matches(File.ReadAllText(filename), @"https?://[^\s)]+")) {
+        foreach (Match match in AbsoluteUrlRegex().Matches(File.ReadAllText(filename))) {
           var url = match.Value;
           if (!url.StartsWith(baseLink, StringComparison.Ordinal)) {
             continue;
@@ -259,12 +280,14 @@ public static partial class DocumentationBuilder {
         }
       }
     }
+  }
 
+  private static void VerifyStageLinks(string root, List<string> errors) {
     var stage = Path.Combine(root, "_stage");
     if (Directory.Exists(stage)) {
       foreach (var source in Directory.EnumerateFiles(stage, "*.md", SearchOption.AllDirectories)) {
         foreach (Match match in MarkdownUrlRegex().Matches(File.ReadAllText(source))) {
-          var href = match.Groups[1].Value;
+          var href = match.Groups["url"].Value;
           if (Uri.TryCreate(href, UriKind.Absolute, out var external)) {
             if (external.Scheme is not ("http" or "https")) {
               errors.Add("Unsupported link scheme.");
@@ -308,13 +331,15 @@ public static partial class DocumentationBuilder {
         }
       }
     }
+  }
 
+  private static void VerifySiteLinks(string root, List<string> errors) {
     var site = Path.Combine(root, "site");
     if (Directory.Exists(site)) {
       foreach (var page in Directory.EnumerateFiles(site, "*.html", SearchOption.AllDirectories)) {
         var html = File.ReadAllText(page);
         foreach (Match match in HtmlUrlRegex().Matches(html)) {
-          var href = WebUtility.HtmlDecode(match.Groups[1].Value);
+          var href = WebUtility.HtmlDecode(match.Groups["url"].Value);
           if (Uri.TryCreate(href, UriKind.Absolute, out var external)) {
             if (external.Scheme is not ("http" or "https" or "mailto" or "data")) {
               errors.Add("Unsupported site link scheme: " + Path.GetFileName(page));
@@ -357,8 +382,6 @@ public static partial class DocumentationBuilder {
         }
       }
     }
-
-    return errors;
   }
 
   private static string RewriteUrls(string text, string baseLink, string version) =>
@@ -394,9 +417,7 @@ public static partial class DocumentationBuilder {
       RedirectStandardOutput = true,
       RedirectStandardError = true
     };
-    foreach (var argument in args) {
-      start.ArgumentList.Add(argument);
-    }
+    foreach (var argument in args) start.ArgumentList.Add(argument);
 
     var artifacts = Path.Combine(root, "artifacts");
     start.Environment["NUGET_PACKAGES"] = Path.Combine(artifacts, "nuget-cache");
@@ -406,7 +427,8 @@ public static partial class DocumentationBuilder {
       : Path.GetRelativePath(artifacts,
         Path.GetFullPath(configuredHome));
     start.Environment["DOTNET_CLI_HOME"] = localHome is ".." or "." ||
-                                           localHome.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                                           localHome.StartsWith(".." + Path.DirectorySeparatorChar,
+                                             StringComparison.Ordinal) ||
                                            Path.IsPathRooted(localHome)
       ? Path.Combine(artifacts, OperatingSystem.IsWindows() ? "dotnet-home" : "dotnet-home-linux")
       : Path.GetFullPath(configuredHome!);
@@ -414,8 +436,8 @@ public static partial class DocumentationBuilder {
     using var process = Process.Start(start) ?? throw new IOException("Documentation tool did not start.");
     var stdout = process.StandardOutput.ReadToEndAsync(token);
     var stderr = process.StandardError.ReadToEndAsync(token);
-    await process.WaitForExitAsync(token).WaitAsync(TimeSpan.FromMinutes(3), token);
-    var report = await stdout + await stderr;
+    await process.WaitForExitAsync(token).WaitAsync(TimeSpan.FromMinutes(3), token).ConfigureAwait(false);
+    var report = await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false);
     if (process.ExitCode != 0 ||
         ReportRegex().IsMatch(report)) {
       throw new InvalidDataException("Documentation tool returned an error or warning (" +
@@ -423,15 +445,22 @@ public static partial class DocumentationBuilder {
     }
   }
 
-  [GeneratedRegex("^[0-9][A-Za-z0-9.+-]*$", RegexOptions.CultureInvariant)]
+  [GeneratedRegex("^[0-9][A-Za-z0-9.+-]*$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+    REGEX_TIMEOUT_MILLISECONDS)]
   private static partial Regex VersionRegex();
 
-  [GeneratedRegex(@"(?<!!)\[[^\]]+\]\(([^)]+)\)")]
+  [GeneratedRegex(@"https?://[^\s)]+", RegexOptions.ExplicitCapture, REGEX_TIMEOUT_MILLISECONDS)]
+  private static partial Regex AbsoluteUrlRegex();
+
+  [GeneratedRegex(@"(?<!!)\[[^\]]+\]\((?<url>[^)]+)\)", RegexOptions.ExplicitCapture, REGEX_TIMEOUT_MILLISECONDS)]
   private static partial Regex MarkdownUrlRegex();
 
-  [GeneratedRegex("(?:href|src)=[\"']([^\"']+)[\"']")]
+  [GeneratedRegex("(?:href|src)=[\"'](?<url>[^\"']+)[\"']", RegexOptions.ExplicitCapture,
+    REGEX_TIMEOUT_MILLISECONDS)]
   private static partial Regex HtmlUrlRegex();
 
-  [GeneratedRegex(@"(?<!\d)[1-9]\d* warning\(s\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+  [GeneratedRegex(@"(?<!\d)[1-9]\d* warning\(s\)",
+    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+    REGEX_TIMEOUT_MILLISECONDS)]
   private static partial Regex ReportRegex();
 }

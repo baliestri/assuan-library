@@ -3,7 +3,6 @@
 
 using System.Security.Cryptography;
 using System.Threading.Channels;
-using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Examples;
 
@@ -24,7 +23,12 @@ internal static class MemoryDuplexPair {
     public override bool CanWrite => Volatile.Read(ref _disposed) == 0;
     public override bool CanSeek => false;
     public override long Length => throw new NotSupportedException();
-    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+    public override long Position {
+      get => throw new NotSupportedException();
+      set => throw new NotSupportedException();
+    }
+
     public override void Flush() { }
 
     public override Task FlushAsync(CancellationToken token) {
@@ -83,6 +87,7 @@ internal static class MemoryDuplexPair {
       => WriteAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
 
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
     public override void SetLength(long value) => throw new NotSupportedException();
 
     protected override void Dispose(bool disposing) {
@@ -97,30 +102,5 @@ internal static class MemoryDuplexPair {
 
       base.Dispose(disposing);
     }
-  }
-}
-
-internal sealed class SingleConnectionAcceptor(Stream stream) : IAssuanAcceptor {
-  private readonly Channel<AcceptedConnection> _queue = CreateQueue(stream);
-  private int _disposed;
-
-  public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken token = default)
-    => _queue.Reader.ReadAsync(token);
-
-  public ValueTask DisposeAsync() {
-    if (Interlocked.Exchange(ref _disposed, 1) == 0) {
-      _queue.Writer.TryComplete();
-      while (_queue.Reader.TryRead(out var connection)) {
-        connection.Stream.Dispose();
-      }
-    }
-
-    return ValueTask.CompletedTask;
-  }
-
-  private static Channel<AcceptedConnection> CreateQueue(Stream stream) {
-    var queue = Channel.CreateUnbounded<AcceptedConnection>();
-    queue.Writer.TryWrite(new AcceptedConnection(stream));
-    return queue;
   }
 }

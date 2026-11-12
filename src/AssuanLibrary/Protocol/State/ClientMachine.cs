@@ -26,9 +26,9 @@ internal sealed class ClientMachine {
     }
 
     if (kind is ProtocolResponseKind.Comment or ProtocolResponseKind.Empty ||
-        (State is ClientState.Greeting or ClientState.Command or ClientState.Inquiry or ClientState.AwaitFinal &&
-         kind == ProtocolResponseKind.Status) ||
-        (State == ClientState.Command && kind is ProtocolResponseKind.Data or ProtocolResponseKind.End)) {
+        State is ClientState.Greeting or ClientState.Command or ClientState.Inquiry or ClientState.AwaitFinal &&
+        kind == ProtocolResponseKind.Status ||
+        State == ClientState.Command && kind is ProtocolResponseKind.Data or ProtocolResponseKind.End) {
       return;
     }
 

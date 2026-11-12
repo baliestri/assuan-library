@@ -36,7 +36,8 @@ public sealed class TcpAcceptor : IAssuanAcceptor {
       throw new TransportException(TransportErrorKind.Closed);
     }
     catch (SocketException error) {
-      throw new TransportException(Volatile.Read(ref _disposed) != 0 ? TransportErrorKind.Closed : TransportErrorKind.Io,
+      throw new TransportException(
+        Volatile.Read(ref _disposed) != 0 ? TransportErrorKind.Closed : TransportErrorKind.Io,
         error);
     }
   }

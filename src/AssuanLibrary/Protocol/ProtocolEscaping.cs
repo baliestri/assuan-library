@@ -13,7 +13,7 @@ public static class ProtocolEscaping {
         continue;
       }
 
-      if ((bytes.Length - read) < 3 ||
+      if (bytes.Length - read < 3 ||
           Hex(bytes[read + 1]) < 0 ||
           Hex(bytes[read + 2]) < 0) {
         throw new ProtocolException(ProtocolErrorKind.InvalidEscape);
@@ -23,15 +23,14 @@ public static class ProtocolEscaping {
     }
 
     var written = 0;
-    for (var read = 0; read < bytes.Length; ++read) {
+    for (var read = 0; read < bytes.Length; ++read)
       if (bytes[read] == (byte)'%') {
-        bytes[written++] = (byte)((Hex(bytes[read + 1]) * 16) + Hex(bytes[read + 2]));
+        bytes[written++] = (byte)(Hex(bytes[read + 1]) * 16 + Hex(bytes[read + 2]));
         read += 2;
       }
       else {
         bytes[written++] = bytes[read];
       }
-    }
 
     return written;
   }
@@ -42,7 +41,7 @@ public static class ProtocolEscaping {
         continue;
       }
 
-      if ((bytes.Length - index) < 3 ||
+      if (bytes.Length - index < 3 ||
           Hex(bytes[index + 1]) < 0 ||
           Hex(bytes[index + 2]) < 0) {
         throw new ProtocolException(ProtocolErrorKind.InvalidEscape);
@@ -54,8 +53,8 @@ public static class ProtocolEscaping {
 
   private static int Hex(byte digit) => digit switch {
     >= (byte)'0' and <= (byte)'9' => digit - (byte)'0',
-    >= (byte)'a' and <= (byte)'f' => (digit - (byte)'a') + 10,
-    >= (byte)'A' and <= (byte)'F' => (digit - (byte)'A') + 10,
+    >= (byte)'a' and <= (byte)'f' => digit - (byte)'a' + 10,
+    >= (byte)'A' and <= (byte)'F' => digit - (byte)'A' + 10,
     var _ => -1
   };
 }

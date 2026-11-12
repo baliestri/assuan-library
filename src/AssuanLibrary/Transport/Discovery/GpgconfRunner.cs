@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using AssuanLibrary.Protocol;
 
@@ -13,8 +14,11 @@ internal static class GpgconfRunner {
   private const int OUTPUT_LIMIT = 1024 * 1024;
   private const int SCRATCH_BYTES = 8192;
 
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "Process start, the shared output budget and the cleanup of the process and the secret stdout " +
+                    "buffer depend on the same started/transferred flags inside one try/finally.")]
   internal static async Task<SecretBuffer> RunAsync(string executable, string? homeDirectory,
-  TransportDeadline deadline, CancellationToken cancellationToken) {
+    TransportDeadline deadline, CancellationToken cancellationToken) {
     ArgumentException.ThrowIfNullOrEmpty(executable);
     var start = new ProcessStartInfo(executable) {
       UseShellExecute = false,
@@ -92,7 +96,7 @@ internal static class GpgconfRunner {
       throw new DiscoveryException(DiscoveryErrorKind.Io, error);
     }
     finally {
-      await linked.CancelAsync();
+      await linked.CancelAsync().ConfigureAwait(false);
       if (started) {
         try {
           if (!process.HasExited) {
@@ -115,7 +119,8 @@ internal static class GpgconfRunner {
           stdout.Dispose();
         }
         else {
-          _ = drains.ContinueWith(completed => {
+          _ = drains.ContinueWith(completed =>
+          {
             _ = completed.Exception;
             stdout.Dispose();
           }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -125,7 +130,7 @@ internal static class GpgconfRunner {
   }
 
   private static async Task DrainAsync(Stream stream, SecretBuffer? collected,
-  OutputBudget budget, CancellationToken cancellationToken) {
+    OutputBudget budget, CancellationToken cancellationToken) {
     var scratch = new byte[SCRATCH_BYTES];
     try {
       while (true) {
@@ -144,7 +149,7 @@ internal static class GpgconfRunner {
   }
 
   private sealed class OutputBudget {
-    internal int _remaining = OUTPUT_LIMIT;
+    private int _remaining = OUTPUT_LIMIT;
 
     internal void Consume(int count) {
       int previous;

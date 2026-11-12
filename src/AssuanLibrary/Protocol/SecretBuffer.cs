@@ -6,7 +6,10 @@ using System.Security.Cryptography;
 namespace AssuanLibrary.Protocol;
 
 /// <summary>Fixed-capacity managed secret bytes, wiped explicitly on clear or disposal.</summary>
-/// <remarks>Does not erase the caller's source, runtime/OS copies, swap, or crash dumps. Use <c>using</c> for deterministic cleanup.</remarks>
+/// <remarks>
+///   Does not erase the caller's source, runtime/OS copies, swap, or crash dumps. Use <c>using</c> for
+///   deterministic cleanup.
+/// </remarks>
 public sealed class SecretBuffer : IDisposable {
   private readonly byte[] _storage;
   private bool _disposed;
@@ -20,7 +23,8 @@ public sealed class SecretBuffer : IDisposable {
 
   /// <summary>Number of initialized bytes.</summary>
   public int Length {
-    get {
+    get
+    {
       CheckDisposed();
       return _length;
     }
@@ -28,7 +32,8 @@ public sealed class SecretBuffer : IDisposable {
 
   /// <summary>The fixed maximum number of bytes this buffer can hold.</summary>
   public int Capacity {
-    get {
+    get
+    {
       CheckDisposed();
       return _storage.Length;
     }
@@ -49,7 +54,7 @@ public sealed class SecretBuffer : IDisposable {
   /// <exception cref="LimitException">The new bytes exceed the fixed capacity.</exception>
   public void Append(ReadOnlySpan<byte> bytes) {
     CheckDisposed();
-    if (bytes.Length > (_storage.Length - _length)) {
+    if (bytes.Length > _storage.Length - _length) {
       throw new LimitException(LimitErrorKind.CapacityExceeded);
     }
 

@@ -12,12 +12,15 @@ public readonly ref struct SExpressionView {
     => _bytes = bytes;
 
   /// <summary>Whether this expression is an atom rather than a list.</summary>
-  public bool IsAtom => !_bytes.IsEmpty ? _bytes[0] != (byte)'(' : throw new InvalidOperationException("No expression is present.");
+  public bool IsAtom => !_bytes.IsEmpty
+    ? _bytes[0] != (byte)'('
+    : throw new InvalidOperationException("No expression is present.");
 
   /// <summary>The borrowed binary atom bytes; never decoded as text implicitly.</summary>
   /// <exception cref="InvalidOperationException">The expression is a list or is uninitialized.</exception>
   public ReadOnlySpan<byte> AtomBytes {
-    get {
+    get
+    {
       if (!IsAtom) {
         throw new InvalidOperationException("A list has no atom bytes.");
       }
@@ -51,7 +54,8 @@ public readonly ref struct SExpressionView {
           parents.Push([]);
           ++position;
           break;
-        case (byte)')': {
+        case (byte)')':
+        {
           var completed = SExpression.FromChildren(parents.Pop());
           ++position;
           if (parents.Count == 0) {
@@ -61,11 +65,10 @@ public readonly ref struct SExpressionView {
           parents.Peek().Add(completed);
           break;
         }
-        default: {
+        default:
+        {
           var length = 0;
-          while (_bytes[position] != (byte)':') {
-            length = ((length * 10) + _bytes[position++]) - (byte)'0';
-          }
+          while (_bytes[position] != (byte)':') length = length * 10 + _bytes[position++] - (byte)'0';
 
           ++position;
           parents.Peek().Add(SExpression.Atom(_bytes.Slice(position, length)));
@@ -81,49 +84,4 @@ public readonly ref struct SExpressionView {
   /// <inheritdoc />
   public override string ToString()
     => IsAtom ? $"Atom {{ Length = {AtomBytes.Length} }}" : "List { .. }";
-}
-
-/// <summary>Scoped sequential children of a validated canonical list.</summary>
-public readonly ref struct SExpressionChildren {
-  private readonly ReadOnlySpan<byte> _list;
-
-  internal SExpressionChildren(ReadOnlySpan<byte> list) => _list = list;
-
-  /// <summary>Creates an enumerator without copying atom data or allocating indexes.</summary>
-  public Enumerator GetEnumerator()
-    => new(_list);
-
-  /// <summary>Iterates over the immediate children of a list.</summary>
-  public ref struct Enumerator {
-    private readonly ReadOnlySpan<byte> _list;
-    private int _position;
-    private SExpressionView _current;
-    private bool _hasCurrent;
-
-    internal Enumerator(ReadOnlySpan<byte> list) {
-      _list = list;
-      _position = 1;
-      _current = default;
-      _hasCurrent = false;
-    }
-
-    /// <summary>The current child, borrowing the original validated input.</summary>
-    public readonly SExpressionView Current => _hasCurrent
-      ? _current
-      : throw new InvalidOperationException("There is no current list child.");
-
-    /// <summary>Advances to the next immediate child.</summary>
-    public bool MoveNext() {
-      if (_position >= (_list.Length - 1)) {
-        _hasCurrent = false;
-        return false;
-      }
-
-      var next = SExpressionScanner.SkipValidated(_list, _position);
-      _current = new SExpressionView(_list[_position..next]);
-      _position = next;
-      _hasCurrent = true;
-      return true;
-    }
-  }
 }

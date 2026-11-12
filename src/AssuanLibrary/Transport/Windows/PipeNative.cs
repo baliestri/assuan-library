@@ -19,13 +19,15 @@ internal static partial class PipeNative {
   private const int ERROR_PIPE_BUSY = 231;
   private const int ERROR_SEMAPHORE_TIMEOUT = 121;
 
-  [LibraryImport("kernel32.dll", EntryPoint = "CreateNamedPipeW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+  [LibraryImport("kernel32.dll", EntryPoint = "CreateNamedPipeW", SetLastError = true,
+    StringMarshalling = StringMarshalling.Utf16)]
   private static partial SafePipeHandle CreateNamedPipe(string name, uint openMode, uint pipeMode,
-  uint instances, uint outBufferSize, uint inBufferSize, uint timeout, ref SecurityAttributes security);
+    uint instances, uint outBufferSize, uint inBufferSize, uint timeout, ref SecurityAttributes security);
 
-  [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+  [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true,
+    StringMarshalling = StringMarshalling.Utf16)]
   private static partial SafePipeHandle CreateFile(string name, uint desiredAccess, uint shareMode,
-  IntPtr security, uint creation, uint flags, IntPtr template);
+    IntPtr security, uint creation, uint flags, IntPtr template);
 
   internal static NamedPipeServerStream CreateWaiting(string path, byte[] securityDescriptor, bool firstInstance) {
     var descriptor = Marshal.AllocHGlobal(securityDescriptor.Length);
@@ -37,7 +39,8 @@ internal static partial class PipeNative {
         InheritHandle = 0
       };
       var openMode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | (firstInstance ? FIRST_PIPE_INSTANCE : 0);
-      var handle = CreateNamedPipe(path, openMode, REJECT_REMOTE_CLIENTS, UNLIMITED_INSTANCES, 4096, 4096, 0, ref attributes);
+      var handle = CreateNamedPipe(path, openMode, REJECT_REMOTE_CLIENTS, UNLIMITED_INSTANCES, 4096, 4096, 0,
+        ref attributes);
       if (handle.IsInvalid) {
         var error = Marshal.GetLastPInvokeError();
         handle.Dispose();

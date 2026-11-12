@@ -3,14 +3,6 @@
 
 namespace AssuanLibrary.Protocol.State;
 
-internal enum ClientState { Greeting, Ready, Command, Inquiry, AwaitFinal, Invalid, Closed }
-
-internal enum ServerState { Greeting, Ready, Handler, Inquiry, AwaitFinal, Invalid, Closed }
-
-internal enum RequestKind { Command, Data, End, Can, Comment, Empty }
-
-internal enum StateErrorKind { UnexpectedEvent, NotReady, Unusable, GreetingRejected }
-
 internal sealed class StateException : Exception {
   internal StateException(StateErrorKind kind) : base(kind switch {
     StateErrorKind.UnexpectedEvent => "unexpected session event",

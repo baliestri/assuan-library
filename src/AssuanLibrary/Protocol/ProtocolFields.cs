@@ -16,12 +16,11 @@ internal static class ProtocolFields {
       throw new ProtocolException(ProtocolErrorKind.InvalidToken);
     }
 
-    foreach (var value in token) {
+    foreach (var value in token)
       if (value is < 33 or > 126 ||
           value == (byte)'%') {
         throw new ProtocolException(ProtocolErrorKind.InvalidToken);
       }
-    }
   }
 
   internal static void ValidateKeyword(ReadOnlySpan<byte> keyword) {

@@ -22,7 +22,7 @@ public sealed class ClientInquiry : IAsyncDisposable {
   private int _sent;
 
   internal ClientInquiry(ClientCore core, TransportDeadline parentDeadline, ClientOptions options,
-  PayloadSensitivity sensitivity, ReadOnlySpan<byte> keyword, ReadOnlySpan<byte> arguments) {
+    PayloadSensitivity sensitivity, ReadOnlySpan<byte> keyword, ReadOnlySpan<byte> arguments) {
     _core = core;
     _sensitivity = sensitivity;
     _keywordLength = keyword.Length;
@@ -80,7 +80,7 @@ public sealed class ClientInquiry : IAsyncDisposable {
   private async ValueTask SendAsync(ReadOnlyMemory<byte> data, CancellationToken token) {
     Begin();
     try {
-      if (data.Length > (_maxBytes - _sent)) {
+      if (data.Length > _maxBytes - _sent) {
         Abort();
         throw new ClientException(ClientErrorKind.Limit);
       }

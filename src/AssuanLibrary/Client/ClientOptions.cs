@@ -10,8 +10,8 @@ namespace AssuanLibrary.Client;
 public sealed class ClientOptions {
   /// <summary>Rejects zero, negative or unrepresentable budgets before I/O.</summary>
   public ClientOptions(TimeSpan? connectTimeout = null, TimeSpan? greetingTimeout = null,
-  TimeSpan? commandTimeout = null, TimeSpan? inquiryTimeout = null, int maxInquiryBytes = 1024 * 1024,
-  IAssuanEventSink? eventSink = null) {
+    TimeSpan? commandTimeout = null, TimeSpan? inquiryTimeout = null, int maxInquiryBytes = 1024 * 1024,
+    IAssuanEventSink? eventSink = null) {
     ConnectTimeout = Validate(connectTimeout ?? TimeSpan.FromSeconds(10));
     GreetingTimeout = Validate(greetingTimeout ?? TimeSpan.FromSeconds(120));
     CommandTimeout = Validate(commandTimeout ?? TimeSpan.FromSeconds(300));

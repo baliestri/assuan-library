@@ -12,7 +12,7 @@ public sealed class CommandRegistry<TState> {
 
   internal IEnumerable<HandlerEntry> Entries => _entries.Values;
 
-  internal bool IsFrozen { get; private set; }
+  private bool IsFrozen { get; set; }
 
   /// <summary>Registers validated metadata without replacing an existing handler on failure.</summary>
   public void Register(ICommandHandler<TState> handler) {

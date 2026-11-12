@@ -26,7 +26,8 @@ internal static class PipeSecurityFactory {
     catch (TransportException) {
       throw;
     }
-    catch (Exception error) when (error is UnauthorizedAccessException or SecurityException or InvalidOperationException) {
+    catch (Exception error) when
+      (error is UnauthorizedAccessException or SecurityException or InvalidOperationException) {
       throw new TransportException(TransportErrorKind.AccessPolicy, error);
     }
   }

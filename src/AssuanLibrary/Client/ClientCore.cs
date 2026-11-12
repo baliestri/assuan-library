@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Diagnostics;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Protocol.State;
@@ -26,8 +27,11 @@ internal sealed class ClientCore(Stream stream, TimeProvider? clock = null, IAss
   }
 
   // One event classifier shared by command transactions and manual greetings.
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "Parsing, state transition and lease creation act on one borrowed channel line under a single " +
+                    "invalidate-on-failure catch; the ref-struct parse result cannot cross an await or a helper.")]
   internal async Task<ClientEventLease> ReadEventAsync(TransportDeadline deadline, ClientOptions options,
-  PayloadSensitivity sensitivity, Action release, CancellationToken token) {
+    PayloadSensitivity sensitivity, Action release, CancellationToken token) {
     try {
       while (true) {
         if (deadline.Remaining == TimeSpan.Zero) {
@@ -44,7 +48,8 @@ internal sealed class ClientCore(Stream stream, TimeProvider? clock = null, IAss
           var parsed = ProtocolResponse.Parse(line);
           wireKind = parsed.Kind;
           switch (wireKind) {
-            case ProtocolResponseKind.Data or ProtocolResponseKind.Comment or ProtocolResponseKind.Ok or ProtocolResponseKind.Err:
+            case ProtocolResponseKind.Data or ProtocolResponseKind.Comment or ProtocolResponseKind.Ok or
+              ProtocolResponseKind.Err:
               length = parsed.PayloadBytes.Length;
               offset = wireKind switch {
                 ProtocolResponseKind.Data => 2,
@@ -124,8 +129,10 @@ internal sealed class ClientCore(Stream stream, TimeProvider? clock = null, IAss
   internal static ClientException Classify(Exception error, CancellationToken token)
     => error switch {
       ClientException known => known,
-      TransportException { Kind: TransportErrorKind.Timeout } => new ClientException(ClientErrorKind.Timeout, technicalCause: error),
-      TransportException { Kind: TransportErrorKind.Cancelled } => new ClientException(ClientErrorKind.Cancelled, technicalCause: error),
+      TransportException { Kind: TransportErrorKind.Timeout } => new ClientException(ClientErrorKind.Timeout,
+        technicalCause: error),
+      TransportException { Kind: TransportErrorKind.Cancelled } => new ClientException(ClientErrorKind.Cancelled,
+        technicalCause: error),
       TransportException { Kind: TransportErrorKind.InvalidEndpoint or TransportErrorKind.InvalidOptions }
         => new ClientException(ClientErrorKind.InvalidOptions, technicalCause: error),
       TransportException { Kind: TransportErrorKind.Framing }

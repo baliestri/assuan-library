@@ -1,6 +1,8 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace AssuanLibrary.Attributes;
 
 /// <summary>Requests an explicit handler adapter for an implemented static method.</summary>
@@ -16,5 +18,7 @@ public sealed class AssuanCommandHandlerAttribute : Attribute {
   public string CommandName { get; }
 
   /// <summary>Public HELP description.</summary>
+  [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global",
+    Justification = "Public attribute contract; the generator reads the constructor argument from syntax.")]
   public string Description { get; }
 }

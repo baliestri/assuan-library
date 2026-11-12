@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using AssuanLibrary.Protocol;
@@ -23,8 +24,8 @@ public sealed class CommandContext<TState> {
   private int _inquiryActive;
 
   internal CommandContext(TState state, ReadOnlyMemory<byte> arguments, PeerIdentity? peerIdentity,
-  bool isAuthenticated, AssuanChannel channel, ServerMachine machine, TransportDeadline deadline,
-  int maxInquiryBytes = 1024 * 1024, TimeSpan? inquiryTimeout = null) {
+    bool isAuthenticated, AssuanChannel channel, ServerMachine machine, TransportDeadline deadline,
+    int maxInquiryBytes = 1024 * 1024, TimeSpan? inquiryTimeout = null) {
     State = state;
     Arguments = arguments;
     PeerIdentity = peerIdentity;
@@ -40,6 +41,8 @@ public sealed class CommandContext<TState> {
   public ReadOnlyMemory<byte> Arguments { get; }
 
   /// <summary>The application state of this session alone.</summary>
+  [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global",
+    Justification = "Public setter: handlers replace the state, which is the only way to update a value-type TState.")]
   public TState State { get; set; }
 
   /// <summary>Verified OS peer identity, if supplied by the transport.</summary>
@@ -65,7 +68,7 @@ public sealed class CommandContext<TState> {
 
   /// <summary>Emits an informational status line, leaving the final response to the runner.</summary>
   public async ValueTask SendStatusAsync(string keyword, ReadOnlyMemory<byte> arguments,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     Begin();
     try {
       ArgumentNullException.ThrowIfNull(keyword);
@@ -102,7 +105,7 @@ public sealed class CommandContext<TState> {
 
   /// <summary>Begins exclusive, bounded reading of client data until END or CAN and Finish.</summary>
   public async Task<ServerInquiry> BeginInquiryAsync(string keyword, ReadOnlyMemory<byte> arguments,
-  PayloadSensitivity sensitivity, CancellationToken cancellationToken = default) {
+    PayloadSensitivity sensitivity, CancellationToken cancellationToken = default) {
     if (!Enum.IsDefined(sensitivity)) {
       throw new ArgumentOutOfRangeException(nameof(sensitivity));
     }
@@ -143,7 +146,7 @@ public sealed class CommandContext<TState> {
     }
   }
 
-  internal void Abort() {
+  private void Abort() {
     Volatile.Write(ref _closed, 1);
     _machine.Invalidate();
     _channel.Close();

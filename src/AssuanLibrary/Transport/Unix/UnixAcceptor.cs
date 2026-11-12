@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 
 namespace AssuanLibrary.Transport.Unix;
@@ -14,7 +15,7 @@ public sealed class UnixAcceptor : IAssuanAcceptor {
   private Socket? _listener;
 
   private UnixAcceptor(Socket listener, string path, uint uid, UnixFileIdentity parent,
-  UnixFileIdentity socket) {
+    UnixFileIdentity socket) {
     _listener = listener;
     Endpoint = LocalEndpoint.Unix(path);
     _uid = uid;
@@ -80,10 +81,13 @@ public sealed class UnixAcceptor : IAssuanAcceptor {
 
   /// <summary>Creates a restricted mode 0600 socket in an existing private current-user directory.</summary>
   /// <remarks>Never replaces an existing file/socket and never changes the process umask.</remarks>
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "Parent verification, native bind and the post-bind identity recheck form one ordered " +
+                    "sequence against path replacement; every failure path must reach the same cleanup.")]
   public static UnixAcceptor Bind(LocalEndpoint endpoint) {
     if (OperatingSystem.IsWindows() ||
-        (!OperatingSystem.IsLinux() &&
-         !OperatingSystem.IsMacOS())) {
+        !OperatingSystem.IsLinux() &&
+        !OperatingSystem.IsMacOS()) {
       throw new PlatformNotSupportedException();
     }
 
@@ -133,11 +137,10 @@ public sealed class UnixAcceptor : IAssuanAcceptor {
 
       bound = new UnixAcceptor(listener, path, uid, parent, socket);
       File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-      if (!RequirePrivateParent(canonicalParent, uid).SameFile(parent)) {
-        throw new TransportException(TransportErrorKind.AccessPolicy);
-      }
 
-      return bound;
+      return !RequirePrivateParent(canonicalParent, uid).SameFile(parent)
+        ? throw new TransportException(TransportErrorKind.AccessPolicy)
+        : bound;
     }
     catch (SocketException error) {
       if (bound is not null) {
@@ -203,7 +206,9 @@ public sealed class UnixAcceptor : IAssuanAcceptor {
 
       try { File.Delete(Endpoint.Path); }
       catch (IOException error) { throw new TransportException(TransportErrorKind.Io, error); }
-      catch (UnauthorizedAccessException error) { throw new TransportException(TransportErrorKind.AccessPolicy, error); }
+      catch (UnauthorizedAccessException error) {
+        throw new TransportException(TransportErrorKind.AccessPolicy, error);
+      }
     }
 
     Interlocked.Exchange(ref _listener, null)?.Dispose();
@@ -212,11 +217,8 @@ public sealed class UnixAcceptor : IAssuanAcceptor {
 
   private static UnixFileIdentity RequirePrivateParent(string path, uint uid) {
     var metadata = UnixNative.InspectNoFollow(path);
-    if (!metadata.IsPrivateDirectory(uid)) {
-      throw new TransportException(TransportErrorKind.AccessPolicy);
-    }
 
-    return metadata;
+    return !metadata.IsPrivateDirectory(uid) ? throw new TransportException(TransportErrorKind.AccessPolicy) : metadata;
   }
 
   private static void TryCleanup(UnixAcceptor bound) {

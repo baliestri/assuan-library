@@ -42,7 +42,7 @@ public sealed class PipeAcceptor : IAssuanAcceptor {
       catch {
         Interlocked.Exchange(ref _disposed, 1);
         _waiting = null;
-        await waiting.DisposeAsync();
+        await waiting.DisposeAsync().ConfigureAwait(false);
         throw;
       }
 
@@ -50,7 +50,7 @@ public sealed class PipeAcceptor : IAssuanAcceptor {
     }
     catch (OperationCanceledException) {
       if (_waiting?.IsConnected == true) {
-        await _waiting.DisposeAsync();
+        await _waiting.DisposeAsync().ConfigureAwait(false);
         _waiting = PipeNative.CreateWaiting(_path, _securityDescriptor, false);
       }
 

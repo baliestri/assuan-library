@@ -37,7 +37,8 @@ public sealed class AssuanChannel : IAsyncDisposable {
 
   /// <summary>The last complete line without LF/CRLF; valid until the next read or close.</summary>
   public ReadOnlySpan<byte> Line {
-    get {
+    get
+    {
       CheckOpen();
       return _frame.Line;
     }
@@ -45,14 +46,16 @@ public sealed class AssuanChannel : IAsyncDisposable {
 
   /// <summary>A mutable view of the last complete line for explicit in-place data decoding.</summary>
   public Span<byte> MutableLine {
-    get {
+    get
+    {
       CheckOpen();
       return _frame.MutableLine;
     }
   }
 
   internal ReadOnlyMemory<byte> ReceivedLineMemory {
-    get {
+    get
+    {
       CheckOpen();
       return _frame.LineMemory;
     }
@@ -156,7 +159,7 @@ public sealed class AssuanChannel : IAsyncDisposable {
   /// <summary>Writes one already encoded line including LF, then flushes under one total deadline.</summary>
   /// <remarks>The caller owns its input buffer and any OS copies. An uncertain write is never retried.</remarks>
   public async Task WriteLineAsync(ReadOnlyMemory<byte> bytes, TimeSpan timeout,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     var deadline = CreateDeadline(timeout);
     BeginOperation();
     try {
@@ -290,7 +293,8 @@ public sealed class AssuanChannel : IAsyncDisposable {
       Volatile.Write(ref _pendingWriteIo, 1);
     }
 
-    _ = io.ContinueWith(completed => {
+    _ = io.ContinueWith(completed =>
+    {
       _ = completed.Exception; // Observe a late stream error without formatting it.
       if (read) {
         CryptographicOperations.ZeroMemory(_ahead);
@@ -306,7 +310,8 @@ public sealed class AssuanChannel : IAsyncDisposable {
   }
 
   private static void ObserveLater(Task io)
-    => _ = io.ContinueWith(completed => {
+    => _ = io.ContinueWith(completed =>
+    {
       _ = completed.Exception;
     }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 

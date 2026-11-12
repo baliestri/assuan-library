@@ -20,7 +20,8 @@ public sealed class ProtocolLineBuffer : IDisposable {
 
   /// <summary>Whether a complete line is available, including an empty line.</summary>
   public bool IsReady {
-    get {
+    get
+    {
       CheckDisposed();
       return _ready;
     }
@@ -29,7 +30,8 @@ public sealed class ProtocolLineBuffer : IDisposable {
   /// <summary>A complete line without LF and its optional preceding CR, or empty before completion.</summary>
   /// <remarks>Do not retain across <see cref="Clear" />, another feed, or disposal.</remarks>
   public ReadOnlySpan<byte> Line {
-    get {
+    get
+    {
       CheckDisposed();
       return _ready ? _storage.AsSpan(0, _contentLength) : ReadOnlySpan<byte>.Empty;
     }
@@ -38,14 +40,16 @@ public sealed class ProtocolLineBuffer : IDisposable {
   /// <summary>A mutable view of a complete line for in-place data decoding.</summary>
   /// <remarks>Do not retain across <see cref="Clear" /> or disposal; the caller owns any resulting copies.</remarks>
   public Span<byte> MutableLine {
-    get {
+    get
+    {
       CheckDisposed();
       return _ready ? _storage.AsSpan(0, _contentLength) : Span<byte>.Empty;
     }
   }
 
   internal ReadOnlyMemory<byte> LineMemory {
-    get {
+    get
+    {
       CheckDisposed();
       return _ready ? _storage.AsMemory(0, _contentLength) : ReadOnlyMemory<byte>.Empty;
     }

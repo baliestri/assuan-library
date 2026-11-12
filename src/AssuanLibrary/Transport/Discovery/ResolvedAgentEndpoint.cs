@@ -1,21 +1,13 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using AssuanLibrary.Protocol;
 using AssuanLibrary.Transport.Unix;
 
 namespace AssuanLibrary.Transport.Discovery;
-
-/// <summary>Kind of an existing agent's resolved local endpoint.</summary>
-public enum AgentEndpointKind {
-  /// <summary>An existing Unix-domain socket addressed by original path bytes.</summary>
-  UnixSocket,
-
-  /// <summary>A native Windows loopback socket requiring its private nonce.</summary>
-  NativeWindowsAgent
-}
 
 /// <summary>An owned discovered address and optional private Windows handshake nonce.</summary>
 /// <remarks>Use <see cref="ConnectAsync" /> to send the native Windows nonce before reading the Assuan greeting.</remarks>
@@ -37,7 +29,8 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
 
   /// <summary>The platform-specific endpoint category.</summary>
   public AgentEndpointKind Kind {
-    get {
+    get
+    {
       CheckDisposed();
       return _kind;
     }
@@ -45,7 +38,8 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
 
   /// <summary>Explicit original Unix pathname bytes; no lossy text conversion is performed.</summary>
   public ReadOnlySpan<byte> UnixPathBytes {
-    get {
+    get
+    {
       CheckDisposed();
       return _unixPath ?? throw new InvalidOperationException("The resolved endpoint is not a Unix socket.");
     }
@@ -54,7 +48,8 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
   /// <summary>The Windows loopback address without its nonce, or null on Unix.</summary>
   /// <remarks>Connecting to this address alone omits the native agent handshake.</remarks>
   public IPEndPoint? TcpEndpoint {
-    get {
+    get
+    {
       CheckDisposed();
       return _tcpEndpoint is null ? null : new IPEndPoint(IPAddress.Loopback, _tcpEndpoint.Port);
     }
@@ -78,8 +73,11 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
     => ConnectWithAsync(TcpConnector.ConnectAsync, timeout, cancellationToken);
 
   // Injection is internal: deterministic tests can stall the nonce write without depending on TCP buffer sizes.
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "Both connect paths hand the stream to the caller only at the single return; the finally that " +
+                    "disposes it, releases the endpoint and wipes the nonce must see every failure path.")]
   internal async Task<Stream> ConnectWithAsync(Func<IPEndPoint, TimeSpan?, CancellationToken, Task<Stream>> tcpConnect,
-  TimeSpan? timeout, CancellationToken cancellationToken) {
+    TimeSpan? timeout, CancellationToken cancellationToken) {
     CheckDisposed();
     if (Volatile.Read(ref _pendingNonceIo) != 0 ||
         Interlocked.CompareExchange(ref _active, 1, 0) != 0) {
@@ -102,7 +100,8 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
             .ConfigureAwait(false);
         }
         catch (DecoderFallbackException) {
-          stream = await UnixRawConnector.ConnectAsync(path, deadline.Remaining, cancellationToken).ConfigureAwait(false);
+          stream = await UnixRawConnector.ConnectAsync(path, deadline.Remaining, cancellationToken)
+            .ConfigureAwait(false);
         }
       }
       else {
@@ -150,8 +149,9 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
       throw new TransportException(TransportErrorKind.Io, error);
     }
     finally {
-      if (!transferred) {
-        stream?.Dispose();
+      if (!transferred &&
+          stream is not null) {
+        await stream.DisposeAsync().ConfigureAwait(false);
       }
 
       Interlocked.Exchange(ref _active, 0);
@@ -181,7 +181,8 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
 
   private void DeferNonceCleanup(Task write) {
     Volatile.Write(ref _pendingNonceIo, 1);
-    _ = write.ContinueWith(completed => {
+    _ = write.ContinueWith(completed =>
+    {
       _ = completed.Exception;
       Volatile.Write(ref _pendingNonceIo, 0);
       WipeIfDisposed();
@@ -189,7 +190,8 @@ public sealed class ResolvedAgentEndpoint : IDisposable {
   }
 
   private static void ObserveLater(Task pending)
-    => _ = pending.ContinueWith(completed => {
+    => _ = pending.ContinueWith(completed =>
+    {
       _ = completed.Exception;
     }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 }

@@ -3,18 +3,6 @@
 
 namespace AssuanLibrary.Protocol;
 
-/// <summary>A fixed-capacity or arithmetic limit failure, without payload content.</summary>
-public enum LimitErrorKind {
-  /// <summary>Storage could not be reserved by the allocator.</summary>
-  AllocationFailed,
-
-  /// <summary>Combining lengths exceeded their numeric representation.</summary>
-  LengthOverflow,
-
-  /// <summary>Appending would exceed the buffer's fixed capacity.</summary>
-  CapacityExceeded
-}
-
 /// <summary>An error from a bounded buffer; never formats stored bytes.</summary>
 public sealed class LimitException : Exception {
   internal LimitException(LimitErrorKind kind) : base(kind switch {

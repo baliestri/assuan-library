@@ -1,9 +1,13 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace AssuanLibrary.SExpressions;
 
 internal static class SExpressionScanner {
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "Validating hot loop: list and atom scanning stay in one frame to avoid a call per atom.")]
   internal static int Scan(ReadOnlySpan<byte> input, SExpressionLimits limits, int start) {
     var position = start;
     var depth = 0;
@@ -25,7 +29,8 @@ internal static class SExpressionScanner {
           continue;
         case (byte)')' when depth == 0:
           throw new SExpressionParseException(SExpressionParseErrorKind.UnexpectedToken, position);
-        case (byte)')': {
+        case (byte)')':
+        {
           --depth;
           ++position;
           if (depth == 0) {
@@ -49,11 +54,11 @@ internal static class SExpressionScanner {
         }
 
         var digit = (uint)(input[position] - (byte)'0');
-        if (length > ((ulong.MaxValue - digit) / 10)) {
+        if (length > (ulong.MaxValue - digit) / 10) {
           throw new SExpressionParseException(SExpressionParseErrorKind.LengthOverflow, position);
         }
 
-        length = (length * 10) + digit;
+        length = length * 10 + digit;
         ++position;
       }
 
@@ -81,6 +86,8 @@ internal static class SExpressionScanner {
     }
   }
 
+  [SuppressMessage("ReSharper", "ParameterOnlyUsedForPreconditionCheck.Local",
+    Justification = "The helper exists to enforce the node limit while counting.")]
   private static void CountNode(ref int nodes, SExpressionLimits limits, int position) {
     if (nodes >= limits.MaxNodes) {
       throw new SExpressionParseException(SExpressionParseErrorKind.NodeLimit, position);
@@ -100,18 +107,18 @@ internal static class SExpressionScanner {
         case (byte)'(':
           ++depth;
           break;
-        case (byte)')': {
+        case (byte)')':
+        {
           if (--depth == 0) {
             return position;
           }
 
           break;
         }
-        default: {
+        default:
+        {
           var length = current - (byte)'0';
-          while (input[position] != (byte)':') {
-            length = ((length * 10) + input[position++]) - (byte)'0';
-          }
+          while (input[position] != (byte)':') length = length * 10 + input[position++] - (byte)'0';
 
           position += 1 + length;
           if (depth == 0) {

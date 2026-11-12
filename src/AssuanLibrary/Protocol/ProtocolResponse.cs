@@ -3,33 +3,6 @@
 
 namespace AssuanLibrary.Protocol;
 
-/// <summary>Category of an Assuan server line, without data bytes.</summary>
-public enum ProtocolResponseKind {
-  /// <summary>Successful final response.</summary>
-  Ok,
-
-  /// <summary>Final response containing a complete remote error code.</summary>
-  Err,
-
-  /// <summary>Percent-encoded data line.</summary>
-  Data,
-
-  /// <summary>Nonfinal informational status line.</summary>
-  Status,
-
-  /// <summary>Nonfinal request for client data.</summary>
-  Inquire,
-
-  /// <summary>Partial end marker, not a final response.</summary>
-  End,
-
-  /// <summary>Comment line.</summary>
-  Comment,
-
-  /// <summary>Empty framed line.</summary>
-  Empty
-}
-
 /// <summary>A borrowed response in wire representation; D payloads remain percent-encoded.</summary>
 /// <remarks>Input excludes LF/CRLF and must remain stable while using this scoped view.</remarks>
 public readonly ref struct ProtocolResponse {
@@ -42,7 +15,7 @@ public readonly ref struct ProtocolResponse {
   public ProtocolResponseKind Kind { get; }
 
   private ProtocolResponse(ProtocolResponseKind kind, ReadOnlySpan<byte> payload = default,
-  ReadOnlySpan<byte> keyword = default, ReadOnlySpan<byte> arguments = default, uint errorCode = 0) {
+    ReadOnlySpan<byte> keyword = default, ReadOnlySpan<byte> arguments = default, uint errorCode = 0) {
     Kind = kind;
     _payload = payload;
     _keyword = keyword;
@@ -99,11 +72,11 @@ public readonly ref struct ProtocolResponse {
       uint code = 0;
       foreach (var digit in number) {
         if (digit is < (byte)'0' or > (byte)'9' ||
-            code > ((uint.MaxValue - (uint)(digit - (byte)'0')) / 10)) {
+            code > (uint.MaxValue - (uint)(digit - (byte)'0')) / 10) {
           throw new ProtocolException(ProtocolErrorKind.InvalidErrorCode);
         }
 
-        code = (code * 10) + (uint)(digit - (byte)'0');
+        code = code * 10 + (uint)(digit - (byte)'0');
       }
 
       return Err(code, text);

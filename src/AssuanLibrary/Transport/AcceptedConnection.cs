@@ -3,11 +3,6 @@
 
 namespace AssuanLibrary.Transport;
 
-/// <summary>OS-authenticated metadata for a peer, available only when verified by a transport.</summary>
-public abstract class PeerIdentity {
-  internal PeerIdentity() { }
-}
-
 /// <summary>An accepted duplex byte stream; the receiver owns and must dispose its stream.</summary>
 public sealed class AcceptedConnection {
   /// <summary>Wraps a custom or TCP stream without claiming OS-authenticated identity.</summary>

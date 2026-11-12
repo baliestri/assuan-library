@@ -7,13 +7,13 @@ namespace AssuanLibrary.Transport;
 
 /// <summary>One monotonic budget shared by every awaited operation in a transport call.</summary>
 internal readonly struct TransportDeadline {
-  private static readonly TimeSpan _longestSupportedTimeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1L);
+  private readonly static TimeSpan LongestSupportedTimeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1L);
   private readonly long _started;
   private readonly TimeProvider? _provider;
 
   internal TransportDeadline(TimeSpan budget, TimeProvider? provider = null) {
     if (budget < TimeSpan.Zero ||
-        budget > _longestSupportedTimeout) {
+        budget > LongestSupportedTimeout) {
       throw new TransportException(TransportErrorKind.InvalidOptions);
     }
 
@@ -27,7 +27,8 @@ internal readonly struct TransportDeadline {
   }
 
   internal TimeSpan Remaining {
-    get {
+    get
+    {
       var time = field - (_provider?.GetElapsedTime(_started) ?? Stopwatch.GetElapsedTime(_started));
       return time > TimeSpan.Zero ? time : TimeSpan.Zero;
     }

@@ -22,7 +22,7 @@ public sealed class ClientTransaction : IAsyncDisposable {
   private uint? _remoteCode;
 
   internal ClientTransaction(ClientCore core, TransportDeadline deadline, PayloadSensitivity sensitivity,
-  ClientOptions options) {
+    ClientOptions options) {
     _core = core;
     _deadline = deadline;
     _sensitivity = sensitivity;

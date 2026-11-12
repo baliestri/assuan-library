@@ -7,7 +7,7 @@ namespace AssuanLibrary.Transport.Windows;
 public static class PipeConnector {
   /// <summary>Retries a busy pipe asynchronously under one total deadline, ten seconds by default.</summary>
   public static async Task<Stream> ConnectAsync(LocalEndpoint endpoint, TimeSpan? timeout = null,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     if (!OperatingSystem.IsWindows()) {
       throw new PlatformNotSupportedException();
     }
@@ -41,7 +41,7 @@ public static class PipeConnector {
           return new PipeByteStream(pipe);
         }
 
-        await pipe.DisposeAsync();
+        await pipe.DisposeAsync().ConfigureAwait(false);
         throw new TransportException(cancellationToken.IsCancellationRequested
           ? TransportErrorKind.Cancelled
           : TransportErrorKind.Timeout);

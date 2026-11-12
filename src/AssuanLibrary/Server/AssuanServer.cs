@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;
@@ -19,10 +20,11 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
 
   /// <summary>Stores a per-connection state factory and validated limits.</summary>
   public AssuanServer(Func<TState> stateFactory, ServerOptions options)
-    : this(stateFactory, options, (delay, token) => Task.Delay(delay, token)) { }
+    : this(stateFactory, options, Task.Delay) {
+  }
 
   internal AssuanServer(Func<TState> stateFactory, ServerOptions options,
-  Func<TimeSpan, CancellationToken, Task> graceDelay) {
+    Func<TimeSpan, CancellationToken, Task> graceDelay) {
     _factory = stateFactory ?? throw new ArgumentNullException(nameof(stateFactory));
     _options = options ?? throw new ArgumentNullException(nameof(options));
     _graceDelay = graceDelay ?? throw new ArgumentNullException(nameof(graceDelay));
@@ -76,11 +78,14 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
   public Task WhenDrainedAsync(CancellationToken cancellationToken = default)
     => _supervisor.WhenDrainedAsync(cancellationToken);
 
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "The accept loop and its shutdown sequence share permit ownership and the first accept failure; " +
+                    "keeping them together keeps the release and grace-period ordering in one place.")]
   private async Task ServeCoreAsync(IAssuanAcceptor acceptor, CancellationToken shutdown) {
     using var accepting = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
     Volatile.Write(ref _admissionStop, accepting);
     if (Volatile.Read(ref _disposed) != 0) {
-      await accepting.CancelAsync();
+      await accepting.CancelAsync().ConfigureAwait(false);
     }
 
     ServerException? acceptFailure = null;
@@ -114,7 +119,9 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
         catch (Exception error) {
           if (accepting.IsCancellationRequested &&
               error is OperationCanceledException or
-                TransportException { Kind: TransportErrorKind.Cancelled or TransportErrorKind.Closed }) {
+                TransportException {
+                  Kind: TransportErrorKind.Cancelled or TransportErrorKind.Closed
+                }) {
             break;
           }
 
@@ -129,7 +136,7 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
       }
     }
     finally {
-      await accepting.CancelAsync();
+      await accepting.CancelAsync().ConfigureAwait(false);
       Volatile.Write(ref _admissionStop, null);
       using var graceCancellation = new CancellationTokenSource();
       var waitForSessions = _supervisor.WhenDrainedAsync(CancellationToken.None);
@@ -148,7 +155,7 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
 
           _supervisor.RequestStopAll();
         }
-        else { await graceCancellation.CancelAsync(); }
+        else { await graceCancellation.CancelAsync().ConfigureAwait(false); }
       }
     }
 
@@ -158,7 +165,8 @@ public sealed class AssuanServer<TState> : IAsyncDisposable {
   }
 
   private static void ObserveLateAccept(Task<AcceptedConnection> pending) {
-    _ = pending.ContinueWith(async completed => {
+    _ = pending.ContinueWith(async completed =>
+    {
       if (completed.IsCompletedSuccessfully) {
         try { await completed.Result.Stream.DisposeAsync().ConfigureAwait(false); }
         catch { ServerDiagnostics.Report(ServerErrorKind.Transport); }

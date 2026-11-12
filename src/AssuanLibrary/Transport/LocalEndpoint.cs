@@ -3,15 +3,6 @@
 
 namespace AssuanLibrary.Transport;
 
-/// <summary>Kind of explicit local byte-stream endpoint.</summary>
-public enum LocalEndpointKind {
-  /// <summary>A filesystem Unix-domain socket.</summary>
-  UnixSocket,
-
-  /// <summary>A local Windows named pipe.</summary>
-  NamedPipe
-}
-
 /// <summary>A caller-supplied Unix socket or local Windows named pipe path.</summary>
 public sealed class LocalEndpoint {
   private const string PIPE_PREFIX = @"\\.\pipe\";
@@ -38,7 +29,7 @@ public sealed class LocalEndpoint {
     ArgumentNullException.ThrowIfNull(path);
 
     if (path.Length == 0 ||
-        path.Contains('\0')) {
+        path.Contains('\0', StringComparison.OrdinalIgnoreCase)) {
       throw new TransportException(TransportErrorKind.InvalidEndpoint);
     }
 

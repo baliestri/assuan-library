@@ -10,20 +10,6 @@ using System.Text;
 
 namespace AssuanLibrary.Transport.Unix;
 
-internal readonly record struct UnixFileIdentity(ulong Device, ulong Inode, uint Uid, uint Mode) {
-  internal bool IsDirectory => (Mode & 0xf000) == 0x4000;
-  internal bool IsSocket => (Mode & 0xf000) == 0xc000;
-  internal bool IsSymlink => (Mode & 0xf000) == 0xa000;
-
-  internal bool IsPrivateDirectory(uint uid)
-    => IsDirectory && !IsSymlink && Uid == uid && (Mode & 0x3f) == 0;
-
-  internal bool SameFile(UnixFileIdentity other)
-    => Device == other.Device && Inode == other.Inode;
-}
-
-internal readonly record struct UnixCredentials(uint Uid, uint Gid, uint? Pid);
-
 /// <summary>Small, OS-specific native boundary for metadata and Unix peer credentials.</summary>
 internal static partial class UnixNative {
   private const int STAT_BUFFER_BYTES = 256;
@@ -39,7 +25,8 @@ internal static partial class UnixNative {
   private const int IN_PROGRESS_MAC = 36;
 
   internal static uint EffectiveUid {
-    get {
+    get
+    {
       EnsureSupported();
       try { return OperatingSystem.IsLinux() ? LinuxEffectiveUid() : MacEffectiveUid(); }
       catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) {
@@ -57,13 +44,15 @@ internal static partial class UnixNative {
   [LibraryImport("libc", EntryPoint = "lstat", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
   private static partial int LinuxLStat(string path, [Out] byte[] result);
 
-  [LibraryImport("libSystem.B.dylib", EntryPoint = "lstat", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+  [LibraryImport("libSystem.B.dylib", EntryPoint = "lstat", SetLastError = true,
+    StringMarshalling = StringMarshalling.Utf8)]
   private static partial int MacLStat(string path, [Out] byte[] result);
 
   [LibraryImport("libc", EntryPoint = "realpath", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
   private static partial IntPtr LinuxRealPath(string path, IntPtr resolved);
 
-  [LibraryImport("libSystem.B.dylib", EntryPoint = "realpath", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+  [LibraryImport("libSystem.B.dylib", EntryPoint = "realpath", SetLastError = true,
+    StringMarshalling = StringMarshalling.Utf8)]
   private static partial IntPtr MacRealPath(string path, IntPtr resolved);
 
   [LibraryImport("libc", EntryPoint = "free")]
@@ -136,7 +125,9 @@ internal static partial class UnixNative {
       var errno = Marshal.GetLastPInvokeError();
       identity = default;
 
-      return errno == NOT_FOUND ? false : throw new TransportException(TransportErrorKind.Io, new Win32Exception(errno));
+      return errno == NOT_FOUND
+        ? false
+        : throw new TransportException(TransportErrorKind.Io, new Win32Exception(errno));
     }
 
     identity = ParseMetadata(buffer);
@@ -188,11 +179,9 @@ internal static partial class UnixNative {
           credentials.Pid < 0 ? null : (uint)credentials.Pid);
       }
 
-      if (MacGetPeerEid(fd, out var uid, out var gid) != 0) {
-        throw new TransportException(TransportErrorKind.AccessPolicy);
-      }
-
-      return new UnixCredentials(uid, gid, null);
+      return MacGetPeerEid(fd, out var uid, out var gid) != 0
+        ? throw new TransportException(TransportErrorKind.AccessPolicy)
+        : new UnixCredentials(uid, gid, null);
     }
     catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) {
       throw new TransportException(TransportErrorKind.AccessPolicy, error);
@@ -254,11 +243,9 @@ internal static partial class UnixNative {
       }
 
       var error = Marshal.GetLastPInvokeError();
-      if (error == (OperatingSystem.IsLinux() ? IN_PROGRESS_LINUX : IN_PROGRESS_MAC)) {
-        return false;
-      }
-
-      throw new TransportException(TransportErrorKind.Io, new Win32Exception(error));
+      return error == (OperatingSystem.IsLinux() ? IN_PROGRESS_LINUX : IN_PROGRESS_MAC)
+        ? false
+        : throw new TransportException(TransportErrorKind.Io, new Win32Exception(error));
     }
     catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) {
       throw new TransportException(TransportErrorKind.AccessPolicy, error);
@@ -323,11 +310,8 @@ internal static partial class UnixNative {
       var status = OperatingSystem.IsLinux()
         ? LinuxFcntl(duplicate, 2, 1)
         : MacFcntl(duplicate, 2, 1);
-      if (status != 0) {
-        throw new TransportException(TransportErrorKind.AccessPolicy);
-      }
 
-      return new Socket(owned);
+      return status != 0 ? throw new TransportException(TransportErrorKind.AccessPolicy) : new Socket(owned);
     }
     catch {
       owned.Dispose();
@@ -434,7 +418,7 @@ internal static partial class UnixNative {
   }
 
   private static void EnsureSupported() {
-    if ((!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) ||
+    if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS() ||
         !BitConverter.IsLittleEndian ||
         RuntimeInformation.ProcessArchitecture is not (Architecture.X64 or Architecture.Arm64)) {
       throw new TransportException(TransportErrorKind.AccessPolicy);

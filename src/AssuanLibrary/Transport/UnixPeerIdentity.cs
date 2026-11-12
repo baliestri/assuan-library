@@ -1,0 +1,30 @@
+// Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
+// See the LICENSE file in the repository root for full license text.
+
+using System.Diagnostics.CodeAnalysis;
+
+namespace AssuanLibrary.Transport;
+
+/// <summary>Verified Unix credentials captured by the operating system during accept.</summary>
+public sealed class UnixPeerIdentity : PeerIdentity {
+  internal UnixPeerIdentity(uint uid, uint gid, uint? pid) {
+    Uid = uid;
+    Gid = gid;
+    Pid = pid;
+  }
+
+  /// <summary>The peer's effective user ID.</summary>
+  public uint Uid { get; }
+
+  /// <summary>The peer's effective group ID.</summary>
+  [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global",
+    Justification = "Public identity field read by consumer authorization policies.")]
+  public uint Gid { get; }
+
+  /// <summary>The peer's process ID when the platform supplies one.</summary>
+  public uint? Pid { get; }
+
+  /// <inheritdoc />
+  public override string ToString()
+    => "UnixPeerIdentity { .. }";
+}

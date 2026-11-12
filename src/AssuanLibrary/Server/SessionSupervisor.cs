@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;
@@ -16,7 +17,8 @@ internal sealed class SessionSupervisor<TState> {
     => _permits = new SemaphoreSlim(capacity, capacity);
 
   internal int PendingCount {
-    get {
+    get
+    {
       lock (_sync) {
         return _sessions.Count;
       }
@@ -39,7 +41,7 @@ internal sealed class SessionSupervisor<TState> {
   }
 
   internal void Track(AcceptedConnection accepted, Func<TState> factory,
-  CommandRegistry<TState> registry, ISessionHooks<TState> hooks, ServerOptions options) {
+    CommandRegistry<TState> registry, ISessionHooks<TState> hooks, ServerOptions options) {
     var work = new SessionWork(this);
     lock (_sync) {
       if (_sessions.Count == 0) {
@@ -58,9 +60,7 @@ internal sealed class SessionSupervisor<TState> {
       snapshot = [.. _sessions];
     }
 
-    foreach (var session in snapshot) {
-      session.RequestStop();
-    }
+    foreach (var session in snapshot) session.RequestStop();
   }
 
   private void Completed(SessionWork session) {
@@ -85,11 +85,15 @@ internal sealed class SessionSupervisor<TState> {
   private sealed class SessionWork(SessionSupervisor<TState> owner) {
     private readonly CancellationTokenSource _stop = new();
     private SessionControl? _control;
+
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Local",
+      Justification = "Keeps the running session task reachable from its tracked work; nothing awaits it by design.")]
     internal Task? Task { get; private set; }
 
     internal void Start(AcceptedConnection accepted, Func<TState> factory,
-    CommandRegistry<TState> registry, ISessionHooks<TState> hooks, ServerOptions options) {
-      Task = Task.Run(async () => {
+      CommandRegistry<TState> registry, ISessionHooks<TState> hooks, ServerOptions options) {
+      Task = Task.Run(async () =>
+      {
         var transferred = false;
         try {
           if (_stop.IsCancellationRequested) {

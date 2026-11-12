@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using AssuanLibrary.Transport.Unix;
 
@@ -8,8 +9,11 @@ namespace AssuanLibrary.Transport.Discovery;
 
 /// <summary>Connects using original Unix pathname bytes without replacement-decoding them.</summary>
 internal static class UnixRawConnector {
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "The nonblocking socket is owned until it is duplicated into the returned stream; one finally " +
+                    "must cover the connect poll, the duplication and the final deadline check.")]
   internal static async Task<Stream> ConnectAsync(ReadOnlyMemory<byte> path, TimeSpan timeout,
-  CancellationToken cancellationToken) {
+    CancellationToken cancellationToken) {
     if (!OperatingSystem.IsLinux() &&
         !OperatingSystem.IsMacOS()) {
       throw new PlatformNotSupportedException();
@@ -72,7 +76,7 @@ internal static class UnixRawConnector {
       socket.Dispose();
       if (deadline.Remaining == TimeSpan.Zero ||
           cancellationToken.IsCancellationRequested) {
-        await result.DisposeAsync();
+        await result.DisposeAsync().ConfigureAwait(false);
         throw new TransportException(cancellationToken.IsCancellationRequested
           ? TransportErrorKind.Cancelled
           : TransportErrorKind.Timeout);

@@ -7,7 +7,7 @@ namespace AssuanLibrary.Transport.Discovery;
 
 /// <summary>Parses the literal, unescaped pathname returned by gpgconf --list-dirs agent-socket.</summary>
 internal static class AgentOutputParser {
-  private static readonly UTF8Encoding _strictUtf8 = new(false, true);
+  private readonly static UTF8Encoding StrictUtf8 = new(false, true);
 
   internal static byte[] ParseUnix(ReadOnlySpan<byte> output) {
     var path = WithoutTerminator(output, false);
@@ -22,7 +22,7 @@ internal static class AgentOutputParser {
     var path = WithoutTerminator(output, true);
     string value;
 
-    try { value = _strictUtf8.GetString(path); }
+    try { value = StrictUtf8.GetString(path); }
     catch (DecoderFallbackException) { throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput); }
 
     // Validate the Windows form even when deterministic parser tests run on Unix.
@@ -30,9 +30,9 @@ internal static class AgentOutputParser {
                 value[2] is '\\' or '/';
     var share = value.AsSpan(value.StartsWith(@"\\", StringComparison.Ordinal) ? 2 : value.Length);
     var slash = share.IndexOfAny('\\', '/');
-    var unc = value.StartsWith(@"\\", StringComparison.Ordinal) && slash > 0 && slash < (share.Length - 1);
-    if ((!drive && !unc) ||
-        (OperatingSystem.IsWindows() && !Path.IsPathFullyQualified(value))) {
+    var unc = value.StartsWith(@"\\", StringComparison.Ordinal) && slash > 0 && slash < share.Length - 1;
+    if (!drive && !unc ||
+        OperatingSystem.IsWindows() && !Path.IsPathFullyQualified(value)) {
       throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput);
     }
 

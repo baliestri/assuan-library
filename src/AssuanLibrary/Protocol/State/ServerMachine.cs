@@ -15,7 +15,7 @@ internal sealed class ServerMachine {
     }
 
     if (kind is RequestKind.Comment or RequestKind.Empty ||
-        (State == ServerState.Inquiry && kind == RequestKind.Data)) {
+        State == ServerState.Inquiry && kind == RequestKind.Data) {
       return;
     }
 
@@ -40,9 +40,9 @@ internal sealed class ServerMachine {
     }
 
     if (kind is ProtocolResponseKind.Comment or ProtocolResponseKind.Empty ||
-        (State is ServerState.Greeting or ServerState.Handler or ServerState.Inquiry or ServerState.AwaitFinal &&
-         kind == ProtocolResponseKind.Status) ||
-        (State == ServerState.Handler && kind is ProtocolResponseKind.Data or ProtocolResponseKind.End)) {
+        State is ServerState.Greeting or ServerState.Handler or ServerState.Inquiry or ServerState.AwaitFinal &&
+        kind == ProtocolResponseKind.Status ||
+        State == ServerState.Handler && kind is ProtocolResponseKind.Data or ProtocolResponseKind.End) {
       return;
     }
 

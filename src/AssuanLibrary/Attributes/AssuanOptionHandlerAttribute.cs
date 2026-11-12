@@ -1,6 +1,8 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace AssuanLibrary.Attributes;
 
 /// <summary>Marks an implemented static method as an OPTION route within an Assuan handler group.</summary>
@@ -10,5 +12,7 @@ public sealed class AssuanOptionHandlerAttribute : Attribute {
   public AssuanOptionHandlerAttribute(string optionName) => OptionName = optionName;
 
   /// <summary>Case-sensitive option name passed by OptionRequest.</summary>
+  [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global",
+    Justification = "Public attribute contract; the generator reads the constructor argument from syntax.")]
   public string OptionName { get; }
 }

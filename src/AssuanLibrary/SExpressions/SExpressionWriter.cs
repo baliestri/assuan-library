@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace AssuanLibrary.SExpressions;
@@ -30,6 +31,8 @@ public static class SExpressionWriter {
 
   /// <summary>Appends a view's canonical bytes, leaving existing output unchanged on a limit failure.</summary>
   /// <exception cref="SExpressionEncodeException">The output would exceed default parsing limits.</exception>
+  [SuppressMessage("Design", "MA0016:Prefer using collection abstraction instead of implementation",
+    Justification = "The public contract appends in place through CollectionsMarshal, which requires List<byte>.")]
   public static void AppendCanonical(SExpressionView value, List<byte> destination) {
     ArgumentNullException.ThrowIfNull(destination);
 
@@ -46,6 +49,8 @@ public static class SExpressionWriter {
 
   /// <summary>Appends an owned expression, leaving existing output unchanged on a limit failure.</summary>
   /// <exception cref="SExpressionEncodeException">The output would exceed default parsing limits.</exception>
+  [SuppressMessage("Design", "MA0016:Prefer using collection abstraction instead of implementation",
+    Justification = "The public contract appends in place through CollectionsMarshal, which requires List<byte>.")]
   public static void AppendCanonical(SExpression value, List<byte> destination) {
     ArgumentNullException.ThrowIfNull(value);
     ArgumentNullException.ThrowIfNull(destination);
@@ -114,18 +119,16 @@ public static class SExpressionWriter {
 
         ++lists;
         var children = node.Children;
-        if (((long)nodes + pending.Count + children.Count) > limits.MaxNodes) {
+        if ((long)nodes + pending.Count + children.Count > limits.MaxNodes) {
           throw new SExpressionEncodeException(SExpressionEncodeErrorKind.NodeLimit);
         }
 
-        for (var index = children.Count - 1; index >= 0; --index) {
-          pending.Push((children[index], depth + 1));
-        }
+        for (var index = children.Count - 1; index >= 0; --index) pending.Push((children[index], depth + 1));
 
         added = 2;
       }
 
-      if (size > (long.MaxValue - added)) {
+      if (size > long.MaxValue - added) {
         throw new SExpressionEncodeException(SExpressionEncodeErrorKind.LengthOverflow);
       }
 
@@ -149,7 +152,7 @@ public static class SExpressionWriter {
   }
 
   private static void CheckDestination(int previous, int additional) {
-    if (previous > (SExpressionLimits.Default.MaxInputBytes - additional)) {
+    if (previous > SExpressionLimits.Default.MaxInputBytes - additional) {
       throw new SExpressionEncodeException(SExpressionEncodeErrorKind.SizeLimit);
     }
   }
@@ -168,7 +171,7 @@ public static class SExpressionWriter {
         var length = bytes.Length;
         var first = digits.Length;
         do {
-          digits[--first] = (byte)('0' + (length % 10));
+          digits[--first] = (byte)('0' + length % 10);
           length /= 10;
         } while (length != 0);
 
@@ -182,12 +185,11 @@ public static class SExpressionWriter {
         output[position++] = (byte)'(';
         pending.Push((null, true));
         var children = node.Children;
-        for (var index = children.Count - 1; index >= 0; --index) {
-          pending.Push((children[index], false));
-        }
+        for (var index = children.Count - 1; index >= 0; --index) pending.Push((children[index], false));
       }
     }
   }
 
+  [StructLayout(LayoutKind.Sequential)]
   private readonly record struct Layout(int Bytes, int PendingItems);
 }

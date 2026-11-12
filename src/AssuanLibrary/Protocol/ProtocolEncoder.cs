@@ -28,12 +28,13 @@ public static class ProtocolEncoder {
         return response.PayloadBytes.IsEmpty
           ? WriteParts(output, "OK"u8)
           : WriteParts(output, "OK "u8, response.PayloadBytes);
-      case ProtocolResponseKind.Err: {
+      case ProtocolResponseKind.Err:
+      {
         Span<byte> digits = stackalloc byte[10];
         var first = digits.Length;
         var code = response.ErrorCode;
         do {
-          digits[--first] = (byte)('0' + (code % 10));
+          digits[--first] = (byte)('0' + code % 10);
           code /= 10;
         } while (code != 0);
 
@@ -76,7 +77,7 @@ public static class ProtocolEncoder {
         var _ => ReadOnlySpan<byte>.Empty
       };
       var cost = escape.IsEmpty ? 1 : 3;
-      if ((written + cost) >= MAX_LINE_BYTES) {
+      if (written + cost >= MAX_LINE_BYTES) {
         break;
       }
 
@@ -96,7 +97,7 @@ public static class ProtocolEncoder {
   }
 
   private static int WriteKeyword(Span<byte> output, ReadOnlySpan<byte> prefix,
-  ReadOnlySpan<byte> keyword, ReadOnlySpan<byte> args) {
+    ReadOnlySpan<byte> keyword, ReadOnlySpan<byte> args) {
     ProtocolFields.ValidateKeyword(keyword);
 
     return args.IsEmpty
@@ -111,7 +112,7 @@ public static class ProtocolEncoder {
   }
 
   private static int WriteParts(Span<byte> output, ReadOnlySpan<byte> first,
-  ReadOnlySpan<byte> second = default, ReadOnlySpan<byte> third = default, ReadOnlySpan<byte> fourth = default) {
+    ReadOnlySpan<byte> second = default, ReadOnlySpan<byte> third = default, ReadOnlySpan<byte> fourth = default) {
     ProtocolFields.ValidateLine(first);
     ProtocolFields.ValidateLine(second);
     ProtocolFields.ValidateLine(third);

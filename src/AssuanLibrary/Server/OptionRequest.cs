@@ -53,14 +53,12 @@ public readonly struct OptionRequest {
     var start = 0;
     var end = source.Length;
     while (start < end &&
-           IsSpace(source.Span[start])) {
+           IsSpace(source.Span[start]))
       ++start;
-    }
 
     while (end > start &&
-           IsSpace(source.Span[end - 1])) {
+           IsSpace(source.Span[end - 1]))
       --end;
-    }
 
     return source[start..end];
   }

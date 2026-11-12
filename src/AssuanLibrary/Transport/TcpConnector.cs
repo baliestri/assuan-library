@@ -11,7 +11,7 @@ public static class TcpConnector {
   /// <summary>Connects within a single total deadline, ten seconds by default.</summary>
   /// <remarks>TCP, including loopback, supplies no OS-authenticated user identity.</remarks>
   public static async Task<Stream> ConnectAsync(IPEndPoint endpoint, TimeSpan? timeout = null,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
     var deadline = new TransportDeadline(timeout ?? TimeSpan.FromSeconds(10));
     if (endpoint.Port == 0 ||

@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using AssuanLibrary.Protocol;
 
@@ -9,20 +10,22 @@ namespace AssuanLibrary.Transport.Discovery;
 /// <summary>Bounded native Windows agent socket-file parsing; never prints nonce bytes.</summary>
 internal static class WindowsSocketFile {
   internal static async Task<(ushort Port, SecretBuffer Nonce)> ReadAsync(string path,
-  TransportDeadline deadline, CancellationToken cancellationToken) {
+    TransportDeadline deadline, CancellationToken cancellationToken) {
     if (!OperatingSystem.IsWindows()) {
       throw new PlatformNotSupportedException();
     }
 
     try {
       var attributes = File.GetAttributes(path);
-      if ((attributes & (FileAttributes.Directory | FileAttributes.Device)) != 0) {
+      if ((attributes & (FileAttributes.Directory | FileAttributes.Device)) != FileAttributes.None) {
         throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput);
       }
 
-      await using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+      var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
         1, FileOptions.Asynchronous);
-      return await ReadStreamAsync(file, deadline, cancellationToken).ConfigureAwait(false);
+      await using (file.ConfigureAwait(false)) {
+        return await ReadStreamAsync(file, deadline, cancellationToken).ConfigureAwait(false);
+      }
     }
     catch (DiscoveryException) { throw; }
     catch (Exception error) when (error is IOException or UnauthorizedAccessException) {
@@ -31,8 +34,11 @@ internal static class WindowsSocketFile {
   }
 
   // Kept separate so delayed reads can be tested without depending on OS file-I/O cancellation.
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "The scratch buffer holding nonce bytes is wiped, or handed to a deferred read, by one finally " +
+                    "that covers both the bounded read and the parse.")]
   internal static async Task<(ushort Port, SecretBuffer Nonce)> ReadStreamAsync(Stream file,
-  TransportDeadline deadline, CancellationToken cancellationToken) {
+    TransportDeadline deadline, CancellationToken cancellationToken) {
     var scratch = new byte[23];
     var deferred = false;
     try {
@@ -55,7 +61,8 @@ internal static class WindowsSocketFile {
         catch {
           if (!pendingRead.IsCompleted) {
             deferred = true;
-            _ = pendingRead.ContinueWith(completed => {
+            _ = pendingRead.ContinueWith(completed =>
+            {
               _ = completed.Exception;
               CryptographicOperations.ZeroMemory(scratch);
             }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -119,7 +126,7 @@ internal static class WindowsSocketFile {
         throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput);
       }
 
-      port = (port * 10) + (uint)(digit - (byte)'0');
+      port = port * 10 + (uint)(digit - (byte)'0');
       if (port > ushort.MaxValue) {
         throw new DiscoveryException(DiscoveryErrorKind.InvalidOutput);
       }

@@ -5,4 +5,4 @@ namespace AssuanLibrary.Attributes;
 
 /// <summary>Requests explicit typed registration of annotated methods in a partial class.</summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class AssuanHandlerGroupAttribute : Attribute { }
+public sealed class AssuanHandlerGroupAttribute : Attribute;

@@ -5,27 +5,6 @@ using AssuanLibrary.Protocol;
 
 namespace AssuanLibrary.Client;
 
-/// <summary>Category of one borrowed response event.</summary>
-public enum ClientEventKind {
-  /// <summary>A percent-decoded D line.</summary>
-  Data,
-
-  /// <summary>An S line with keyword and literal arguments.</summary>
-  Status,
-
-  /// <summary>A comment line without its leading #.</summary>
-  Comment,
-
-  /// <summary>A partial END line, not the final response.</summary>
-  End,
-
-  /// <summary>An exclusive server inquiry requiring END or CAN.</summary>
-  Inquire,
-
-  /// <summary>A final OK or ERR response.</summary>
-  Finished
-}
-
 /// <summary>One response event borrowing the channel's receive buffer until disposal.</summary>
 public sealed class ClientEventLease : IDisposable {
   private readonly ClientInquiry? _inquiry;
@@ -35,7 +14,7 @@ public sealed class ClientEventLease : IDisposable {
   private int _disposed;
 
   internal ClientEventLease(ClientEventKind kind, ReadOnlyMemory<byte> payload, ReadOnlyMemory<byte> keyword,
-  PayloadSensitivity sensitivity, uint? remoteCode, Action release, ClientInquiry? inquiry = null) {
+    PayloadSensitivity sensitivity, uint? remoteCode, Action release, ClientInquiry? inquiry = null) {
     Kind = kind;
     _payload = payload;
     KeywordBytes = keyword;
@@ -53,15 +32,19 @@ public sealed class ClientEventLease : IDisposable {
 
   /// <summary>Exclusive response guard on an INQUIRE event only.</summary>
   public ClientInquiry Inquiry {
-    get {
+    get
+    {
       CheckOpen();
-      return Kind == ClientEventKind.Inquire ? _inquiry! : throw new InvalidOperationException("The event is not an inquiry.");
+      return Kind == ClientEventKind.Inquire
+        ? _inquiry!
+        : throw new InvalidOperationException("The event is not an inquiry.");
     }
   }
 
   /// <summary>Validated ASCII keyword on a status event.</summary>
   public ReadOnlyMemory<byte> KeywordBytes {
-    get {
+    get
+    {
       CheckOpen();
       if (Kind != ClientEventKind.Status) {
         throw new InvalidOperationException("The event has no keyword.");
@@ -73,7 +56,8 @@ public sealed class ClientEventLease : IDisposable {
 
   /// <summary>Borrowed public payload bytes, except for an END event.</summary>
   public ReadOnlyMemory<byte> PayloadBytes {
-    get {
+    get
+    {
       CheckOpen();
       if (Kind is ClientEventKind.End or ClientEventKind.Inquire) {
         throw new InvalidOperationException("This event has no payload.");

@@ -1,6 +1,7 @@
 // Copyright (c) Bruno Sales <me@baliestri.dev>. Licensed under the zlib/libpng License.
 // See the LICENSE file in the repository root for full license text.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -42,12 +43,12 @@ public sealed class AssuanClient : IAsyncDisposable {
 
   /// <summary>Takes ownership of a connected stream, auto-cancels greeting inquiries and waits for a final.</summary>
   public static Task<AssuanClient> FromStreamAsync(Stream stream, ClientOptions? options = null,
-  CancellationToken cancellationToken = default)
+    CancellationToken cancellationToken = default)
     => FromStreamWithClockAsync(stream, options, TimeProvider.System, cancellationToken);
 
   /// <summary>Consumes a greeting, delegating every inquiry to an exclusive callback.</summary>
   public static Task<AssuanClient> FromStreamAsync(Stream stream, IGreetingInquiryHandler handler,
-  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ClientOptions? options = null, CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(handler);
     return DriveHandshakeAsync(stream, options, TimeProvider.System, handler, cancellationToken);
   }
@@ -55,81 +56,87 @@ public sealed class AssuanClient : IAsyncDisposable {
   // Deterministic tests advance only client-owned total budgets; channel I/O still
   // enforces its real per-call deadline using the remaining amount passed to it.
   internal static Task<AssuanClient> FromStreamWithClockAsync(Stream stream, ClientOptions? options,
-  TimeProvider clock, CancellationToken cancellationToken)
+    TimeProvider clock, CancellationToken cancellationToken)
     => DriveHandshakeAsync(stream, options, clock, null, cancellationToken);
 
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "Each greeting event's lease is released or deferred by one finally; the inquiry timeout path " +
+                    "hands that lease to a continuation, so the loop body cannot be split without moving ownership.")]
   private static async Task<AssuanClient> DriveHandshakeAsync(Stream stream, ClientOptions? options,
-  TimeProvider clock, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
+    TimeProvider clock, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(stream);
     ArgumentNullException.ThrowIfNull(clock);
     var selected = options ?? ClientOptions.Default;
-    await using var handshake = new ClientHandshake(new ClientCore(stream, clock, selected.EventSink), selected);
-    if (cancellationToken.IsCancellationRequested) {
-      throw new ClientException(ClientErrorKind.Cancelled);
-    }
+    var handshake = new ClientHandshake(new ClientCore(stream, clock, selected.EventSink), selected);
+    await using (handshake.ConfigureAwait(false)) {
+      if (cancellationToken.IsCancellationRequested) {
+        throw new ClientException(ClientErrorKind.Cancelled);
+      }
 
-    while (await handshake.ReadNextAsync(cancellationToken).ConfigureAwait(false) is { } ev) {
-      var deferred = false;
-      try {
-        if (ev.Kind != ClientEventKind.Inquire) {
-          continue;
-        }
-
-        var inquiry = ev.Inquiry;
-        if (handler is null) {
-          await inquiry.CancelAsync(cancellationToken).ConfigureAwait(false);
-          continue;
-        }
-
-        var remaining = inquiry.Deadline.Remaining;
-        if (remaining == TimeSpan.Zero) {
-          throw new ClientException(ClientErrorKind.Timeout);
-        }
-
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        linked.CancelAfter(remaining);
-        Task response;
-        try { response = handler.RespondAsync(inquiry, linked.Token).AsTask(); }
-        catch (Exception error) { throw new ClientException(ClientErrorKind.State, technicalCause: error); }
-
-        try { await response.WaitAsync(remaining, linked.Token).ConfigureAwait(false); }
-        catch (Exception error) when (error is TimeoutException or OperationCanceledException) {
-          await handshake.DisposeAsync().ConfigureAwait(false);
-          if (!response.IsCompleted) {
-            var borrowed = ev;
-            _ = response.ContinueWith(completed => {
-              _ = completed.Exception;
-              borrowed.Dispose();
-            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-            deferred = true;
+      while (await handshake.ReadNextAsync(cancellationToken).ConfigureAwait(false) is { } ev) {
+        var deferred = false;
+        try {
+          if (ev.Kind != ClientEventKind.Inquire) {
+            continue;
           }
 
-          throw new ClientException(cancellationToken.IsCancellationRequested
-            ? ClientErrorKind.Cancelled
-            : ClientErrorKind.Timeout);
-        }
-        catch (ClientException) { throw; }
-        catch (Exception error) {
-          throw new ClientException(ClientErrorKind.State, technicalCause: error);
-        }
+          var inquiry = ev.Inquiry;
+          if (handler is null) {
+            await inquiry.CancelAsync(cancellationToken).ConfigureAwait(false);
+            continue;
+          }
 
-        if (!inquiry.IsCompleted) {
-          throw new ClientException(ClientErrorKind.Incomplete);
+          var remaining = inquiry.Deadline.Remaining;
+          if (remaining == TimeSpan.Zero) {
+            throw new ClientException(ClientErrorKind.Timeout);
+          }
+
+          using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+          linked.CancelAfter(remaining);
+          Task response;
+          try { response = handler.RespondAsync(inquiry, linked.Token).AsTask(); }
+          catch (Exception error) { throw new ClientException(ClientErrorKind.State, technicalCause: error); }
+
+          try { await response.WaitAsync(remaining, linked.Token).ConfigureAwait(false); }
+          catch (Exception error) when (error is TimeoutException or OperationCanceledException) {
+            await handshake.DisposeAsync().ConfigureAwait(false);
+            if (!response.IsCompleted) {
+              var borrowed = ev;
+              _ = response.ContinueWith(completed =>
+              {
+                _ = completed.Exception;
+                borrowed.Dispose();
+              }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+              deferred = true;
+            }
+
+            throw new ClientException(cancellationToken.IsCancellationRequested
+              ? ClientErrorKind.Cancelled
+              : ClientErrorKind.Timeout);
+          }
+          catch (ClientException) { throw; }
+          catch (Exception error) {
+            throw new ClientException(ClientErrorKind.State, technicalCause: error);
+          }
+
+          if (!inquiry.IsCompleted) {
+            throw new ClientException(ClientErrorKind.Incomplete);
+          }
+        }
+        finally {
+          if (!deferred) {
+            ev.Dispose();
+          }
         }
       }
-      finally {
-        if (!deferred) {
-          ev.Dispose();
-        }
-      }
+
+      return handshake.Finish();
     }
-
-    return handshake.Finish();
   }
 
   /// <summary>Connects to a chosen TCP address and consumes the greeting.</summary>
   public static Task<AssuanClient> ConnectAsync(IPEndPoint endpoint, ClientOptions? options = null,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
 
     return ConnectViaAsync((timeout, token) => TcpConnector.ConnectAsync(endpoint, timeout, token),
@@ -137,8 +144,9 @@ public sealed class AssuanClient : IAsyncDisposable {
   }
 
   /// <summary>Connects over TCP and delegates greeting inquiries to a callback.</summary>
+  [SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Public entry point for consumers.")]
   public static Task<AssuanClient> ConnectAsync(IPEndPoint endpoint, IGreetingInquiryHandler handler,
-  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ClientOptions? options = null, CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
     ArgumentNullException.ThrowIfNull(handler);
 
@@ -148,7 +156,7 @@ public sealed class AssuanClient : IAsyncDisposable {
 
   /// <summary>Connects to an explicit Unix socket or Windows named pipe.</summary>
   public static Task<AssuanClient> ConnectAsync(LocalEndpoint endpoint, ClientOptions? options = null,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
 
     return ConnectViaAsync((timeout, token) => endpoint.Kind switch {
@@ -159,8 +167,9 @@ public sealed class AssuanClient : IAsyncDisposable {
   }
 
   /// <summary>Connects over local IPC with a greeting inquiry callback.</summary>
+  [SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Public entry point for consumers.")]
   public static Task<AssuanClient> ConnectAsync(LocalEndpoint endpoint, IGreetingInquiryHandler handler,
-  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ClientOptions? options = null, CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
     ArgumentNullException.ThrowIfNull(handler);
 
@@ -173,7 +182,7 @@ public sealed class AssuanClient : IAsyncDisposable {
 
   /// <summary>Uses the resolved endpoint's own connection method, including a Windows nonce handshake.</summary>
   public static Task<AssuanClient> ConnectAsync(ResolvedAgentEndpoint endpoint, ClientOptions? options = null,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
 
     return ConnectViaAsync((timeout, token) => endpoint.ConnectAsync(timeout, token),
@@ -181,8 +190,9 @@ public sealed class AssuanClient : IAsyncDisposable {
   }
 
   /// <summary>Uses the resolved endpoint's nonce handshake and a greeting inquiry callback.</summary>
+  [SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Public entry point for consumers.")]
   public static Task<AssuanClient> ConnectAsync(ResolvedAgentEndpoint endpoint, IGreetingInquiryHandler handler,
-  ClientOptions? options = null, CancellationToken cancellationToken = default) {
+    ClientOptions? options = null, CancellationToken cancellationToken = default) {
     ArgumentNullException.ThrowIfNull(endpoint);
     ArgumentNullException.ThrowIfNull(handler);
 
@@ -192,7 +202,7 @@ public sealed class AssuanClient : IAsyncDisposable {
 
   /// <summary>Starts one validated command; its transaction owns all reads until a final response.</summary>
   public async Task<ClientTransaction> CommandAsync(string name, ReadOnlyMemory<byte> arguments,
-  PayloadSensitivity sensitivity = PayloadSensitivity.Public, CancellationToken cancellationToken = default) {
+    PayloadSensitivity sensitivity = PayloadSensitivity.Public, CancellationToken cancellationToken = default) {
     if (Volatile.Read(ref _core.TransactionActive) != 0 ||
         !_core.IsUsable) {
       throw new ClientException(ClientErrorKind.State);
@@ -251,7 +261,7 @@ public sealed class AssuanClient : IAsyncDisposable {
 
   /// <summary>Explicitly collects bounded public data and copied status/comment metadata.</summary>
   public async Task<CollectedResponse> CollectAsync(string name, ReadOnlyMemory<byte> arguments,
-  CollectLimits? limits = null, CancellationToken cancellationToken = default) {
+    CollectLimits? limits = null, CancellationToken cancellationToken = default) {
     var collected = await CollectCoreAsync(name, arguments, limits ?? CollectLimits.Default, false,
       cancellationToken).ConfigureAwait(false);
     return new CollectedResponse(collected.Data, collected.Statuses, collected.Comments);
@@ -259,15 +269,18 @@ public sealed class AssuanClient : IAsyncDisposable {
 
   /// <summary>Explicitly collects bounded secret data in fixed protected storage.</summary>
   public async Task<SecretCollectedResponse> CollectSecretAsync(string name, ReadOnlyMemory<byte> arguments,
-  CollectLimits? limits = null, CancellationToken cancellationToken = default) {
+    CollectLimits? limits = null, CancellationToken cancellationToken = default) {
     var collected = await CollectCoreAsync(name, arguments, limits ?? CollectLimits.Default, true,
       cancellationToken).ConfigureAwait(false);
     return new SecretCollectedResponse(collected.Secret!, collected.Statuses, collected.Comments);
   }
 
+  [SuppressMessage("Design", "MA0051:Method is too long",
+    Justification = "The secret buffer is disposed unless ownership is transferred at the single return; the event " +
+                    "switch shares that budget and transfer state.")]
   private async Task<(byte[] Data, SecretBuffer? Secret, List<CollectedStatus> Statuses, List<byte[]> Comments)>
     CollectCoreAsync(string name, ReadOnlyMemory<byte> arguments, CollectLimits limits, bool secret,
-    CancellationToken token) {
+      CancellationToken token) {
     var protectedData = secret ? new SecretBuffer(limits.MaxBytes) : null;
     using var publicData = new MemoryStream();
     var statuses = new List<CollectedStatus>();
@@ -276,51 +289,55 @@ public sealed class AssuanClient : IAsyncDisposable {
     var count = 0;
     var transferred = false;
     try {
-      await using var transaction = await CommandAsync(name, arguments,
+      var transaction = await CommandAsync(name, arguments,
         secret ? PayloadSensitivity.Secret : PayloadSensitivity.Public, token).ConfigureAwait(false);
-      while (await transaction.ReadNextAsync(token).ConfigureAwait(false) is { } current) {
-        using (current) {
-          if (++count > limits.MaxEvents) {
-            _core.Invalidate();
-            throw new ClientException(ClientErrorKind.Limit);
+      await using (transaction.ConfigureAwait(false)) {
+        while (await transaction.ReadNextAsync(token).ConfigureAwait(false) is { } current)
+          using (current) {
+            if (++count > limits.MaxEvents) {
+              _core.Invalidate();
+              throw new ClientException(ClientErrorKind.Limit);
+            }
+
+            switch (current.Kind) {
+              case ClientEventKind.Data:
+              {
+                var data = secret ? current.ExposeSecret() : current.PayloadBytes;
+                CheckBudget(data.Length);
+                if (secret) {
+                  protectedData!.Append(data.Span);
+                }
+                else {
+                  publicData.Write(data.Span);
+                }
+
+                break;
+              }
+              case ClientEventKind.Status:
+              {
+                var keyword = current.KeywordBytes;
+                var data = secret ? current.ExposeSecret() : current.PayloadBytes;
+                CheckBudget(checked(keyword.Length + 1 + data.Length));
+                statuses.Add(new CollectedStatus(keyword.ToArray(), data.ToArray()));
+                break;
+              }
+              case ClientEventKind.Comment:
+              {
+                var data = secret ? current.ExposeSecret() : current.PayloadBytes;
+                CheckBudget(data.Length);
+                comments.Add(data.ToArray());
+                break;
+              }
+              case ClientEventKind.Inquire:
+                await current.Inquiry.CancelAsync(token).ConfigureAwait(false);
+                break;
+            }
           }
 
-          switch (current.Kind) {
-            case ClientEventKind.Data: {
-              var data = secret ? current.ExposeSecret() : current.PayloadBytes;
-              CheckBudget(data.Length);
-              if (secret) {
-                protectedData!.Append(data.Span);
-              }
-              else {
-                publicData.Write(data.Span);
-              }
-
-              break;
-            }
-            case ClientEventKind.Status: {
-              var keyword = current.KeywordBytes;
-              var data = secret ? current.ExposeSecret() : current.PayloadBytes;
-              CheckBudget(checked(keyword.Length + 1 + data.Length));
-              statuses.Add(new CollectedStatus(keyword.ToArray(), data.ToArray()));
-              break;
-            }
-            case ClientEventKind.Comment: {
-              var data = secret ? current.ExposeSecret() : current.PayloadBytes;
-              CheckBudget(data.Length);
-              comments.Add(data.ToArray());
-              break;
-            }
-            case ClientEventKind.Inquire:
-              await current.Inquiry.CancelAsync(token).ConfigureAwait(false);
-              break;
-          }
-        }
+        transaction.Finish();
+        transferred = true;
+        return (secret ? [] : publicData.ToArray(), protectedData, statuses, comments);
       }
-
-      transaction.Finish();
-      transferred = true;
-      return (secret ? [] : publicData.ToArray(), protectedData, statuses, comments);
     }
     finally {
       if (!transferred) {
@@ -329,7 +346,7 @@ public sealed class AssuanClient : IAsyncDisposable {
     }
 
     void CheckBudget(int bytes) {
-      if (bytes > (limits.MaxBytes - retained)) {
+      if (bytes > limits.MaxBytes - retained) {
         _core.Invalidate();
         throw new ClientException(ClientErrorKind.Limit);
       }
@@ -339,7 +356,7 @@ public sealed class AssuanClient : IAsyncDisposable {
   }
 
   private static async Task<AssuanClient> ConnectViaAsync(Func<TimeSpan, CancellationToken, Task<Stream>> connect,
-  ClientOptions options, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
+    ClientOptions options, IGreetingInquiryHandler? handler, CancellationToken cancellationToken) {
     try {
       if (cancellationToken.IsCancellationRequested) {
         throw new ClientException(ClientErrorKind.Cancelled);

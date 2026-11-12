@@ -7,61 +7,6 @@ using AssuanLibrary.Transport;
 
 namespace AssuanLibrary.Server;
 
-/// <summary>How a peer terminated one inquiry; CAN does not decide the command's final response.</summary>
-public enum InquiryOutcome {
-  /// <summary>The peer sent END.</summary>
-  Completed,
-
-  /// <summary>The peer sent CAN; the handler still decides its final response.</summary>
-  Cancelled
-}
-
-/// <summary>An exclusive borrow of one decoded client data segment.</summary>
-public sealed class InquiryChunk : IDisposable {
-  private readonly ReadOnlyMemory<byte> _payload;
-  private readonly Action _release;
-  private readonly PayloadSensitivity _sensitivity;
-  private int _disposed;
-
-  internal InquiryChunk(ReadOnlyMemory<byte> payload, PayloadSensitivity sensitivity, Action release) {
-    _payload = payload;
-    _sensitivity = sensitivity;
-    _release = release;
-  }
-
-  /// <summary>Access to ordinary public data; secret data requires an explicit Expose call.</summary>
-  public ReadOnlyMemory<byte> Data {
-    get {
-      CheckOpen();
-      if (_sensitivity == PayloadSensitivity.Secret) {
-        throw new InvalidOperationException("Secret data requires explicit exposure.");
-      }
-
-      return _payload;
-    }
-  }
-
-  /// <summary>Releases the channel buffer before another inquiry read.</summary>
-  public void Dispose() {
-    if (Interlocked.Exchange(ref _disposed, 1) == 0) {
-      _release();
-    }
-  }
-
-  /// <summary>Explicitly borrows decoded bytes, including classified secret data.</summary>
-  public ReadOnlyMemory<byte> Expose() {
-    CheckOpen();
-    return _payload;
-  }
-
-  /// <inheritdoc />
-  public override string ToString()
-    => $"InquiryChunk {{ Length = {_payload.Length}, Secret = {_sensitivity == PayloadSensitivity.Secret} }}";
-
-  private void CheckOpen()
-    => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-}
-
 /// <summary>Reads data under one deadline; unfinished disposal invalidates the session.</summary>
 public sealed class ServerInquiry : IAsyncDisposable {
   private readonly Action _abort;
@@ -78,7 +23,7 @@ public sealed class ServerInquiry : IAsyncDisposable {
   private int _received;
 
   internal ServerInquiry(AssuanChannel channel, ServerMachine machine, TransportDeadline deadline,
-  int limit, PayloadSensitivity sensitivity, Action release, Action abort) {
+    int limit, PayloadSensitivity sensitivity, Action release, Action abort) {
     _channel = channel;
     _machine = machine;
     _deadline = deadline;
@@ -143,7 +88,7 @@ public sealed class ServerInquiry : IAsyncDisposable {
 
         _machine.ReceiveRequest(RequestKind.Data);
         var decoded = ProtocolEscaping.DecodeDataInPlace(_channel.MutableLine[2..]);
-        if (decoded > (_limit - _received)) {
+        if (decoded > _limit - _received) {
           throw new ServerException(ServerErrorKind.Limit);
         }
 

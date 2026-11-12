@@ -9,7 +9,7 @@ namespace AssuanLibrary.Transport.Unix;
 public static class UnixConnector {
   /// <summary>Connects within a total deadline, ten seconds by default, without reading any greeting.</summary>
   public static async Task<Stream> ConnectAsync(LocalEndpoint endpoint, TimeSpan? timeout = null,
-  CancellationToken cancellationToken = default) {
+    CancellationToken cancellationToken = default) {
     if (!OperatingSystem.IsLinux() &&
         !OperatingSystem.IsMacOS()) {
       throw new PlatformNotSupportedException();

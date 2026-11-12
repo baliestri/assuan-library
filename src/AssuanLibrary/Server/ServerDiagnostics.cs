@@ -7,12 +7,12 @@ namespace AssuanLibrary.Server;
 
 /// <summary>Reports only redacted categories; never forwards exception or application text.</summary>
 internal static class ServerDiagnostics {
-  private static readonly DiagnosticListener _listener = new("AssuanLibrary.Server");
+  private readonly static DiagnosticListener Listener = new("AssuanLibrary.Server");
 
   internal static void Report(ServerErrorKind kind) {
     try {
-      if (_listener.IsEnabled("SessionFailure")) {
-        _listener.Write("SessionFailure", new { Kind = kind });
+      if (Listener.IsEnabled("SessionFailure")) {
+        Listener.Write("SessionFailure", new { Kind = kind });
       }
     }
     catch {

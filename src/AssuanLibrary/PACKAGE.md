@@ -54,9 +54,10 @@ nonce is sent before the greeting.
 
 ## Learn more
 
-- [Getting started](https://baliestri.github.io/assuan-library/2.0.1/guides/getting-started.html)
-  and [client transactions](https://baliestri.github.io/assuan-library/2.0.1/guides/client-transactions.html)
-- [Server sessions](https://baliestri.github.io/assuan-library/2.0.1/guides/server-session.html), [GnuPG agent discovery](https://baliestri.github.io/assuan-library/2.0.1/guides/agent-discovery.html),
-  and [ownership and security](https://baliestri.github.io/assuan-library/2.0.1/guides/security.html)
-- [Public API reference](https://baliestri.github.io/assuan-library/2.0.1/api/toc.html)
-  and [selectable client/server examples](https://github.com/baliestri/assuan-library/tree/v2.0.1/examples/AssuanLibrary.Examples)
+- [Getting started](https://github.com/baliestri/assuan-library/blob/main/wiki/Getting-Started.md)
+  and [client transactions](https://github.com/baliestri/assuan-library/blob/main/wiki/Client-Transactions.md)
+- [Server sessions](https://github.com/baliestri/assuan-library/blob/main/wiki/Server-Sessions.md),
+  [GnuPG agent discovery](https://github.com/baliestri/assuan-library/blob/main/wiki/Agent-Discovery.md),
+  and [ownership and security](https://github.com/baliestri/assuan-library/blob/main/wiki/Security.md)
+- [All wiki pages](https://github.com/baliestri/assuan-library/blob/main/wiki/Home.md)
+  and [selectable client/server examples](https://github.com/baliestri/assuan-library/tree/main/examples/AssuanLibrary.Examples)

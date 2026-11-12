@@ -16,5 +16,5 @@ report. A description of the affected API, the platform and a minimal reproducti
 
 ## Scope and boundaries
 
-[Ownership and security boundaries](docs/guides/security.md) describes what the library protects and what remains the application's responsibility,
+[Ownership and security boundaries](wiki/Security.md) describes what the library protects and what remains the application's responsibility,
 including unauthenticated TCP listeners, local IPC peer checks and the limits of secret wiping in managed memory.

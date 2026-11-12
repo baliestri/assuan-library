@@ -1,6 +1,6 @@
 # Canonical S-expressions
 
-`AssuanLibrary.SExpressions` parses and writes **canonical binary** S-expressions. It is the first implemented layer of the 2.0 rewrite. An atom is encoded as its decimal byte length, a colon, then the exact bytes. Lists surround consecutive expressions with `(` and `)`. No whitespace is skipped outside atom payloads.
+`AssuanLibrary.SExpressions` parses and writes **canonical binary** S-expressions. An atom is encoded as its decimal byte length, a colon, then the exact bytes. Lists surround consecutive expressions with `(` and `)`. No whitespace is skipped outside atom payloads.
 
 ## Parse without copying atom bytes
 

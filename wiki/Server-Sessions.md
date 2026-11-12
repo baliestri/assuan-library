@@ -1,6 +1,6 @@
 # One Assuan server session
 
-`ServerSession<TState>` handles one **already accepted** byte stream. It owns that stream, performs an authentication hook before the greeting, executes commands serially, and emits the single final `OK` or `ERR` after each command. Concurrent acceptance and shutdown coordination belong to the later server-host stage.
+`ServerSession<TState>` handles one **already accepted** byte stream. It owns that stream, performs an authentication hook before the greeting, executes commands serially, and emits the single final `OK` or `ERR` after each command. Concurrent acceptance and shutdown coordination belong to [`AssuanServer<TState>`](Concurrent-Server.md).
 
 ## Register handlers and state
 

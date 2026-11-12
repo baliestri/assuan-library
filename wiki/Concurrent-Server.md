@@ -4,7 +4,7 @@
 
 ## Complete loopback host
 
-This example uses TCP loopback for local development. The default hooks do **not** authenticate TCP clients; install an application authentication hook before exchanging secrets. See [the session guide](server-session.md) for the hook contract and inquiry lifetimes.
+This example uses TCP loopback for local development. The default hooks do **not** authenticate TCP clients; install an application authentication hook before exchanging secrets. See [the session guide](Server-Sessions.md) for the hook contract and inquiry lifetimes.
 
 ```csharp
 using System.Net;

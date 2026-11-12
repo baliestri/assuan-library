@@ -37,7 +37,7 @@ static class IntegrationExample {
 }
 ```
 
-Supply your own state factory, hooks and handler as in the [server guide](server.md) and [generator guide](generators.md). The factory runs **once per admitted connection**, not when building the provider. It does not create a DI scope automatically or manage scoped state dependencies; a consumer that needs per-connection scope must own it explicitly. The helper does not bind an endpoint, start the server, authenticate TCP, discover handlers automatically or retry client transactions. The server is `IAsyncDisposable`: asynchronously dispose the provider after serving, while supervising any pending session work.
+Supply your own state factory, hooks and handler as in the [server guide](Concurrent-Server.md) and [generator guide](Generators.md). The factory runs **once per admitted connection**, not when building the provider. It does not create a DI scope automatically or manage scoped state dependencies; a consumer that needs per-connection scope must own it explicitly. The helper does not bind an endpoint, start the server, authenticate TCP, discover handlers automatically or retry client transactions. The server is `IAsyncDisposable`: asynchronously dispose the provider after serving, while supervising any pending session work.
 
 ## Logging without sensitive payloads
 

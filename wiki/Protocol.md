@@ -1,6 +1,6 @@
 # Assuan protocol primitives
 
-`AssuanLibrary.Protocol` provides binary-safe, I/O-independent building blocks for the Assuan wire format. Parse and encode one line at a time, assemble complete lines under a fixed limit, and choose explicitly how to handle secret bytes. Client and server sessions will use these primitives in later stages; this layer does not connect to a peer or perform authentication.
+`AssuanLibrary.Protocol` provides binary-safe, I/O-independent building blocks for the Assuan wire format. Parse and encode one line at a time, assemble complete lines under a fixed limit, and choose explicitly how to handle secret bytes. Client and server sessions are built on these primitives; this layer does not connect to a peer or perform authentication.
 
 ## Parse a wire line
 
@@ -76,4 +76,4 @@ Console.WriteLine(exposed.Length);
 secret.Clear();
 ```
 
-Protect and clear the source and any caller-created copies separately. Managed cleanup does not wipe previous GC copies, OS buffers, stack temporaries, swap or crash dumps. `PayloadSensitivity` selects public or secret handling in later client/server operations; the enum itself owns no bytes and provides no authentication. TCP authentication, transport deadlines, cancellation and protocol session sequencing are responsibilities of higher layers; the internal state machines validate order but do not perform I/O.
+Protect and clear the source and any caller-created copies separately. Managed cleanup does not wipe OS buffers, stack temporaries, swap or crash dumps. `PayloadSensitivity` selects public or secret handling in client and server operations; the enum itself owns no bytes and provides no authentication. TCP authentication, transport deadlines, cancellation and protocol session sequencing are responsibilities of higher layers; the internal state machines validate order but do not perform I/O.

@@ -30,7 +30,7 @@ try {
 
 `Cleanup()` rechecks parent ownership, mode, device/inode and the socket's owner/type/device/inode before unlinking. A changed parent, symlink or replaced socket is preserved and causes `AccessPolicy`, never a blind deletion by matching path. Repeating successful cleanup cannot remove a later file with the same name. Disposing a listener **closes its socket but does not unlink its pathname**; call `Cleanup()` explicitly when appropriate. Same-UID and privileged processes remain in the local trust boundary and can race pathname checks.
 
-The Unix implementation uses small OS-specific native metadata and peer-credential calls for Linux/macOS on little-endian x64/arm64. Unsupported native layouts fail closed. Its permission, UID, and cleanup tests pass in a Linux .NET 10 container with a private tmpfs socket directory. **macOS remains unverified** and needs its own platform run; a Windows build is not evidence of Unix interoperability. Outgoing connections can target external services in directories with different policies. Binary non-UTF-8 pathnames returned by `gpgconf` belong to the later agent-discovery stage.
+The Unix implementation uses small OS-specific native metadata and peer-credential calls for Linux/macOS on little-endian x64/arm64. Unsupported native layouts fail closed. Its permission, UID, and cleanup tests pass in a Linux .NET 10 container with a private tmpfs socket directory. **macOS remains unverified** and needs its own platform run; a Windows build is not evidence of Unix interoperability. Outgoing connections can target external services in directories with different policies. Binary non-UTF-8 pathnames returned by `gpgconf` are handled by [agent discovery](Agent-Discovery.md).
 
 ## Windows named pipes
 

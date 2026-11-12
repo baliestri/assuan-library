@@ -1,6 +1,6 @@
 # TCP and custom byte transports
 
-`AssuanLibrary.Transport` connects and accepts **duplex byte streams**. `AssuanChannel` adds bounded, asynchronous line I/O over an already connected `Stream`. This layer does not interpret `OK`/`ERR`, implement an Assuan session, authenticate the peer or add TLS. Unix domain sockets, Windows named pipes and GnuPG discovery have separate implementation stages.
+`AssuanLibrary.Transport` connects and accepts **duplex byte streams**. `AssuanChannel` adds bounded, asynchronous line I/O over an already connected `Stream`. This layer does not interpret `OK`/`ERR`, implement an Assuan session, authenticate the peer or add TLS. Unix domain sockets and Windows named pipes are described in [Local IPC](Local-IPC.md), and GnuPG discovery in [Agent discovery](Agent-Discovery.md).
 
 ## Connect and accept over TCP
 

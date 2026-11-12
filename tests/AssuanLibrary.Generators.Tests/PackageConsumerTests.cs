@@ -13,6 +13,13 @@ public sealed class PackageConsumerTests {
 
   private readonly static string PackageDirectory = Path.Combine(Repository, "artifacts", "packages");
 
+  // The folder the solution itself was restored into. It serves as an offline feed for the consumers, so
+  // they do not depend on whatever an older run left in the consumer cache under artifacts/.
+  private static string RestoredPackages
+    => Environment.GetEnvironmentVariable("NUGET_PACKAGES") is { Length: > 0 } configured
+      ? configured
+      : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+
   [Fact]
   public async Task MainPackageContainsOneAnalyzerAndNoMandatoryMicrosoftDependencies() {
     Directory.CreateDirectory(PackageDirectory);
@@ -79,17 +86,16 @@ public sealed class PackageConsumerTests {
           </PropertyGroup>
           <ItemGroup>
         <PackageReference Include="AssuanLibrary" Version="{version}" />
-        {(di
-          ? "<PackageReference Include=\"Microsoft.Extensions.DependencyInjection\" Version=\"10.0.0\" />\n"
-          : "")}{(logging
-          ? "<PackageReference Include=\"Microsoft.Extensions.Logging.Abstractions\" Version=\"10.0.0\" />\n"
+        {(di ? Reference("Microsoft.Extensions.DependencyInjection") : "")}{(logging
+          ? Reference("Microsoft.Extensions.Logging.Abstractions")
           : "")}</ItemGroup></Project>
 
         """,
         TestContext.Current.CancellationToken);
       await File.WriteAllTextAsync(Path.Combine(consumer, "Program.cs"), ConsumerSource(di, logging),
         TestContext.Current.CancellationToken);
-      await RunDotnetAsync(consumer, "restore", "Consumer.csproj", "--source", packages);
+      await RunDotnetAsync(consumer, "restore", "Consumer.csproj", "--source", packages, "--source",
+        RestoredPackages);
       await RunDotnetAsync(consumer, "build", "Consumer.csproj", "-c", "Release", "--no-restore");
       await RunDotnetAsync(consumer, "run", "--project", "Consumer.csproj", "-c", "Release", "--no-build");
       var generated = Directory.GetFiles(Path.Combine(consumer, "obj"), "*.g.cs", SearchOption.AllDirectories)
@@ -101,6 +107,18 @@ public sealed class PackageConsumerTests {
       Assert.Equal(logging,
         generated.Any(name => name!.StartsWith("AssuanLoggingExtensions", StringComparison.Ordinal)));
     }
+  }
+
+  // The consumers reference the centrally pinned versions, which are the ones the solution restore
+  // downloaded; a hard-coded version here breaks as soon as Directory.Packages.props moves on.
+  private static string Reference(string package) {
+    var central = XDocument.Load(Path.Combine(Repository, "Directory.Packages.props"));
+    // The file declares the MSBuild namespace, so elements are matched by local name.
+    var version = central.Descendants()
+      .Single(item => string.Equals(item.Name.LocalName, "PackageVersion", StringComparison.Ordinal) &&
+                      string.Equals(item.Attribute("Include")?.Value, package, StringComparison.Ordinal))
+      .Attribute("Version")!.Value;
+    return $"<PackageReference Include=\"{package}\" Version=\"{version}\" />\n";
   }
 
   private static string ConsumerSource(bool di, bool logging)

@@ -120,38 +120,26 @@ function Get-ReleaseVersionEdits {
   }
   if ($updated -cne $text) { $changes[$project] = $updated }
 
-  $readme = 'README.adoc'
-  $text = [IO.File]::ReadAllText((Join-Path $Root $readme))
-  $updated = $text.Replace('Until 2.0.0 is published, reference', 'For development from a source checkout, reference')
-  $updated = $updated.Replace('When released, `dotnet add package AssuanLibrary --version 2.0.0` will install',
-    '`dotnet add package AssuanLibrary --version 2.0.0` installs')
-  $updated = $updated.Replace('; it is not published yet.', '.')
-  if ($sourceVersion) {
-    $updated = $updated.Replace("dotnet add package AssuanLibrary --version $sourceVersion",
-      "dotnet add package AssuanLibrary --version $Version")
+  # The repository README and the getting-started page repeat the install command of the current version.
+  foreach ($page in @('README.md', 'wiki/Getting-Started.md')) {
+    $text = [IO.File]::ReadAllText((Join-Path $Root $page))
+    $updated = $text
+    if ($sourceVersion) {
+      $updated = $updated.Replace("dotnet add package AssuanLibrary --version $sourceVersion",
+        "dotnet add package AssuanLibrary --version $Version")
+    }
+    if ($updated -cne $text) { $changes[$page] = $updated }
   }
-  if ($updated -cne $text) { $changes[$readme] = $updated }
 
-  $guide = 'docs/guides/getting-started.md'
-  $text = [IO.File]::ReadAllText((Join-Path $Root $guide))
-  $updated = $text.Replace('Until 2.0 is published, a local project can reference `src/AssuanLibrary/AssuanLibrary.csproj`; a packaged consumer will use',
-    'Install the released package with')
-  if ($sourceVersion) {
-    $updated = $updated.Replace("dotnet add package AssuanLibrary --version $sourceVersion",
-      "dotnet add package AssuanLibrary --version $Version")
-  }
-  if ($updated -cne $text) { $changes[$guide] = $updated }
-
-  $packageReadme = [IO.File]::ReadAllText((Join-Path $Root 'docs/nuget/README.md'))
+  # nuget.org renders the package README outside the repository, so its links are absolute. They point at main,
+  # which always holds the latest release, so only the install command carries a version.
+  $packagePage = 'src/AssuanLibrary/PACKAGE.md'
+  $packageReadme = [IO.File]::ReadAllText((Join-Path $Root $packagePage))
   $install = 'dotnet add package AssuanLibrary --version (?<version>[0-9]+\.[0-9]+\.[0-9]+)'
   $matches = [regex]::Matches($packageReadme, $install)
   if ($matches.Count -ne 1) { throw 'The NuGet README must have exactly one installation command.' }
-  $priorVersion = $matches[0].Groups['version'].Value
   $updated = $packageReadme.Replace($matches[0].Value, "dotnet add package AssuanLibrary --version $Version")
-  $updated = $updated.Replace("https://baliestri.github.io/assuan-library/$priorVersion/",
-    "https://baliestri.github.io/assuan-library/$Version/")
-  $updated = $updated.Replace("/tree/v$priorVersion/examples/", "/tree/v$Version/examples/")
-  if ($updated -cne $packageReadme) { $changes['docs/nuget/README.md'] = $updated }
+  if ($updated -cne $packageReadme) { $changes[$packagePage] = $updated }
   return $changes
 }
 

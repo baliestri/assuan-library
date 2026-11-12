@@ -78,36 +78,6 @@ function Assert-ReleasePackage {
   finally { $archive.Dispose() }
 }
 
-function Assert-ReleaseDocsArchive {
-  param([string] $Path, [string] $Version)
-  Assert-ArtifactVersion $Version
-  if ([IO.Path]::GetFileName($Path) -cne "docs-v$Version.zip") {
-    throw 'The documentation archive filename is invalid.'
-  }
-  $archive = [IO.Compression.ZipFile]::OpenRead($Path)
-  try {
-    $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    [long]$total = 0
-    foreach ($entry in $archive.Entries) {
-      $name = $entry.FullName
-      $segments = $name.Split('/')
-      if ($name.StartsWith('/', [StringComparison]::Ordinal) -or $name.Contains('\') -or
-          $name.Contains(':') -or $segments.Count -lt 2 -or $segments[0] -cne $Version -or
-          @($segments | Where-Object { $_ -in '', '.', '..' }).Count -ne 0 -or
-          -not $names.Add($name) -or
-          (($entry.ExternalAttributes -shr 16) -band 0xF000) -eq 0xA000) {
-        throw 'Documentation archive path is unsafe or duplicated.'
-      }
-      $total += $entry.Length
-      if ($total -gt 128MB) { throw 'Documentation archive exceeds its budget.' }
-    }
-    foreach ($required in @('site/index.html', 'site/api/toc.html', 'llms.txt', 'llms-full.txt', 'metadata.json')) {
-      if (-not $names.Contains("$Version/$required")) { throw 'Documentation archive is incomplete.' }
-    }
-  }
-  finally { $archive.Dispose() }
-}
-
 function Assert-RegistryPackage {
   param([string] $OriginalPath, [string] $RegistryPath, [string] $Version)
   Assert-ArtifactVersion $Version
@@ -132,80 +102,38 @@ function Assert-RegistryPackage {
 }
 
 function Assert-ReleaseArtifacts {
-  param([string] $Version, [string] $PreparedSha, [string] $PackagePath, [string] $DocsArchive,
-    [string] $ChecksumPath, [string] $ManifestPath)
+  param([string] $Version, [string] $PreparedSha, [string] $PackagePath, [string] $ManifestPath)
   Assert-ArtifactVersion $Version
   if ($PreparedSha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid prepared SHA.' }
-  foreach ($path in @($PackagePath, $DocsArchive, $ChecksumPath, $ManifestPath)) {
+  foreach ($path in @($PackagePath, $ManifestPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'A release artifact is missing.' }
   }
   Assert-ReleasePackage $PackagePath $version
-  Assert-ReleaseDocsArchive $DocsArchive $version
-  if ([IO.Path]::GetFileName($ChecksumPath) -cne "docs-v$version.sha256") {
-    throw 'Documentation checksum filename is invalid.'
-  }
   $packageHash = Get-ReleaseFileHash $PackagePath
-  $docsHash = Get-ReleaseFileHash $DocsArchive
-  $checksum = [IO.File]::ReadAllText($ChecksumPath)
-  if ($checksum -cne "$docsHash  docs-v$version.zip`n") { throw 'Documentation checksum differs.' }
   $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json -AsHashtable
   if ($manifest.version -cne $version -or $manifest.sourceSha -cne $PreparedSha -or
       $manifest.packageName -cne [IO.Path]::GetFileName($PackagePath) -or
-      $manifest.docsName -cne [IO.Path]::GetFileName($DocsArchive) -or
-      $manifest.packageSha256 -cne $packageHash -or $manifest.docsSha256 -cne $docsHash) {
+      $manifest.packageSha256 -cne $packageHash) {
     throw 'Artifact provenance does not match the prepared commit.'
   }
-  return [pscustomobject]@{ Version = $version; SourceSha = $PreparedSha;
-    PackageSha256 = $packageHash; DocsSha256 = $docsHash }
+  return [pscustomobject]@{ Version = $version; SourceSha = $PreparedSha; PackageSha256 = $packageHash }
 }
 
+# Binds the already packed nupkg to the prepared commit. The package is never rebuilt after this point.
 function New-ReleaseArtifacts {
-  param([string] $Version, [string] $PreparedSha, [string] $PackagePath, [string] $BundlePath,
-    [string] $OutputDirectory)
+  param([string] $Version, [string] $PreparedSha, [string] $PackagePath, [string] $OutputDirectory)
   Assert-ArtifactVersion $Version
-  if ($PreparedSha -cnotmatch '\A[0-9a-f]{40}\z' -or
-      [IO.Path]::GetFileName($BundlePath) -cne $version -or
-      -not (Test-Path -LiteralPath $BundlePath -PathType Container)) {
-    throw 'Invalid release candidate bundle.'
-  }
+  if ($PreparedSha -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid prepared SHA.' }
   Assert-ReleasePackage $PackagePath $version
   [IO.Directory]::CreateDirectory($OutputDirectory) | Out-Null
-  $zip = Join-Path $OutputDirectory "docs-v$version.zip"
-  $checksum = Join-Path $OutputDirectory "docs-v$version.sha256"
   $manifest = Join-Path $OutputDirectory 'release-artifacts.json'
-  if ((Test-Path -LiteralPath $zip) -or (Test-Path -LiteralPath $checksum) -or
-      (Test-Path -LiteralPath $manifest)) { throw 'A release artifact already exists.' }
-  $files = @(Get-ChildItem -LiteralPath $BundlePath -File -Recurse | Sort-Object FullName)
-  if ($files.Count -eq 0) { throw 'Documentation bundle is empty.' }
-  $archive = [IO.Compression.ZipFile]::Open($zip, [IO.Compression.ZipArchiveMode]::Create)
-  try {
-    foreach ($file in $files) {
-      if ($file.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)) {
-        throw 'Documentation bundle contains a link.'
-      }
-      $relative = [IO.Path]::GetRelativePath($BundlePath, $file.FullName).Replace('\', '/')
-      $entry = $archive.CreateEntry("$version/$relative", [IO.Compression.CompressionLevel]::NoCompression)
-      $entry.LastWriteTime = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
-      $entry.ExternalAttributes = 0
-      $source = [IO.File]::OpenRead($file.FullName)
-      try {
-        $destination = $entry.Open()
-        try { $source.CopyTo($destination) }
-        finally { $destination.Dispose() }
-      }
-      finally { $source.Dispose() }
-    }
-  }
-  finally { $archive.Dispose() }
-  $docsHash = Get-ReleaseFileHash $zip
-  [IO.File]::WriteAllText($checksum, "$docsHash  docs-v$version.zip`n", [Text.UTF8Encoding]::new($false))
+  if (Test-Path -LiteralPath $manifest) { throw 'A release artifact already exists.' }
   $record = [ordered]@{ version = $version; sourceSha = $PreparedSha;
-    packageName = [IO.Path]::GetFileName($PackagePath); packageSha256 = Get-ReleaseFileHash $PackagePath;
-    docsName = [IO.Path]::GetFileName($zip); docsSha256 = $docsHash }
+    packageName = [IO.Path]::GetFileName($PackagePath); packageSha256 = Get-ReleaseFileHash $PackagePath }
   [IO.File]::WriteAllText($manifest, ($record | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
   return Assert-ReleaseArtifacts -Version $Version -PreparedSha $PreparedSha -PackagePath $PackagePath `
-    -DocsArchive $zip -ChecksumPath $checksum -ManifestPath $manifest
+    -ManifestPath $manifest
 }
 
-Export-ModuleMember -Function Assert-ReleasePackage, Assert-RegistryPackage, Assert-ReleaseDocsArchive,
-  Assert-ReleaseArtifacts, New-ReleaseArtifacts
+Export-ModuleMember -Function Assert-ReleasePackage, Assert-RegistryPackage, Assert-ReleaseArtifacts,
+  New-ReleaseArtifacts

@@ -4,11 +4,12 @@
     <File Path=".gitignore" />
     <File Path="CHANGELOG.md" />
     <File Path="cliff.toml" />
-    <File Path="CONTRIBUTING.adoc" />
+    <File Path="CONTRIBUTING.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="LICENSE.md" />
-    <File Path="README.adoc" />
+    <File Path="README.md" />
+    <File Path="SECURITY.md" />
   </Folder>
   <Folder Name="/Source/">
     <Project Path="src/AssuanLibrary.Generators/AssuanLibrary.Generators.csproj" />
@@ -16,9 +17,6 @@
   </Folder>
   <Folder Name="/Examples/">
     <Project Path="examples/AssuanLibrary.Examples/AssuanLibrary.Examples.csproj" />
-  </Folder>
-  <Folder Name="/Tools/">
-    <Project Path="tools/AssuanLibrary.Docs/AssuanLibrary.Docs.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/AssuanLibrary.GpgconfFixture/AssuanLibrary.GpgconfFixture.csproj" />

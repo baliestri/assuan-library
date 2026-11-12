@@ -55,18 +55,11 @@ function Invoke-ReleaseSimulation {
   $result.lastPhase = 'PublishedNuGet'
   if ($Scenario.githubAssetsMatch -ne $true) {
     $result.requiresManualInspection = $true
-    $result.nextStep = 'Compare existing GitHub Release assets; do not replace divergent bytes.'
+    $result.nextStep = 'Compare the existing GitHub Release asset; do not replace divergent bytes.'
     return [pscustomobject]$result
   }
 
   $result.lastPhase = 'GithubRelease'
-  if ($Scenario.pagesBundlePresent -ne $true) {
-    $result.requiresManualInspection = $true
-    $result.nextStep = 'Recover the original documentation ZIP and checksum before Pages.'
-    return [pscustomobject]$result
-  }
-
-  $result.lastPhase = 'Pages'
   if ($Scenario.developCanFastForward -ne $true) {
     $result.requiresManualInspection = $true
     $result.nextStep = 'Keep the published release intact and reconcile develop manually.'

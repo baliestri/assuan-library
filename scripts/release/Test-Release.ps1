@@ -43,32 +43,13 @@ try {
   Assert-ReleasePackage -Path (Join-Path $packageRoot "AssuanLibrary.$Version.nupkg") -Version $Version
   $completed.Add('package')
 
-  foreach ($name in @('one', 'two')) {
-    & dotnet run --project (Join-Path $rootPath 'tools/AssuanLibrary.Docs') -c Release --no-restore -- `
-      build --version $Version --base-url https://baliestri.github.io/assuan-library/ `
-      --output (Join-Path $workspace "docs-$name")
-    if ($LASTEXITCODE -ne 0) { throw 'Local documentation bundle failed.' }
-  }
-  $first = Join-Path $workspace "docs-one/$Version"
-  $second = Join-Path $workspace "docs-two/$Version"
-  $left = @(Get-ChildItem -LiteralPath $first -File -Recurse | ForEach-Object {
-    $relative = [IO.Path]::GetRelativePath($first, $_.FullName)
-    "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
-  } | Sort-Object)
-  $right = @(Get-ChildItem -LiteralPath $second -File -Recurse | ForEach-Object {
-    $relative = [IO.Path]::GetRelativePath($second, $_.FullName)
-    "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
-  } | Sort-Object)
-  if (Compare-Object $left $right) { throw 'Local documentation bundles are not equivalent.' }
-  $completed.Add('documentation')
-
   Import-Module (Join-Path $rootPath 'scripts/release/Recovery.psm1') -Force
   $head = (& git -C $rootPath rev-parse HEAD).Trim()
   if ($LASTEXITCODE -ne 0 -or $head -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Checkout HEAD is unavailable.' }
   $scenario = @{ preparedSha = $head; checkedOutSha = $head; ciSha = $head; interopSha = $head;
     ciResult = 'success'; interopResult = 'success'; branchExists = $false; mainStillAncestor = $true;
     tagConflict = $false; artifactsValid = $true; uploadResult = 'success'; registryContainsVersion = $true;
-    githubAssetsMatch = $true; pagesBundlePresent = $true; developCanFastForward = $true }
+    githubAssetsMatch = $true; developCanFastForward = $true }
   $success = Invoke-ReleaseSimulation $scenario
   if ($success.lastPhase -cne 'Complete') { throw 'Mocked success path did not complete.' }
   $scenario.uploadResult = 'timeout'

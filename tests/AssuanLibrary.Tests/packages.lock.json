@@ -215,9 +215,6 @@
       "assuanlibrary": {
         "type": "Project"
       },
-      "assuanlibrary.docs": {
-        "type": "Project"
-      },
       "assuanlibrary.examples": {
         "type": "Project",
         "dependencies": {

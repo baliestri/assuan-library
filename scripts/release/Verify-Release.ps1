@@ -6,8 +6,6 @@ param(
   [Parameter(Mandatory = $true)] [string] $CiSha,
   [Parameter(Mandatory = $true)] [string] $InteropSha,
   [Parameter(Mandatory = $true)] [string] $PackagePath,
-  [Parameter(Mandatory = $true)] [string] $DocsArchive,
-  [Parameter(Mandatory = $true)] [string] $ChecksumPath,
   [Parameter(Mandatory = $true)] [string] $ManifestPath
 )
 
@@ -25,14 +23,14 @@ try {
   $dirty = & git -C $rootPath status --porcelain=v1 --untracked-files=all 2>$null
   if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Release checkout is dirty.' }
   $artifactRoot = Join-Path $rootPath 'artifacts'
-  foreach ($path in @($PackagePath, $DocsArchive, $ChecksumPath, $ManifestPath)) {
+  foreach ($path in @($PackagePath, $ManifestPath)) {
     $relative = [IO.Path]::GetRelativePath($artifactRoot, [IO.Path]::GetFullPath($path))
     if ($relative -eq '..' -or $relative.StartsWith('..' + [IO.Path]::DirectorySeparatorChar) -or
         [IO.Path]::IsPathRooted($relative)) { throw 'Release artifact is outside the checkout.' }
   }
   Import-Module (Join-Path $PSScriptRoot 'Artifacts.psm1') -Force
   $verified = Assert-ReleaseArtifacts -Version $Version -PreparedSha $PreparedSha -PackagePath $PackagePath `
-    -DocsArchive $DocsArchive -ChecksumPath $ChecksumPath -ManifestPath $ManifestPath
+    -ManifestPath $ManifestPath
   $verified | ConvertTo-Json -Compress
 }
 catch {

@@ -33,7 +33,9 @@ public sealed partial class WorkflowTests {
   [Fact]
   public void ReleaseProcessIsDescribedForContributorsNotInTheWiki() {
     var root = ReleaseFixture.ToolsRoot;
-    var guide = File.ReadAllText(Path.Combine(root, "CONTRIBUTING.md"));
+    // A Windows checkout may convert line endings, so headings are located in normalized text.
+    var guide = File.ReadAllText(Path.Combine(root, "CONTRIBUTING.md"))
+      .Replace("\r\n", "\n", StringComparison.Ordinal);
     var start = guide.IndexOf("\n## Releasing\n", StringComparison.Ordinal);
     var end = guide.IndexOf("\n## Repository conventions\n", StringComparison.Ordinal);
     Assert.True(start > 0 && end > start);

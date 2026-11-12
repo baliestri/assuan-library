@@ -36,11 +36,12 @@ public sealed class GroupTests {
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
     Assert.Equal(3, result.GeneratedSources.Length);
-    var group = Assert.Single(result.GeneratedSources, text => text.Contains("RegisterHandlers"));
-    Assert.Contains("registry.Register(EchoAsyncHandler)", group);
-    Assert.Contains("registry.Register(VersionAsyncHandler)", group);
-    Assert.Contains("server.Register(EchoAsyncHandler)", group);
-    Assert.DoesNotContain("CreateHooks", group);
+    var group = Assert.Single(result.GeneratedSources,
+      text => text.Contains("RegisterHandlers", StringComparison.Ordinal));
+    Assert.Contains("registry.Register(EchoAsyncHandler)", group, StringComparison.Ordinal);
+    Assert.Contains("registry.Register(VersionAsyncHandler)", group, StringComparison.Ordinal);
+    Assert.Contains("server.Register(EchoAsyncHandler)", group, StringComparison.Ordinal);
+    Assert.DoesNotContain("CreateHooks", group, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -54,20 +55,21 @@ public sealed class GroupTests {
     Assert.Empty(empty.GeneratedSources);
     var position = SOURCE.LastIndexOf("CommandContext<State>", StringComparison.Ordinal);
     Assert.True(position >= 0);
-    var mixedSource = SOURCE[..position] + "CommandContext<object>" +
-                      SOURCE[(position + "CommandContext<State>".Length)..];
+    var mixedSource =
+      $"{SOURCE[..position]}CommandContext<object>{SOURCE[(position + "CommandContext<State>".Length)..]}";
     var mixed = GeneratorHarness.Compile(mixedSource);
     Assert.Contains(mixed.GeneratorDiagnostics,
       diagnostic => string.Equals(diagnostic.Id, "ASG008", StringComparison.Ordinal));
-    Assert.DoesNotContain(mixed.GeneratedSources, text => text.Contains("RegisterHandlers"));
+    Assert.DoesNotContain(mixed.GeneratedSources, text => text.Contains("RegisterHandlers", StringComparison.Ordinal));
   }
 
   [Fact]
   public void ExistingRegistrationMemberReportsGroupCollision() {
     var result = GeneratorHarness.Compile(SOURCE.Replace("public static partial class Commands {",
-      "public static partial class Commands { public static void RegisterHandlers(object x) {}"));
+      "public static partial class Commands { public static void RegisterHandlers(object x) {}",
+      StringComparison.Ordinal));
     Assert.Contains(result.GeneratorDiagnostics,
       diagnostic => string.Equals(diagnostic.Id, "ASG002", StringComparison.Ordinal));
-    Assert.DoesNotContain(result.GeneratedSources, text => text.Contains("RegisterHandlers"));
+    Assert.DoesNotContain(result.GeneratedSources, text => text.Contains("RegisterHandlers", StringComparison.Ordinal));
   }
 }

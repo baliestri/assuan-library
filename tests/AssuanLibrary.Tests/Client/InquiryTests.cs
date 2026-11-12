@@ -44,7 +44,7 @@ public sealed class InquiryTests {
       await inquiry.SendSecretAsync(secret, TestContext.Current.CancellationToken);
       Assert.Equal(4, secret.Length);
       Assert.Equal([.. "D %00%0A%25"u8.ToArray(), (byte)255, (byte)'\n'], peer.WrittenBytes);
-      Assert.DoesNotContain("prompt", inquiry.ToString());
+      Assert.DoesNotContain("prompt", inquiry.ToString(), StringComparison.Ordinal);
       await inquiry.CancelAsync(TestContext.Current.CancellationToken);
     }
   }

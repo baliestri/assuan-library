@@ -96,7 +96,7 @@ public sealed class LineBufferTests {
     Assert.True(storage.AsSpan().IndexOfAnyExcept((byte)0) < 0);
     frame.Clear();
     frame.Feed("D secret\n"u8);
-    Assert.DoesNotContain("secret", frame.ToString());
+    Assert.DoesNotContain("secret", frame.ToString(), StringComparison.Ordinal);
     frame.Dispose();
     frame.Dispose();
     Assert.True(storage.AsSpan().IndexOfAnyExcept((byte)0) < 0);

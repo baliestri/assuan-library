@@ -17,7 +17,7 @@ public sealed class OwnershipTests {
     Assert.True(owned.Children[0].Children[0].AtomBytes.SequenceEqual("key"u8));
     Assert.True(owned.Children[1].AtomBytes.IsEmpty);
     Assert.Empty(owned.Children[2].Children);
-    Assert.DoesNotContain("key", owned.ToString());
+    Assert.DoesNotContain("key", owned.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -31,7 +31,7 @@ public sealed class OwnershipTests {
 
     var item = Assert.Single(list.Children);
     Assert.True(item.AtomBytes.SequenceEqual("secret"u8));
-    Assert.DoesNotContain("secret", list.ToString());
+    Assert.DoesNotContain("secret", list.ToString(), StringComparison.Ordinal);
     var exposed = Assert.IsType<IList<SExpression>>(list.Children, false);
     Assert.Throws<NotSupportedException>(() => exposed[0] = SExpression.Atom("changed"u8));
   }
@@ -44,13 +44,14 @@ public sealed class OwnershipTests {
 
   [Fact]
   public async Task ScopedViewsAreConsumedBeforeAwaitWhileOwnedValuesCanSurvive() {
+    var owned = await ParseAndWaitAsync("1:a"u8.ToArray());
+    Assert.True(owned.AtomBytes.SequenceEqual("a"u8));
+    return;
+
     static async Task<SExpression> ParseAndWaitAsync(byte[] bytes) {
       var owned = SExpressionParser.ParseComplete(bytes).ToOwned();
       await Task.Yield();
       return owned;
     }
-
-    var owned = await ParseAndWaitAsync("1:a"u8.ToArray());
-    Assert.True(owned.AtomBytes.SequenceEqual("a"u8));
   }
 }

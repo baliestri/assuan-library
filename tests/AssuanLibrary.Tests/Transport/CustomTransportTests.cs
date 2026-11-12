@@ -24,9 +24,10 @@ public sealed class CustomTransportTests {
         Interlocked.Exchange(ref _stream, null) ?? throw new InvalidOperationException("Already accepted.")));
     }
 
-    public ValueTask DisposeAsync() {
-      Interlocked.Exchange(ref _stream, null)?.Dispose();
-      return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+      if (_stream is not null) {
+        await Interlocked.Exchange(ref _stream, null).DisposeAsync().ConfigureAwait(false);
+      }
     }
   }
 }

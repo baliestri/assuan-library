@@ -49,10 +49,10 @@ public sealed class SessionTests {
       new DefaultSessionHooks<Counter>(), ServerOptions.Default);
     await session.RunAsync(TestContext.Current.CancellationToken);
     var wire = Encoding.UTF8.GetString(stream.WrittenBytes);
-    Assert.Contains("ERR 175 unknown command\n", wire);
-    Assert.Contains("ERR 63 internal error\n", wire);
-    Assert.EndsWith("OK\nOK\n", wire);
-    Assert.DoesNotContain("secret detail", wire);
+    Assert.Contains("ERR 175 unknown command\n", wire, StringComparison.Ordinal);
+    Assert.Contains("ERR 63 internal error\n", wire, StringComparison.Ordinal);
+    Assert.EndsWith("OK\nOK\n", wire, StringComparison.Ordinal);
+    Assert.DoesNotContain("secret detail", wire, StringComparison.Ordinal);
   }
 
   [Fact]

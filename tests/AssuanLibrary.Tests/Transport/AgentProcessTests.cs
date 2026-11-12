@@ -30,7 +30,7 @@ public sealed class AgentProcessTests {
       Assert.Equal(Encoding.UTF8.GetBytes(fixture.SocketFile), resolved.UnixPathBytes.ToArray());
     }
 
-    Assert.DoesNotContain(fixture.Home, resolved.ToString());
+    Assert.DoesNotContain(fixture.Home, resolved.ToString(), StringComparison.Ordinal);
     resolved.Dispose();
     Assert.Throws<ObjectDisposedException>(() => _ = resolved.Kind);
   }
@@ -41,7 +41,7 @@ public sealed class AgentProcessTests {
     var error = await Assert.ThrowsAsync<DiscoveryException>(() =>
       new AgentLocator(fixture.Executable, fixture.Home).ResolveAsync(TestContext.Current.CancellationToken));
     Assert.Equal(DiscoveryErrorKind.InvalidOutput, error.Kind);
-    Assert.DoesNotContain(fixture.Home, error.ToString());
+    Assert.DoesNotContain(fixture.Home, error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -49,7 +49,7 @@ public sealed class AgentProcessTests {
     using var fixture = new AgentFixture();
     using var output = await GpgconfRunner.RunAsync(fixture.Executable, fixture.Home,
       new TransportDeadline(TimeSpan.FromSeconds(5)), TestContext.Current.CancellationToken);
-    Assert.Equal(Encoding.UTF8.GetBytes(fixture.SocketFile + "\n"), output.Expose().ToArray());
+    Assert.Equal(Encoding.UTF8.GetBytes($"{fixture.SocketFile}\n"), output.Expose().ToArray());
     Assert.Equal(new[] { "--homedir", fixture.Home, "--list-dirs", "agent-socket" },
       await File.ReadAllLinesAsync(Path.Combine(fixture.Home, "arguments.txt"),
         TestContext.Current.CancellationToken));
@@ -73,7 +73,7 @@ public sealed class AgentProcessTests {
       fixture.Executable, fixture.Home, new TransportDeadline(TimeSpan.FromSeconds(5)),
       TestContext.Current.CancellationToken));
     Assert.Equal(DiscoveryErrorKind.ProcessFailed, error.Kind);
-    Assert.DoesNotContain(fixture.Home, error.ToString());
+    Assert.DoesNotContain(fixture.Home, error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -105,7 +105,7 @@ public sealed class AgentProcessTests {
       missing, fixture.Home, new TransportDeadline(TimeSpan.FromSeconds(5)),
       TestContext.Current.CancellationToken));
     Assert.Equal(DiscoveryErrorKind.Io, error.Kind);
-    Assert.DoesNotContain(missing, error.ToString());
+    Assert.DoesNotContain(missing, error.ToString(), StringComparison.Ordinal);
     Assert.NotNull(error.IoCause);
   }
 }

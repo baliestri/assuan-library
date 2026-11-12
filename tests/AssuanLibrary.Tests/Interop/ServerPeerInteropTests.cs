@@ -84,8 +84,8 @@ public sealed class ServerPeerInteropTests {
     }
 
     GnuPgTools.FromEnvironment();
-    var name = "assuan-interop-" + Guid.NewGuid().ToString("N");
-    await using var listener = PipeAcceptor.Bind(LocalEndpoint.NamedPipe(@"\\.\pipe\" + name));
+    var name = $"assuan-interop-{Guid.NewGuid():N}";
+    await using var listener = PipeAcceptor.Bind(LocalEndpoint.NamedPipe($@"\\.\pipe\{name}"));
     var host = CreateBinaryServer();
     using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     var serving = host.ServeAsync(listener, stop.Token);

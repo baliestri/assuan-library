@@ -25,7 +25,7 @@ public sealed class IncrementalityTests {
   [Fact]
   public void UnrelatedEditKeepsHandlerAdapterAndHintStable() {
     var before = GeneratorHarness.Compile(SOURCE);
-    var after = GeneratorHarness.Compile("internal class Unrelated { }\n" + SOURCE);
+    var after = GeneratorHarness.Compile($"internal class Unrelated {{ }}\n{SOURCE}");
     Assert.Equal(2, before.GeneratedSources.Length);
     Assert.Equal(before.GeneratedSources, after.GeneratedSources);
     Assert.Equal(before.GeneratedHints, after.GeneratedHints);
@@ -35,7 +35,8 @@ public sealed class IncrementalityTests {
   [Fact]
   public void ChangingPublicDescriptionUpdatesTheAffectedAdapterOnly() {
     var before = GeneratorHarness.Compile(SOURCE);
-    var after = GeneratorHarness.Compile(SOURCE.Replace("Echoes arguments", "Returns arguments"));
+    var after = GeneratorHarness.Compile(SOURCE.Replace("Echoes arguments", "Returns arguments",
+      StringComparison.Ordinal));
     Assert.Equal(before.GeneratedHints, after.GeneratedHints);
     Assert.Equal(1, before.GeneratedSources.Zip(after.GeneratedSources)
       .Count(pair => !string.Equals(pair.First, pair.Second, StringComparison.Ordinal)));
@@ -45,7 +46,7 @@ public sealed class IncrementalityTests {
   [Fact]
   public void ChangingAnOptionNameUpdatesOnlyTheGroupDispatcher() {
     var before = GeneratorHarness.Compile(SOURCE);
-    var after = GeneratorHarness.Compile(SOURCE.Replace("pinentry-mode", "loopback-mode"));
+    var after = GeneratorHarness.Compile(SOURCE.Replace("pinentry-mode", "loopback-mode", StringComparison.Ordinal));
     Assert.Equal(before.GeneratedHints, after.GeneratedHints);
     Assert.Equal(1, before.GeneratedSources.Zip(after.GeneratedSources)
       .Count(pair => !string.Equals(pair.First, pair.Second, StringComparison.Ordinal)));

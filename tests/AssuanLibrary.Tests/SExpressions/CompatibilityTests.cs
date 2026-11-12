@@ -41,15 +41,15 @@ public sealed class CompatibilityTests {
     var input = "(9:superkey!x)"u8;
     var error = ParserTests.Error(input);
     Assert.Equal(SExpressionParseErrorKind.UnexpectedToken, error.Kind);
-    Assert.DoesNotContain("superkey", error.Message);
-    Assert.DoesNotContain("superkey", error.ToString());
+    Assert.DoesNotContain("superkey", error.Message, StringComparison.Ordinal);
+    Assert.DoesNotContain("superkey", error.ToString(), StringComparison.Ordinal);
 
     var owned = SExpressionParser.ParseComplete("(9:superkey!)"u8).ToOwned();
-    Assert.DoesNotContain("superkey", owned.ToString());
+    Assert.DoesNotContain("superkey", owned.ToString(), StringComparison.Ordinal);
     var output = new List<byte>(new byte[SExpressionLimits.Default.MaxInputBytes]);
     var encodingError =
       Assert.Throws<SExpressionEncodeException>(() => SExpressionWriter.AppendCanonical(owned, output));
-    Assert.DoesNotContain("superkey", encodingError.Message);
+    Assert.DoesNotContain("superkey", encodingError.Message, StringComparison.Ordinal);
   }
 
   [Fact]

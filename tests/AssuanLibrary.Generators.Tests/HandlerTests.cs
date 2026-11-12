@@ -26,10 +26,10 @@ public sealed class HandlerTests {
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
     var text = Assert.Single(result.GeneratedSources);
-    Assert.Contains("ICommandHandler<global::Consumer.State>", text);
-    Assert.Contains("EchoAsyncHandler", text);
-    Assert.Contains("EchoAsync(context, token)", text);
-    Assert.DoesNotContain("Register(", text); // No automatic registration.
+    Assert.Contains("ICommandHandler<global::Consumer.State>", text, StringComparison.Ordinal);
+    Assert.Contains("EchoAsyncHandler", text, StringComparison.Ordinal);
+    Assert.Contains("EchoAsync(context, token)", text, StringComparison.Ordinal);
+    Assert.DoesNotContain("Register(", text, StringComparison.Ordinal); // No automatic registration.
   }
 
   [Fact]
@@ -38,7 +38,7 @@ public sealed class HandlerTests {
     using var image = new MemoryStream();
     var emitted = generated.OutputCompilation.Emit(image,
       cancellationToken: TestContext.Current.CancellationToken);
-    Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics));
+    Assert.True(emitted.Success, string.Join('\n', emitted.Diagnostics));
     var assembly = Assembly.Load(image.ToArray());
     var state = assembly.GetType("Consumer.State")!;
     var demo = assembly.GetType("Consumer.Demo")!;
@@ -66,7 +66,7 @@ public sealed class HandlerTests {
   [InlineData("System.Threading.CancellationToken ct", "int ct")]
   [InlineData("EchoAsync(", "EchoAsync<T>(")]
   public void InvalidHandlerSignatureIsDiagnosedWithoutGeneratedAdapter(string original, string replacement) {
-    var source = VALID.Replace(original, replacement);
+    var source = VALID.Replace(original, replacement, StringComparison.Ordinal);
     Assert.NotEqual(VALID, source, StringComparer.Ordinal);
     var result = GeneratorHarness.Compile(source);
     Assert.Contains(result.GeneratorDiagnostics,
@@ -80,22 +80,25 @@ public sealed class HandlerTests {
   [InlineData("ECHO", "bad\nhelp")]
   public void BadMetadataIsRedactedAndDoesNotGenerateAHandler(string name, string description) {
     var source = VALID.Replace("\"ECHO\", \"Echoes arguments\"",
-      "\"" + name + "\", \"" + description.Replace("\n", "\\n") + "\"");
+      $"\"{name}\", \"{description.Replace("\n", "\\n", StringComparison.Ordinal)}\"", StringComparison.Ordinal);
     var result = GeneratorHarness.Compile(source);
     Assert.Contains(result.GeneratorDiagnostics,
       diagnostic => string.Equals(diagnostic.Id, "ASG007", StringComparison.Ordinal));
     Assert.Empty(result.GeneratedSources);
-    Assert.DoesNotContain("bad name", string.Join(" ", result.GeneratorDiagnostics.Select(item => item.ToString())));
+    Assert.DoesNotContain("bad name", string.Join(' ', result.GeneratorDiagnostics.Select(item => item.ToString())),
+      StringComparison.Ordinal);
   }
 
   [Fact]
   public void ExistingGeneratedPropertyAndNonpartialContainerAreDiagnosed() {
     var duplicate = GeneratorHarness.Compile(VALID.Replace("public partial class Demo {",
-      "public partial class Demo { public static int EchoAsyncHandler => 1;"));
+      "public partial class Demo { public static int EchoAsyncHandler => 1;", StringComparison.Ordinal));
     Assert.Contains(duplicate.GeneratorDiagnostics,
       diagnostic => string.Equals(diagnostic.Id, "ASG002", StringComparison.Ordinal));
     Assert.Empty(duplicate.GeneratedSources);
-    var nonpartial = GeneratorHarness.Compile(VALID.Replace("public partial class Demo", "public class Demo"));
+    var nonpartial =
+      GeneratorHarness.Compile(
+        VALID.Replace("public partial class Demo", "public class Demo", StringComparison.Ordinal));
     Assert.Contains(nonpartial.GeneratorDiagnostics,
       diagnostic => string.Equals(diagnostic.Id, "ASG001", StringComparison.Ordinal));
     Assert.Empty(nonpartial.GeneratedSources);
@@ -120,10 +123,11 @@ public sealed class HandlerTests {
   [Fact]
   public void StaticPartialContainerProducesACompilableHandlerAdapter() {
     var result =
-      GeneratorHarness.Compile(VALID.Replace("public partial class Demo", "public static partial class Demo"));
+      GeneratorHarness.Compile(VALID.Replace("public partial class Demo", "public static partial class Demo",
+        StringComparison.Ordinal));
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
-    Assert.Contains("static partial class Demo", Assert.Single(result.GeneratedSources));
+    Assert.Contains("static partial class Demo", Assert.Single(result.GeneratedSources), StringComparison.Ordinal);
   }
 
   private sealed class Duplex(byte[] input) : Stream {

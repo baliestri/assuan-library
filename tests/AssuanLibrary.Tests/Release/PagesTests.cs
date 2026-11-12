@@ -24,7 +24,8 @@ public sealed class PagesTests {
     Assert.True(File.Exists(Path.Combine(fixture.Site, "2.0.0", "index.html")));
     Assert.True(File.Exists(Path.Combine(fixture.Site, "2.1.0", "llms.txt")));
     var token = TestContext.Current.CancellationToken;
-    Assert.Contains("2.1.0", await File.ReadAllTextAsync(Path.Combine(fixture.Site, "index.html"), token));
+    Assert.Contains("2.1.0", await File.ReadAllTextAsync(Path.Combine(fixture.Site, "index.html"), token),
+      StringComparison.Ordinal);
     Assert.Equal(await File.ReadAllTextAsync(Path.Combine(fixture.Site, "2.1.0", "llms.txt"), token),
       await File.ReadAllTextAsync(Path.Combine(fixture.Site, "llms.txt"), token));
     Assert.False(Directory.Exists(Path.Combine(fixture.Site, "1.2.0")));
@@ -67,7 +68,8 @@ public sealed class PagesTests {
     var assembled = await fixture.AssembleAsync();
     Assert.True(assembled.ExitCode == 0, assembled.Output);
     var token = TestContext.Current.CancellationToken;
-    Assert.Contains("2.10.0", await File.ReadAllTextAsync(Path.Combine(fixture.Site, "index.html"), token));
+    Assert.Contains("2.10.0", await File.ReadAllTextAsync(Path.Combine(fixture.Site, "index.html"), token),
+      StringComparison.Ordinal);
     Assert.Equal(await File.ReadAllTextAsync(Path.Combine(fixture.Site, "2.10.0", "llms.txt"), token),
       await File.ReadAllTextAsync(Path.Combine(fixture.Site, "llms.txt"), token));
   }
@@ -123,8 +125,7 @@ public sealed class PagesTests {
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(archivePath))).ToLowerInvariant();
-        File.WriteAllText(checksumPath, (corruptChecksum ? new string('0', 64) : hash) +
-                                        $"  docs-v{version}.zip\n");
+        File.WriteAllText(checksumPath, $"{(corruptChecksum ? new string('0', 64) : hash)}  docs-v{version}.zip\n");
       }
 
       _releases.Add(new ReleaseEntry(tag, draft, prerelease, archivePath, checksumPath));
@@ -133,7 +134,8 @@ public sealed class PagesTests {
     internal async Task<(int ExitCode, string Output)> AssembleAsync() {
       var manifest = Path.Combine(_root, "releases.json");
       await File.WriteAllTextAsync(manifest, JsonSerializer.Serialize(_releases,
-        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })).ConfigureAwait(false);
+          new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }),
+        TestContext.Current.CancellationToken).ConfigureAwait(false);
       var start = new ProcessStartInfo("pwsh") {
         WorkingDirectory = ReleaseFixture.ToolsRoot, UseShellExecute = false,
         RedirectStandardOutput = true, RedirectStandardError = true
@@ -146,9 +148,10 @@ public sealed class PagesTests {
         start.ArgumentList.Add(argument);
 
       using var process = Process.Start(start)!;
-      var stdout = process.StandardOutput.ReadToEndAsync();
-      var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+      var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+      await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+        .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken).ConfigureAwait(false);
       return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 

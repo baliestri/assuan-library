@@ -22,13 +22,13 @@ public sealed class ExampleRunTests {
     var code = await ExampleCatalog.RunAsync(["--example", name], new StringReader(""), output, error,
       TestContext.Current.CancellationToken);
     Assert.Equal(0, code);
-    Assert.Contains(expected, output.ToString());
+    Assert.Contains(expected, output.ToString(), StringComparison.Ordinal);
     Assert.Contains(
       string.Equals(name, "sexpressions", StringComparison.Ordinal)
         ? "canonical=0x28333A666F6F303A29"
         : "BYE completed",
-      output.ToString());
-    Assert.DoesNotContain("SECRET_MARKER", output.ToString());
+      output.ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain("SECRET_MARKER", output.ToString(), StringComparison.Ordinal);
     Assert.Empty(error.ToString());
   }
 
@@ -44,8 +44,8 @@ public sealed class ExampleRunTests {
     Assert.NotEqual(0, code);
     Assert.Empty(output.ToString());
     Assert.Contains(string.Equals(name, "agent-info", StringComparison.Ordinal) ? "--gpgconf" : "--port",
-      error.ToString());
-    Assert.DoesNotContain("private", error.ToString());
+      error.ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain("private", error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -70,14 +70,14 @@ public sealed class ExampleRunTests {
           CultureInfo.InvariantCulture)
       ], new StringReader(""), clientOutput, clientError, stop.Token);
       Assert.Equal(0, code);
-      Assert.Contains("ECHO sample -> sample (verified)", clientOutput.ToString());
+      Assert.Contains("ECHO sample -> sample (verified)", clientOutput.ToString(), StringComparison.Ordinal);
       Assert.Empty(clientError.ToString());
     }
     finally { await stop.CancelAsync(); }
 
     Assert.Equal(0, await serving.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
-    Assert.Contains("ECHO handler ready", serverOutput.ToString());
-    Assert.Contains("pending sessions=0", serverOutput.ToString());
+    Assert.Contains("ECHO handler ready", serverOutput.ToString(), StringComparison.Ordinal);
+    Assert.Contains("pending sessions=0", serverOutput.ToString(), StringComparison.Ordinal);
     Assert.Empty(serverError.ToString());
   }
 
@@ -94,7 +94,7 @@ public sealed class ExampleRunTests {
       var port = ((IPEndPoint)listener.LocalEndpoint).Port;
       var nonce = Enumerable.Range(0, 16).Select(value => (byte)value).ToArray();
       File.WriteAllBytes(fixture.SocketFile,
-        [.. Encoding.ASCII.GetBytes(port + "\n"), .. nonce]);
+        [.. Encoding.ASCII.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{port}\n")), .. nonce]);
       var running = ExampleCatalog.RunAsync([
         "--example", "agent-info", "--gpgconf", fixture.Executable,
         "--homedir", fixture.Home
@@ -128,8 +128,8 @@ public sealed class ExampleRunTests {
       listener.Cleanup();
     }
 
-    Assert.Contains("GnuPG agent version 2.51", output.ToString());
-    Assert.DoesNotContain(fixture.Home, output.ToString());
+    Assert.Contains("GnuPG agent version 2.51", output.ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain(fixture.Home, output.ToString(), StringComparison.Ordinal);
     Assert.Empty(error.ToString());
   }
 }

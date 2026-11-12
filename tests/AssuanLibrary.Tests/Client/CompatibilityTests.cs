@@ -43,6 +43,6 @@ public sealed class CompatibilityTests {
       cancellationToken: TestContext.Current.CancellationToken));
     Assert.Equal(ClientErrorKind.Protocol, error.Kind);
     Assert.True(stream.Closed);
-    Assert.DoesNotContain(input.Trim(), error.ToString());
+    Assert.DoesNotContain(input.Trim(), error.ToString(), StringComparison.Ordinal);
   }
 }

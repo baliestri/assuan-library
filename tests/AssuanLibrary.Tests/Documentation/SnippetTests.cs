@@ -9,12 +9,16 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace AssuanLibrary.Tests.Documentation;
 
 public sealed partial class SnippetTests {
+  [GeneratedRegex(@"```csharp\s*\r?\n(?<code>.*?)\r?\n```", RegexOptions.Singleline | RegexOptions.ExplicitCapture,
+    5000)]
+  private static partial Regex SnippetRegex { get; }
+
   [Fact]
   public void NuGetAndGettingStartedSnippetsCompileAgainstPublicRuntime() {
     var root = ManifestTests.Repository;
     foreach (var path in new[] { "docs/nuget/README.md", "docs/guides/getting-started.md" }) {
       var content = File.ReadAllText(Path.Combine(root, path));
-      var snippet = Assert.Single(SnippetRegex().Matches(content)).Groups["code"].Value;
+      var snippet = Assert.Single(SnippetRegex.Matches(content)).Groups["code"].Value;
       Assert.Empty(Errors(snippet));
     }
   }
@@ -27,8 +31,9 @@ public sealed partial class SnippetTests {
     var end = code.IndexOf("// </snippet:sexpressions>", StringComparison.Ordinal);
     Assert.True(start >= 0 && end > start);
     var excerpt = code[(start + "// <snippet:sexpressions>".Length)..end];
-    Assert.Empty(Errors("using AssuanLibrary.SExpressions;\nusing System;\n" +
-                        "System.IO.TextWriter output = Console.Out;\n" + excerpt));
+    Assert.Empty(Errors(
+      "using AssuanLibrary.SExpressions;\nusing System;\nusing System.Collections.Generic;\n" +
+      $"using System.Globalization;\nSystem.IO.TextWriter output = Console.Out;\n{excerpt}"));
   }
 
   [Fact]
@@ -40,13 +45,11 @@ public sealed partial class SnippetTests {
     var refs = runtime.Split(Path.PathSeparator).Select(path => MetadataReference.CreateFromFile(path)).ToList();
     refs.Add(MetadataReference.CreateFromFile(typeof(ProtocolCommand).Assembly.Location));
     var parsed = CSharpSyntaxTree.ParseText(source,
-      CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview));
+      CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview),
+      cancellationToken: TestContext.Current.CancellationToken);
     var compilation = CSharpCompilation.Create("DocumentationSnippet", [parsed], refs,
       new CSharpCompilationOptions(OutputKind.ConsoleApplication));
-    return compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).ToArray();
+    return compilation.GetDiagnostics(TestContext.Current.CancellationToken)
+      .Where(item => item.Severity == DiagnosticSeverity.Error).ToArray();
   }
-
-  [GeneratedRegex(@"```csharp\s*\r?\n(?<code>.*?)\r?\n```", RegexOptions.Singleline | RegexOptions.ExplicitCapture,
-    5000)]
-  private static partial Regex SnippetRegex();
 }

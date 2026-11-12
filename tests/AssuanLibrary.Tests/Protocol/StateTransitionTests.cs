@@ -90,18 +90,15 @@ public sealed class StateTransitionTests {
 
   private static ClientMachine ClientIn(ClientState state) {
     var machine = new ClientMachine();
-    if (state == ClientState.Closed) {
-      machine.Close();
-      return machine;
-    }
-
-    if (state == ClientState.Invalid) {
-      machine.Invalidate();
-      return machine;
-    }
-
-    if (state == ClientState.Greeting) {
-      return machine;
+    switch (state) {
+      case ClientState.Closed:
+        machine.Close();
+        return machine;
+      case ClientState.Invalid:
+        machine.Invalidate();
+        return machine;
+      case ClientState.Greeting:
+        return machine;
     }
 
     machine.Receive(ProtocolResponseKind.Ok);

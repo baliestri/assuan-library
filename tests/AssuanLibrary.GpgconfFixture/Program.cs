@@ -11,8 +11,8 @@ var home = args[1];
 
 File.WriteAllLines(Path.Combine(home, "arguments.txt"), args);
 
-var mode = File.ReadAllText(Path.Combine(home, "mode.txt"));
-var output = File.ReadAllBytes(Path.Combine(home, "output.bin"));
+var mode = await File.ReadAllTextAsync(Path.Combine(home, "mode.txt")).ConfigureAwait(false);
+var output = await File.ReadAllBytesAsync(Path.Combine(home, "output.bin")).ConfigureAwait(false);
 var stdout = Console.OpenStandardOutput();
 var stderr = Console.OpenStandardError();
 
@@ -28,9 +28,10 @@ switch (mode) {
     stderr.Write(new byte[600_000]);
     return 0;
   case "timeout":
-    File.WriteAllText(Path.Combine(home, "pid.txt"), Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
+    await File.WriteAllTextAsync(Path.Combine(home, "pid.txt"),
+      Environment.ProcessId.ToString(CultureInfo.InvariantCulture)).ConfigureAwait(false);
     await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-    File.WriteAllText(Path.Combine(home, "completed.txt"), "unexpected");
+    await File.WriteAllTextAsync(Path.Combine(home, "completed.txt"), "unexpected").ConfigureAwait(false);
     return 0;
   default:
     stdout.Write(output);

@@ -64,7 +64,7 @@ public sealed class TcpTests {
     var error = Assert.Throws<TransportException>(() => TcpAcceptor.Bind(listener.Endpoint));
     Assert.Equal(TransportErrorKind.Io, error.Kind);
     Assert.IsType<SocketException>(error.IoCause);
-    Assert.DoesNotContain(error.IoCause.Message, error.ToString());
+    Assert.DoesNotContain(error.IoCause.Message, error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]

@@ -33,12 +33,12 @@ public sealed class BuiltinTests {
 
       var line = output.AsSpan(start, index - start);
       Assert.True(line.Length + 1 <= 1000);
-      Assert.StartsWith("# ", new UTF8Encoding(false, true).GetString(line));
+      Assert.StartsWith("# ", new UTF8Encoding(false, true).GetString(line), StringComparison.Ordinal);
       start = index + 1;
     }
 
     Assert.Equal(output.Length, start);
-    Assert.DoesNotContain("OK\n", Encoding.UTF8.GetString(output));
+    Assert.DoesNotContain("OK\n", Encoding.UTF8.GetString(output), StringComparison.Ordinal);
   }
 
   private sealed class EchoHandler(string description) : ICommandHandler<object> {

@@ -11,6 +11,15 @@ namespace AssuanLibrary.Tests.CI;
 public sealed partial class WorkflowContractTests {
   private readonly static string Repository = DocumentationBuilder.FindRepositoryRoot(AppContext.BaseDirectory);
 
+  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@(?<ref>[^\s#]+)", RegexOptions.ExplicitCapture, 5000)]
+  private static partial Regex UsesRegex { get; }
+
+  [GeneratedRegex("Assert-CheckoutSha\\.ps1", RegexOptions.ExplicitCapture, 5000)]
+  private static partial Regex CmdletRegex { get; }
+
+  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*actions/checkout@", RegexOptions.ExplicitCapture, 5000)]
+  private static partial Regex CheckoutRegex { get; }
+
   [Fact]
   public void SdkPinKeepsTheTestingPlatformRunner() {
     using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(Repository, "global.json")));
@@ -44,30 +53,30 @@ public sealed partial class WorkflowContractTests {
   public void CiWorkflowChecksAnExactShaWithoutPublicationCredentials() {
     var path = Path.Combine(Repository, ".github", "workflows", "ci.yml");
     var yaml = File.ReadAllText(path);
-    Assert.Contains("workflow_call:", yaml);
-    Assert.Contains("source_sha:", yaml);
-    Assert.Contains("required: true", yaml);
-    Assert.Contains("contents: read", yaml);
-    Assert.Contains("persist-credentials: false", yaml);
-    Assert.Contains("Assert-CheckoutSha.ps1", yaml);
-    Assert.Contains("CALL_INPUTS:", yaml);
-    Assert.Contains("-CallInputsJson", yaml);
-    Assert.Contains("$call.Contains('source_sha')", yaml);
-    Assert.Contains("Assert-Gate.ps1", yaml);
-    Assert.Contains("if: always()", yaml);
-    Assert.Contains("needs: [prepare, matrix, docs, format, workflows]", yaml);
-    Assert.Contains("dotnet restore AssuanLibrary.slnx --locked-mode", yaml);
-    Assert.Contains("dotnet format AssuanLibrary.slnx --verify-no-changes", yaml);
-    Assert.Contains("--filter-class", yaml);
+    Assert.Contains("workflow_call:", yaml, StringComparison.Ordinal);
+    Assert.Contains("source_sha:", yaml, StringComparison.Ordinal);
+    Assert.Contains("required: true", yaml, StringComparison.Ordinal);
+    Assert.Contains("contents: read", yaml, StringComparison.Ordinal);
+    Assert.Contains("persist-credentials: false", yaml, StringComparison.Ordinal);
+    Assert.Contains("Assert-CheckoutSha.ps1", yaml, StringComparison.Ordinal);
+    Assert.Contains("CALL_INPUTS:", yaml, StringComparison.Ordinal);
+    Assert.Contains("-CallInputsJson", yaml, StringComparison.Ordinal);
+    Assert.Contains("$call.Contains('source_sha')", yaml, StringComparison.Ordinal);
+    Assert.Contains("Assert-Gate.ps1", yaml, StringComparison.Ordinal);
+    Assert.Contains("if: always()", yaml, StringComparison.Ordinal);
+    Assert.Contains("needs: [prepare, matrix, docs, format, workflows]", yaml, StringComparison.Ordinal);
+    Assert.Contains("dotnet restore AssuanLibrary.slnx --locked-mode", yaml, StringComparison.Ordinal);
+    Assert.Contains("dotnet format AssuanLibrary.slnx --verify-no-changes", yaml, StringComparison.Ordinal);
+    Assert.Contains("--filter-class", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("secrets: inherit", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("pages: write", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("contents: write", yaml, StringComparison.OrdinalIgnoreCase);
-    var actions = UsesRegex().Matches(yaml);
+    var actions = UsesRegex.Matches(yaml);
     Assert.NotEmpty(actions);
     Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
-    Assert.Equal(6, CmdletRegex().Count(yaml));
-    Assert.Equal(6, CheckoutRegex().Count(yaml));
+    Assert.Equal(6, CmdletRegex.Count(yaml));
+    Assert.Equal(6, CheckoutRegex.Count(yaml));
   }
 
   [Fact]
@@ -79,40 +88,31 @@ public sealed partial class WorkflowContractTests {
   [Fact]
   public void InteropWorkflowRequiresRealGnuPgOnEveryHostedPlatform() {
     var yaml = File.ReadAllText(Path.Combine(Repository, ".github", "workflows", "interop.yml"));
-    Assert.Contains("workflow_call:", yaml);
-    Assert.Contains("source_sha:", yaml);
-    Assert.Contains("required: true", yaml);
-    Assert.Contains("os: [ubuntu-latest, windows-latest, macos-latest]", yaml);
-    Assert.Contains("ASSUAN_GNUPG_REQUIRED: '1'", yaml);
-    Assert.Contains("CALL_INPUTS:", yaml);
-    Assert.Contains("-CallInputsJson", yaml);
-    Assert.Contains("$call.Contains('source_sha')", yaml);
-    Assert.Contains("--filter-namespace AssuanLibrary.Tests.Interop", yaml);
-    Assert.Contains("ASSUAN_GPGCONF_PATH", yaml);
-    Assert.Contains("ASSUAN_GPG_AGENT_PATH", yaml);
-    Assert.Contains("ASSUAN_GPG_CONNECT_AGENT_PATH", yaml);
-    Assert.Contains("scoop install main/gnupg", yaml);
-    Assert.Contains("apps\\gnupg\\current\\bin", yaml);
+    Assert.Contains("workflow_call:", yaml, StringComparison.Ordinal);
+    Assert.Contains("source_sha:", yaml, StringComparison.Ordinal);
+    Assert.Contains("required: true", yaml, StringComparison.Ordinal);
+    Assert.Contains("os: [ubuntu-latest, windows-latest, macos-latest]", yaml, StringComparison.Ordinal);
+    Assert.Contains("ASSUAN_GNUPG_REQUIRED: '1'", yaml, StringComparison.Ordinal);
+    Assert.Contains("CALL_INPUTS:", yaml, StringComparison.Ordinal);
+    Assert.Contains("-CallInputsJson", yaml, StringComparison.Ordinal);
+    Assert.Contains("$call.Contains('source_sha')", yaml, StringComparison.Ordinal);
+    Assert.Contains("--filter-namespace AssuanLibrary.Tests.Interop", yaml, StringComparison.Ordinal);
+    Assert.Contains("ASSUAN_GPGCONF_PATH", yaml, StringComparison.Ordinal);
+    Assert.Contains("ASSUAN_GPG_AGENT_PATH", yaml, StringComparison.Ordinal);
+    Assert.Contains("ASSUAN_GPG_CONNECT_AGENT_PATH", yaml, StringComparison.Ordinal);
+    Assert.Contains("scoop install main/gnupg", yaml, StringComparison.Ordinal);
+    Assert.Contains(@"apps\gnupg\current\bin", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("choco install", yaml, StringComparison.OrdinalIgnoreCase);
-    Assert.Contains("persist-credentials: false", yaml);
-    Assert.Contains("if: always()", yaml);
-    Assert.Contains("needs: [prepare, real]", yaml);
-    Assert.Contains("Assert-Gate.ps1", yaml);
+    Assert.Contains("persist-credentials: false", yaml, StringComparison.Ordinal);
+    Assert.Contains("if: always()", yaml, StringComparison.Ordinal);
+    Assert.Contains("needs: [prepare, real]", yaml, StringComparison.Ordinal);
+    Assert.Contains("Assert-Gate.ps1", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("secrets: inherit", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("contents: write", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);
-    var actions = UsesRegex().Matches(yaml);
+    var actions = UsesRegex.Matches(yaml);
     Assert.NotEmpty(actions);
     Assert.All(actions, action => Assert.Matches("^[0-9a-f]{40}$", action.Groups["ref"].Value));
-    Assert.Equal(3, CmdletRegex().Count(yaml));
+    Assert.Equal(3, CmdletRegex.Count(yaml));
   }
-
-  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*[^\s#]+@(?<ref>[^\s#]+)", RegexOptions.ExplicitCapture, 5000)]
-  private static partial Regex UsesRegex();
-
-  [GeneratedRegex("Assert-CheckoutSha\\.ps1", RegexOptions.ExplicitCapture, 5000)]
-  private static partial Regex CmdletRegex();
-
-  [GeneratedRegex(@"(?m)^\s*-\s*uses:\s*actions/checkout@", RegexOptions.ExplicitCapture, 5000)]
-  private static partial Regex CheckoutRegex();
 }

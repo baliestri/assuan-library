@@ -52,7 +52,7 @@ public sealed class NavigationTests {
 
   [Fact]
   public void CustomDepthBeyondDefaultStillNavigatesWithoutReapplyingDefaultLimits() {
-    var input = Encoding.ASCII.GetBytes(new string('(', 65) + "0:" + new string(')', 65));
+    var input = Encoding.ASCII.GetBytes($"{new string('(', 65)}0:{new string(')', 65)}");
     var root = SExpressionParser.ParseComplete(input, new SExpressionLimits(1024, 1024, 128, 256));
     for (var index = 0; index < 65; ++index) {
       var children = root.Children.GetEnumerator();

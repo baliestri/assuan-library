@@ -44,7 +44,7 @@ public sealed class RegistryTests {
     var registry = new CommandRegistry<object>();
     var error = Assert.Throws<RegistryException>(() => registry.Register(new Handler("ECHO", description)));
     Assert.Equal(RegistryErrorKind.InvalidDescription, error.Kind);
-    Assert.DoesNotContain("bad", error.ToString());
+    Assert.DoesNotContain("bad", error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -58,7 +58,7 @@ public sealed class RegistryTests {
   public void RemoteErrorValidatesItsCompleteWireLineBeforeItCanBeSent() {
     var valid = HandlerException.Remote(55, "invalid value");
     Assert.Equal(HandlerErrorKind.Remote, valid.Kind);
-    Assert.DoesNotContain("invalid value", valid.ToString());
+    Assert.DoesNotContain("invalid value", valid.ToString(), StringComparison.Ordinal);
     Assert.Equal(HandlerErrorKind.Internal, HandlerException.Internal().Kind);
     Assert.Throws<ArgumentException>(() => HandlerException.Remote(55, "private\nvalue"));
     Assert.Throws<ArgumentException>(() => HandlerException.Remote(55, new string('x', 1000)));

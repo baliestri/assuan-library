@@ -29,7 +29,7 @@ public sealed class AgentOutputTests {
     var error = Assert.Throws<DiscoveryException>(() => AgentOutputParser.ParseUnix(output));
     Assert.Equal(DiscoveryErrorKind.InvalidOutput, error.Kind);
     if (value.Length != 0) {
-      Assert.DoesNotContain(value, error.ToString());
+      Assert.DoesNotContain(value, error.ToString(), StringComparison.Ordinal);
     }
   }
 

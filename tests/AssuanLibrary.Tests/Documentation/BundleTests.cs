@@ -7,7 +7,10 @@ using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.Documentation;
 
-public sealed class BundleTests {
+public sealed partial class BundleTests {
+  [GeneratedRegex(@"https://baliestri\.github\.io/assuan-library/2\.0\.0/[^\s)]*", RegexOptions.ExplicitCapture, 5000)]
+  private static partial Regex LinkRegex { get; }
+
   [Fact]
   public async Task VersionedBundleIsCuratedNonOverwritingAndDeterministic() {
     var root = ManifestTests.Repository;
@@ -23,24 +26,22 @@ public sealed class BundleTests {
     Assert.False(File.Exists(Path.Combine(first, "site", "api", "AssuanLibrary.Transport.UnixNative.html")));
     var token = TestContext.Current.CancellationToken;
     var full = await File.ReadAllTextAsync(Path.Combine(first, "llms-full.txt"), token);
-    Assert.Contains("Getting started", full);
-    Assert.DoesNotContain("Documentation operations", full);
-    Assert.DoesNotContain("Continuous integration", full);
-    Assert.DoesNotContain("Release operations", full);
-    Assert.Contains("```csharp", full);
+    Assert.Contains("Getting started", full, StringComparison.Ordinal);
+    Assert.DoesNotContain("Documentation operations", full, StringComparison.Ordinal);
+    Assert.DoesNotContain("Continuous integration", full, StringComparison.Ordinal);
+    Assert.DoesNotContain("Release operations", full, StringComparison.Ordinal);
+    Assert.Contains("```csharp", full, StringComparison.Ordinal);
     var index = await File.ReadAllTextAsync(Path.Combine(first, "llms.txt"), token);
-    Assert.Contains("/2.0.0/", index);
-    Assert.Contains("Continuous integration", index);
-    Assert.Contains("Release operations", index);
-    Assert.Contains("/tree/v2.0.0/examples/AssuanLibrary.Examples", index);
+    Assert.Contains("/2.0.0/", index, StringComparison.Ordinal);
+    Assert.Contains("Continuous integration", index, StringComparison.Ordinal);
+    Assert.Contains("Release operations", index, StringComparison.Ordinal);
+    Assert.Contains("/tree/v2.0.0/examples/AssuanLibrary.Examples", index, StringComparison.Ordinal);
     Assert.True(File.Exists(Path.Combine(root, "examples", "AssuanLibrary.Examples", "SExpressionExample.cs")));
     var packageReadme = await File.ReadAllTextAsync(Path.Combine(root, "docs", "nuget", "README.md"), token);
-    foreach (Match match in Regex.Matches(packageReadme,
-               @"https://baliestri\.github\.io/assuan-library/2\.0\.0/[^\s)]*",
-               RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5))) {
+    foreach (Match match in LinkRegex.Matches(packageReadme)) {
       var relative = match.Value["https://baliestri.github.io/assuan-library/2.0.0/".Length..];
       Assert.True(File.Exists(Path.Combine(first, "site", relative.Length == 0 ? "index.html" : relative)),
-        "NuGet README site link missing: " + match.Value);
+        $"NuGet README site link missing: {match.Value}");
     }
 
     var before = await File.ReadAllBytesAsync(Path.Combine(first, "llms.txt"), token);
@@ -53,7 +54,7 @@ public sealed class BundleTests {
     var right = HashTree(second);
     Assert.Equal(left.Keys, right.Keys);
     foreach (var key in left.Keys)
-      Assert.True(string.Equals(left[key], right[key], StringComparison.Ordinal), "Nondeterministic file: " + key);
+      Assert.True(string.Equals(left[key], right[key], StringComparison.Ordinal), $"Nondeterministic file: {key}");
 
     Assert.Empty(DocumentationBuilder.Verify(first));
   }
@@ -63,7 +64,8 @@ public sealed class BundleTests {
   [InlineData("C:/absolute.md")]
   public void ManifestRejectsEscapesAndAbsolutePaths(string invalid) {
     var repository = ManifestTests.Repository;
-    var source = File.ReadAllText(ManifestTests.Manifest).Replace("docs/guides/getting-started.md", invalid);
+    var source = File.ReadAllText(ManifestTests.Manifest)
+      .Replace("docs/guides/getting-started.md", invalid, StringComparison.Ordinal);
     var filename = Path.Combine(repository, "artifacts", "docs-tests", Guid.NewGuid().ToString("N"), "sources.json");
     Directory.CreateDirectory(Path.GetDirectoryName(filename)!);
     File.WriteAllText(filename, source);
@@ -79,16 +81,20 @@ public sealed class BundleTests {
     Directory.CreateDirectory(site);
     File.WriteAllText(Path.Combine(stage, "page.md"), "# Page\n[bad](missing.md#section)\n");
     File.WriteAllText(Path.Combine(site, "page.html"), "<h1 id=\"page\">Page</h1>");
-    Assert.Contains(DocumentationBuilder.Verify(root), item => item.Contains("Broken local link"));
+    Assert.Contains(DocumentationBuilder.Verify(root),
+      item => item.Contains("Broken local link", StringComparison.Ordinal));
     File.WriteAllText(Path.Combine(stage, "target.md"), "# Target\n## Section\n");
     File.WriteAllText(Path.Combine(site, "target.html"), "<h2 id=\"section\">Section</h2>");
     File.WriteAllText(Path.Combine(stage, "page.md"), "# Page\n[bad](target.md#absent)\n");
-    Assert.Contains(DocumentationBuilder.Verify(root), item => item.Contains("Broken anchor"));
+    Assert.Contains(DocumentationBuilder.Verify(root),
+      item => item.Contains("Broken anchor", StringComparison.Ordinal));
     File.WriteAllText(Path.Combine(stage, "page.md"), "# Page\n[good](target.md#section)\n");
     File.WriteAllText(Path.Combine(site, "page.html"), "<a href=\"target.html#missing\">bad</a>");
-    Assert.Contains(DocumentationBuilder.Verify(root), item => item.Contains("Broken site anchor"));
+    Assert.Contains(DocumentationBuilder.Verify(root),
+      item => item.Contains("Broken site anchor", StringComparison.Ordinal));
     File.WriteAllText(Path.Combine(site, "page.html"), "<a href=\"absent.html\">bad</a>");
-    Assert.Contains(DocumentationBuilder.Verify(root), item => item.Contains("Broken site link"));
+    Assert.Contains(DocumentationBuilder.Verify(root),
+      item => item.Contains("Broken site link", StringComparison.Ordinal));
   }
 
   private static SortedDictionary<string, string> HashTree(string root) {

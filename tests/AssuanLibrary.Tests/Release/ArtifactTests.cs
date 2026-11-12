@@ -24,7 +24,7 @@ public sealed class ArtifactTests {
     var token = TestContext.Current.CancellationToken;
     await File.WriteAllTextAsync(fixture.ManifestPath,
       (await File.ReadAllTextAsync(fixture.ManifestPath, token))
-      .Replace("\"version\":\"2.0.1\"", "\"version\":\"2.0.0\""), token);
+      .Replace("\"version\":\"2.0.1\"", "\"version\":\"2.0.0\"", StringComparison.Ordinal), token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
   }
 
@@ -81,11 +81,12 @@ public sealed class ArtifactTests {
     Assert.NotEqual(0, (await fixture.VerifyAsync(new string('b', 40),
       new string('b', 40), new string('b', 40))).ExitCode);
     var token = TestContext.Current.CancellationToken;
-    await File.WriteAllTextAsync(fixture.ChecksumPath, new string('0', 64) + "  docs-v2.0.0.zip\n", token);
+    await File.WriteAllTextAsync(fixture.ChecksumPath, $"{new string('0', 64)}  docs-v2.0.0.zip\n", token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
     fixture.RefreshHashes();
     await File.WriteAllTextAsync(fixture.ManifestPath,
-      (await File.ReadAllTextAsync(fixture.ManifestPath, token)).Replace(fixture.SourceSha, new string('b', 40)),
+      (await File.ReadAllTextAsync(fixture.ManifestPath, token)).Replace(fixture.SourceSha, new string('b', 40),
+        StringComparison.Ordinal),
       token);
     Assert.NotEqual(0, (await fixture.VerifyAsync()).ExitCode);
   }
@@ -173,13 +174,8 @@ public sealed class ArtifactTests {
         , StringComparison.Ordinal)
         ? "https://example.invalid"
         : "https://github.com/baliestri/assuan-library";
-      Add(archive, "AssuanLibrary.nuspec", $"<package><metadata><id>{id}</id><version>{version}</version>" +
-                                           $"{authors}{description}<copyright>Copyright (c) 2026 Bruno Sales</copyright>" +
-                                           $"<projectUrl>https://github.com/baliestri/assuan-library</projectUrl>" +
-                                           $"<tags>assuan gpg gpgme gnupg</tags><readme>README.md</readme>" +
-                                           $"<license type=\"file\">LICENSE.md</license>" +
-                                           $"<repository type=\"git\" url=\"{repository}\" />" +
-                                           $"<dependencies><group targetFramework=\"net10.0\">{dependency}</group></dependencies></metadata></package>");
+      Add(archive, "AssuanLibrary.nuspec",
+        $"<package><metadata><id>{id}</id><version>{version}</version>{authors}{description}<copyright>Copyright (c) 2026 Bruno Sales</copyright><projectUrl>https://github.com/baliestri/assuan-library</projectUrl><tags>assuan gpg gpgme gnupg</tags><readme>README.md</readme><license type=\"file\">LICENSE.md</license><repository type=\"git\" url=\"{repository}\" /><dependencies><group targetFramework=\"net10.0\">{dependency}</group></dependencies></metadata></package>");
       Add(archive, "lib/net10.0/AssuanLibrary.dll", "runtime");
       Add(archive, "lib/net10.0/AssuanLibrary.xml", "<doc/>");
       if (!string.Equals(defect, "MissingAnalyzer", StringComparison.Ordinal)) {
@@ -222,7 +218,7 @@ public sealed class ArtifactTests {
 
     internal void RefreshHashes() {
       var docsHash = Hash(DocsPath);
-      File.WriteAllText(ChecksumPath, docsHash + $"  docs-v{_version}.zip\n");
+      File.WriteAllText(ChecksumPath, $"{docsHash}  docs-v{_version}.zip\n");
       File.WriteAllText(ManifestPath, JsonSerializer.Serialize(new {
         version = _version,
         sourceSha = _git.Head,
@@ -250,9 +246,10 @@ public sealed class ArtifactTests {
         start.ArgumentList.Add(argument);
 
       using var process = Process.Start(start)!;
-      var stdout = process.StandardOutput.ReadToEndAsync();
-      var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+      var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+      await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+        .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken).ConfigureAwait(false);
       return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 
@@ -264,7 +261,7 @@ public sealed class ArtifactTests {
                }) {
         var filename = Path.Combine(bundle, path);
         Directory.CreateDirectory(Path.GetDirectoryName(filename)!);
-        await File.WriteAllTextAsync(filename, path).ConfigureAwait(false);
+        await File.WriteAllTextAsync(filename, path, TestContext.Current.CancellationToken).ConfigureAwait(false);
       }
 
       var start = new ProcessStartInfo("pwsh") {
@@ -280,9 +277,10 @@ public sealed class ArtifactTests {
         start.ArgumentList.Add(argument);
 
       using var process = Process.Start(start)!;
-      var stdout = process.StandardOutput.ReadToEndAsync();
-      var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+      var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+      await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+        .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken).ConfigureAwait(false);
       return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 
@@ -299,9 +297,10 @@ public sealed class ArtifactTests {
         start.ArgumentList.Add(argument);
 
       using var process = Process.Start(start)!;
-      var stdout = process.StandardOutput.ReadToEndAsync();
-      var stderr = process.StandardError.ReadToEndAsync();
-      await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+      var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+      var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+      await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+        .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken).ConfigureAwait(false);
       return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
     }
 

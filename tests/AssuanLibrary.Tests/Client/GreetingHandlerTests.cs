@@ -80,7 +80,7 @@ public sealed class GreetingHandlerTests {
     var failure = await Assert.ThrowsAsync<ClientException>(() => AssuanClient.FromStreamAsync(throwing,
       new Callback((_, _) => ValueTask.FromException(new IOException("SECRET_MARKER"))),
       cancellationToken: TestContext.Current.CancellationToken));
-    Assert.DoesNotContain("SECRET_MARKER", failure.ToString());
+    Assert.DoesNotContain("SECRET_MARKER", failure.ToString(), StringComparison.Ordinal);
     Assert.True(throwing.Closed);
   }
 

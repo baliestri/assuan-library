@@ -57,7 +57,7 @@ public sealed class RecoveryTests {
     Assert.True(json.RootElement.GetProperty("requiresManualInspection").GetBoolean());
     Assert.False(json.RootElement.GetProperty("attemptedSecondUpload").GetBoolean());
     Assert.False(json.RootElement.GetProperty("attemptedForce").GetBoolean());
-    Assert.DoesNotContain("SECRET_MARKER", result.Output);
+    Assert.DoesNotContain("SECRET_MARKER", result.Output, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -92,9 +92,10 @@ public sealed class RecoveryTests {
       start.ArgumentList.Add(argument);
 
     using var process = Process.Start(start)!;
-    var stdout = process.StandardOutput.ReadToEndAsync();
-    var stderr = process.StandardError.ReadToEndAsync();
-    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+    var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+    var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+    await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+      .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken).ConfigureAwait(false);
     return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
   }
 }

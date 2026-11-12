@@ -76,10 +76,10 @@ public sealed class WireParsingTests {
   [Fact]
   public void NeitherErrorsNorDiagnosticsEchoReceivedBytes() {
     var error = ResponseError("D secret\0"u8);
-    Assert.DoesNotContain("secret", error.Message);
-    Assert.DoesNotContain("secret", error.ToString());
-    Assert.DoesNotContain("secret", ProtocolResponse.Parse("S SECRET secret"u8).ToString());
-    Assert.DoesNotContain("secret", ProtocolCommand.Parse("SECRET secret"u8).ToString());
+    Assert.DoesNotContain("secret", error.Message, StringComparison.Ordinal);
+    Assert.DoesNotContain("secret", error.ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain("secret", ProtocolResponse.Parse("S SECRET secret"u8).ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain("secret", ProtocolCommand.Parse("SECRET secret"u8).ToString(), StringComparison.Ordinal);
   }
 
   private static ProtocolException CommandError(ReadOnlySpan<byte> line) {

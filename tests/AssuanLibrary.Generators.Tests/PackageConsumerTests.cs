@@ -47,19 +47,19 @@ public sealed class PackageConsumerTests {
     Assert.Equal("git", metadata.Element(ns + "repository")?.Attribute("type")?.Value);
     Assert.Equal("assuan gpg gpgme gnupg", metadata.Element(ns + "tags")?.Value);
     var xml = document.ToString();
-    Assert.DoesNotContain("Microsoft.Extensions", xml);
-    Assert.DoesNotContain("AssuanLibrary.Generators", xml);
+    Assert.DoesNotContain("Microsoft.Extensions", xml, StringComparison.Ordinal);
+    Assert.DoesNotContain("AssuanLibrary.Generators", xml, StringComparison.Ordinal);
     Assert.Empty(Directory.EnumerateFiles(PackageDirectory, "AssuanLibrary.Generators.*.nupkg"));
   }
 
   [Fact]
   public async Task InstalledPackageGeneratesOnlyIntegrationsSupportedByConsumerReferences() {
     var suffix = Guid.NewGuid().ToString("N");
-    var version = "2.0.0-local." + suffix;
+    var version = $"2.0.0-local.{suffix}";
     var packages = Path.Combine(PackageDirectory, suffix);
     Directory.CreateDirectory(packages);
     await RunDotnetAsync(Repository, "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
-      "--no-restore", "-o", packages, "-p:PackageVersion=" + version);
+      "--no-restore", "-o", packages, $"-p:PackageVersion={version}");
     foreach (var (di, logging) in new[] { (false, false), (true, false), (false, true), (true, true) }) {
       var consumer = Path.Combine(Repository, "artifacts", "integration-consumers", suffix,
         di ? logging ? "both" : "di" : logging ? "logging" : "none");
@@ -71,23 +71,21 @@ public sealed class PackageConsumerTests {
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
       </PropertyGroup></Project>
       """, TestContext.Current.CancellationToken);
-      await File.WriteAllTextAsync(Path.Combine(consumer, "Consumer.csproj"), """
-                                                                              <Project Sdk="Microsoft.NET.Sdk">
-                                                                                <PropertyGroup>
-                                                                                  <TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType>
-                                                                                  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-                                                                                </PropertyGroup>
-                                                                                <ItemGroup>
-                                                                              """ + "\n" +
-                                                                              "<PackageReference Include=\"AssuanLibrary\" Version=\"" +
-                                                                              version + "\" />\n" +
-                                                                              (di
-                                                                                ? "<PackageReference Include=\"Microsoft.Extensions.DependencyInjection\" Version=\"10.0.0\" />\n"
-                                                                                : "") +
-                                                                              (logging
-                                                                                ? "<PackageReference Include=\"Microsoft.Extensions.Logging.Abstractions\" Version=\"10.0.0\" />\n"
-                                                                                : "") +
-                                                                              "</ItemGroup></Project>\n",
+      await File.WriteAllTextAsync(Path.Combine(consumer, "Consumer.csproj"), $"""
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType>
+            <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+          </PropertyGroup>
+          <ItemGroup>
+        <PackageReference Include="AssuanLibrary" Version="{version}" />
+        {(di
+          ? "<PackageReference Include=\"Microsoft.Extensions.DependencyInjection\" Version=\"10.0.0\" />\n"
+          : "")}{(logging
+          ? "<PackageReference Include=\"Microsoft.Extensions.Logging.Abstractions\" Version=\"10.0.0\" />\n"
+          : "")}</ItemGroup></Project>
+
+        """,
         TestContext.Current.CancellationToken);
       await File.WriteAllTextAsync(Path.Combine(consumer, "Program.cs"), ConsumerSource(di, logging),
         TestContext.Current.CancellationToken);
@@ -106,7 +104,7 @@ public sealed class PackageConsumerTests {
   }
 
   private static string ConsumerSource(bool di, bool logging)
-    => """
+    => $$"""
       using AssuanLibrary.Attributes;
       using AssuanLibrary.Server;
       [AssuanHandlerGroup]
@@ -121,23 +119,27 @@ public sealed class PackageConsumerTests {
           var registry = new CommandRegistry<object>();
           Commands.RegisterHandlers(registry);
           if (registry.Find("ECHO") is null) throw new System.Exception("Missing handler");
-      """ + "\n" + (di
-      ? """
-          var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-          AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanServer<object>(services,
-            _ => new object(), ServerOptions.Default, new DefaultSessionHooks<object>());
-      """
-      : "") + (logging
-      ? """
-          var sink = AssuanLibrary.Generated.AssuanLoggingExtensions.CreateEventSink(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
-          var info = new AssuanLibrary.Diagnostics.AssuanEvent(
-            AssuanLibrary.Diagnostics.AssuanComponent.Client,
-            AssuanLibrary.Diagnostics.AssuanEventId.RemoteFinal,
-            AssuanLibrary.Diagnostics.AssuanOutcome.RemoteError);
-          sink.Emit(in info);
-      """
-      : "") + "\n  }\n}\n";
+      {{(di
+        ? """
+            var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+            AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanServer<object>(services,
+              _ => new object(), ServerOptions.Default, new DefaultSessionHooks<object>());
+        """
+        : "")}}{{(logging
+        ? """
+            var sink = AssuanLibrary.Generated.AssuanLoggingExtensions.CreateEventSink(
+              Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+            var info = new AssuanLibrary.Diagnostics.AssuanEvent(
+              AssuanLibrary.Diagnostics.AssuanComponent.Client,
+              AssuanLibrary.Diagnostics.AssuanEventId.RemoteFinal,
+              AssuanLibrary.Diagnostics.AssuanOutcome.RemoteError);
+            sink.Emit(in info);
+        """
+        : "")}}
+        }
+      }
+
+      """;
 
   private static async Task RunDotnetAsync(string directory, params string[] arguments) {
     var start = new ProcessStartInfo("dotnet") {

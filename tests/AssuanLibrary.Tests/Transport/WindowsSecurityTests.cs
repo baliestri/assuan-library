@@ -35,7 +35,7 @@ public sealed class WindowsSecurityTests {
       return;
     }
 
-    var endpoint = LocalEndpoint.NamedPipe(@"\\.\pipe\assuan-test-" + Guid.NewGuid().ToString("N"));
+    var endpoint = LocalEndpoint.NamedPipe($@"\\.\pipe\assuan-test-{Guid.NewGuid():N}");
     await using var first = PipeAcceptor.Bind(endpoint);
     var waiting = Assert.IsType<NamedPipeServerStream>(typeof(PipeAcceptor)
       .GetField("_waiting", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(first));

@@ -22,7 +22,7 @@ public sealed class GreetingTests {
       cancellationToken: TestContext.Current.CancellationToken));
     Assert.Equal(ClientErrorKind.GreetingRejected, error.Kind);
     Assert.Equal(uint.MaxValue, error.RemoteCode);
-    Assert.DoesNotContain("denied", error.ToString());
+    Assert.DoesNotContain("denied", error.ToString(), StringComparison.Ordinal);
     Assert.True(stream.Closed);
   }
 

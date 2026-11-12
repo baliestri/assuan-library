@@ -61,7 +61,7 @@ public sealed class TransactionTests {
     var data = Assert.IsType<ClientEventLease>(await tx.ReadNextAsync(TestContext.Current.CancellationToken));
     Assert.Throws<InvalidOperationException>(() => _ = data.PayloadBytes);
     Assert.Equal("SECRET_MARKER\0"u8.ToArray(), data.ExposeSecret().ToArray());
-    Assert.DoesNotContain("SECRET_MARKER", data.ToString());
+    Assert.DoesNotContain("SECRET_MARKER", data.ToString(), StringComparison.Ordinal);
     data.Dispose();
     var final = Assert.IsType<ClientEventLease>(await tx.ReadNextAsync(TestContext.Current.CancellationToken));
     final.Dispose();

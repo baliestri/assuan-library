@@ -20,7 +20,7 @@ public sealed class UnixSocketTests {
     var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
     var relative = Path.GetRelativePath(repository, Path.Combine(fixture.Root, "privé-漢", "socket"))
       .Replace('\\', '/');
-    var hosted = "/Users/runner/work/assuan-library/assuan-library/" + relative;
+    var hosted = $"/Users/runner/work/assuan-library/assuan-library/{relative}";
     Assert.InRange(Encoding.UTF8.GetByteCount(hosted), 1, 103);
   }
 

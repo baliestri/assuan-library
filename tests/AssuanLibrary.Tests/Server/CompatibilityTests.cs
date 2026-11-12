@@ -66,7 +66,7 @@ public sealed class CompatibilityTests {
     var error = await Assert.ThrowsAsync<ServerException>(()
       => session.RunAsync(TestContext.Current.CancellationToken));
     Assert.Equal(ServerErrorKind.Transport, error.Kind);
-    Assert.DoesNotContain("SECRET_MARKER", error.ToString());
+    Assert.DoesNotContain("SECRET_MARKER", error.ToString(), StringComparison.Ordinal);
     Assert.Equal("OK\n"u8.ToArray(), stream.WrittenBytes);
   }
 

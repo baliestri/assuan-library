@@ -13,7 +13,7 @@ public sealed class PackageReadmeTests {
     Assert.True(File.Exists(Path.Combine(repository, "docs", "nuget", "README.md")));
     var packages = Path.Combine(repository, "artifacts", "docs-package-tests");
     Directory.CreateDirectory(packages);
-    var version = "2.0.0-docs." + Guid.NewGuid().ToString("N");
+    var version = $"2.0.0-docs.{Guid.NewGuid():N}";
     var start = new ProcessStartInfo("dotnet") {
       WorkingDirectory = repository,
       RedirectStandardOutput = true,
@@ -22,7 +22,7 @@ public sealed class PackageReadmeTests {
     };
     foreach (var value in new[] {
                "pack", "src/AssuanLibrary/AssuanLibrary.csproj", "-c", "Release",
-               "--no-restore", "-o", packages, "-p:PackageVersion=" + version
+               "--no-restore", "-o", packages, $"-p:PackageVersion={version}"
              })
       start.ArgumentList.Add(value);
 
@@ -36,23 +36,24 @@ public sealed class PackageReadmeTests {
       .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken);
     Assert.True(process.ExitCode == 0, await stdout + await stderr);
     await using var archive = await ZipFile.OpenReadAsync(
-      Path.Combine(packages, "AssuanLibrary." + version + ".nupkg"), TestContext.Current.CancellationToken);
+      Path.Combine(packages, $"AssuanLibrary.{version}.nupkg"), TestContext.Current.CancellationToken);
     Assert.Single(archive.Entries, entry => string.Equals(entry.FullName, "README.md", StringComparison.Ordinal));
     Assert.Single(archive.Entries,
       entry => string.Equals(entry.FullName, "analyzers/dotnet/cs/AssuanLibrary.Generators.dll",
         StringComparison.Ordinal));
     var nuspec = Assert.Single(archive.Entries, entry => entry.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
     using var reader = new StreamReader(await nuspec.OpenAsync(TestContext.Current.CancellationToken));
-    Assert.Contains("<readme>README.md</readme>", await reader.ReadToEndAsync(TestContext.Current.CancellationToken));
+    Assert.Contains("<readme>README.md</readme>", await reader.ReadToEndAsync(TestContext.Current.CancellationToken),
+      StringComparison.Ordinal);
     using var readme = new StreamReader(await Assert.Single(archive.Entries,
         entry => string.Equals(entry.FullName, "README.md", StringComparison.Ordinal))
       .OpenAsync(TestContext.Current.CancellationToken));
     var markdown = await readme.ReadToEndAsync(TestContext.Current.CancellationToken);
-    Assert.Contains("net10.0", markdown);
+    Assert.Contains("net10.0", markdown, StringComparison.Ordinal);
     Assert.Equal(
       await File.ReadAllTextAsync(Path.Combine(repository, "docs", "nuget", "README.md"),
         TestContext.Current.CancellationToken), markdown);
-    Assert.DoesNotContain("../", markdown);
-    Assert.Contains("https://", markdown);
+    Assert.DoesNotContain("../", markdown, StringComparison.Ordinal);
+    Assert.Contains("https://", markdown, StringComparison.Ordinal);
   }
 }

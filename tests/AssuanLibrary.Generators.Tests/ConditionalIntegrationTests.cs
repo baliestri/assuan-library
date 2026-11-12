@@ -40,7 +40,7 @@ public sealed class ConditionalIntegrationTests {
     Assert.Equal((false, false), Detect("public class Empty { }"));
     Assert.Equal((true, false), Detect(DI_TYPES));
     Assert.Equal((false, true), Detect(LOGGING_TYPES));
-    Assert.Equal((true, true), Detect(DI_TYPES + "\n" + LOGGING_TYPES));
+    Assert.Equal((true, true), Detect($"{DI_TYPES}\n{LOGGING_TYPES}"));
   }
 
   [Fact]
@@ -52,33 +52,35 @@ public sealed class ConditionalIntegrationTests {
 
   [Fact]
   public void DependencyInjectionReferenceGeneratesOnlyACompilableDiHelper() {
-    var result = GeneratorHarness.Compile(DI_TYPES + "\n" + """
-    public static class Consumer {
-      public static void Configure(Microsoft.Extensions.DependencyInjection.IServiceCollection services,
-        AssuanLibrary.Server.ISessionHooks<object> hooks) {
-        AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanServer<object>(
-          services, _ => new object(), AssuanLibrary.Server.ServerOptions.Default, hooks);
-        AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanClientFactory(
-          services, AssuanLibrary.Client.ClientOptions.Default);
+    var result = GeneratorHarness.Compile($$"""
+      {{DI_TYPES}}
+      public static class Consumer {
+        public static void Configure(Microsoft.Extensions.DependencyInjection.IServiceCollection services,
+          AssuanLibrary.Server.ISessionHooks<object> hooks) {
+          AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanServer<object>(
+            services, _ => new object(), AssuanLibrary.Server.ServerOptions.Default, hooks);
+          AssuanLibrary.Generated.AssuanDependencyInjectionExtensions.AddAssuanClientFactory(
+            services, AssuanLibrary.Client.ClientOptions.Default);
+        }
       }
-    }
-    """);
+      """);
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
     var text = Assert.Single(result.GeneratedSources);
-    Assert.Contains("AddAssuanServer", text);
-    Assert.Contains("AddAssuanClientFactory", text);
-    Assert.DoesNotContain("ILogger", text);
+    Assert.Contains("AddAssuanServer", text, StringComparison.Ordinal);
+    Assert.Contains("AddAssuanClientFactory", text, StringComparison.Ordinal);
+    Assert.DoesNotContain("ILogger", text, StringComparison.Ordinal);
     Assert.Single(result.GeneratedHints);
   }
 
   [Fact]
   public void ExistingFixedGeneratedClassNameGetsCollisionDiagnosticInsteadOfDuplicateSource() {
-    var result = GeneratorHarness.Compile(DI_TYPES + "\n" + """
-    namespace AssuanLibrary.Generated {
-      public static class AssuanDependencyInjectionExtensions { }
-    }
-    """);
+    var result = GeneratorHarness.Compile($$"""
+      {{DI_TYPES}}
+      namespace AssuanLibrary.Generated {
+        public static class AssuanDependencyInjectionExtensions { }
+      }
+      """);
     Assert.Contains(result.GeneratorDiagnostics, item => string.Equals(item.Id, "ASG011", StringComparison.Ordinal));
     Assert.Empty(result.GeneratedSources);
   }
@@ -103,7 +105,7 @@ public sealed class ConditionalIntegrationTests {
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
     var item = Assert.Single(result.GeneratedSources);
-    Assert.DoesNotContain("ILogger", item);
+    Assert.DoesNotContain("ILogger", item, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -121,9 +123,9 @@ public sealed class ConditionalIntegrationTests {
     Assert.Empty(result.GeneratorDiagnostics);
     Assert.Empty(result.OutputCompilationErrors);
     var text = Assert.Single(result.GeneratedSources);
-    Assert.Contains("CreateEventSink", text);
-    Assert.Contains("ILogger", text);
-    Assert.DoesNotContain("IServiceCollection", text);
+    Assert.Contains("CreateEventSink", text, StringComparison.Ordinal);
+    Assert.Contains("ILogger", text, StringComparison.Ordinal);
+    Assert.DoesNotContain("IServiceCollection", text, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -137,8 +139,10 @@ public sealed class ConditionalIntegrationTests {
     Assert.Empty(result.OutputCompilationErrors);
     Assert.Equal(2, result.GeneratedSources.Length);
     Assert.Equal(2, result.GeneratedHints.Distinct(StringComparer.Ordinal).Count());
-    Assert.Equal(1, result.GeneratedSources.Count(source => source.Contains("AddAssuanServer")));
-    Assert.Equal(1, result.GeneratedSources.Count(source => source.Contains("CreateEventSink")));
+    Assert.Equal(1,
+      result.GeneratedSources.Count(source => source.Contains("AddAssuanServer", StringComparison.Ordinal)));
+    Assert.Equal(1,
+      result.GeneratedSources.Count(source => source.Contains("CreateEventSink", StringComparison.Ordinal)));
   }
 
   private static (bool Di, bool Logging) Detect(string source) {

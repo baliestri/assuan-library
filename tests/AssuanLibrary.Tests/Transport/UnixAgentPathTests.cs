@@ -21,7 +21,7 @@ public sealed class UnixAgentPathTests {
     using var fixture = new AgentFixture();
     var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
     var relative = Path.GetRelativePath(repository, fixture.SocketFile).Replace('\\', '/');
-    var hosted = "/Users/runner/work/assuan-library/assuan-library/" + relative;
+    var hosted = $"/Users/runner/work/assuan-library/assuan-library/{relative}";
     Assert.InRange(Encoding.UTF8.GetByteCount(hosted), 1, 103);
   }
 
@@ -120,7 +120,7 @@ public sealed class UnixAgentPathTests {
   }
 
   private static byte[] InvalidUtf8SocketPath(string home) => [
-    .. Encoding.UTF8.GetBytes(home + "/"),
+    .. Encoding.UTF8.GetBytes($"{home}/"),
     (byte)'s', (byte)'o', (byte)'c', (byte)'k', (byte)'e', (byte)'t', 0xff, (byte)'%', (byte)'2', (byte)'0'
   ];
 }

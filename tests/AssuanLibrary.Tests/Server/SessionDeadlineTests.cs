@@ -32,7 +32,7 @@ public sealed class SessionDeadlineTests {
     Assert.Equal(ServerErrorKind.Timeout, error.Kind);
     Assert.Equal(1, hooks.Closed);
     Assert.Equal(new byte[7], handler.BorrowedArguments.ToArray());
-    Assert.DoesNotContain("private", error.ToString());
+    Assert.DoesNotContain("private", error.ToString(), StringComparison.Ordinal);
     Assert.Equal("OK\n"u8.ToArray(), stream.WrittenBytes);
   }
 

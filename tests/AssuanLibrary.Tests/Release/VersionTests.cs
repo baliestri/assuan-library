@@ -75,7 +75,7 @@ public sealed class VersionTests {
     var project = await File.ReadAllTextAsync(
       Path.Combine(fixture.Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"),
       TestContext.Current.CancellationToken);
-    Assert.Contains("<Version>2.0.0</Version>", project);
+    Assert.Contains("<Version>2.0.0</Version>", project, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -140,8 +140,8 @@ public sealed class VersionTests {
       item => string.Equals(item.GetString(), "docs/nuget/README.md", StringComparison.Ordinal));
     Assert.Equal(0, (await fixture.PrepareAsync("2.0.1", false)).ExitCode);
     var prepared = await File.ReadAllTextAsync(path, token);
-    Assert.Contains("dotnet add package AssuanLibrary --version 2.0.1", prepared);
-    Assert.Contains("/assuan-library/2.0.1/guides/", prepared);
+    Assert.Contains("dotnet add package AssuanLibrary --version 2.0.1", prepared, StringComparison.Ordinal);
+    Assert.Contains("/assuan-library/2.0.1/guides/", prepared, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -150,10 +150,10 @@ public sealed class VersionTests {
                             "https://baliestri.github.io/assuan-library/2.0.1/guides/getting-started.html\n" +
                             "https://github.com/baliestri/assuan-library/tree/v2.0.1/examples/AssuanLibrary.Examples\n";
     var baseline = ReleaseFixture.BaselinePackageReadme(PREPARED);
-    Assert.Contains("dotnet add package AssuanLibrary --version 2.0.0", baseline);
-    Assert.Contains("/assuan-library/2.0.0/guides/", baseline);
-    Assert.Contains("/tree/v2.0.0/examples/", baseline);
-    Assert.DoesNotContain("2.0.1", baseline);
+    Assert.Contains("dotnet add package AssuanLibrary --version 2.0.0", baseline, StringComparison.Ordinal);
+    Assert.Contains("/assuan-library/2.0.0/guides/", baseline, StringComparison.Ordinal);
+    Assert.Contains("/tree/v2.0.0/examples/", baseline, StringComparison.Ordinal);
+    Assert.DoesNotContain("2.0.1", baseline, StringComparison.Ordinal);
   }
 
   [Fact]

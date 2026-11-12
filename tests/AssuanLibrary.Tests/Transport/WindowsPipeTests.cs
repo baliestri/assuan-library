@@ -110,5 +110,5 @@ public sealed class WindowsPipeTests {
   }
 
   private static LocalEndpoint NewEndpoint()
-    => LocalEndpoint.NamedPipe(@"\\.\pipe\assuan-ipc-" + Guid.NewGuid().ToString("N"));
+    => LocalEndpoint.NamedPipe($@"\\.\pipe\assuan-ipc-{Guid.NewGuid():N}");
 }

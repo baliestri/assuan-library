@@ -72,7 +72,7 @@ public sealed class ConnectionTests {
       return;
     }
 
-    var endpoint = LocalEndpoint.NamedPipe(@"\\.\pipe\assuan-client-" + Guid.NewGuid().ToString("N"));
+    var endpoint = LocalEndpoint.NamedPipe($@"\\.\pipe\assuan-client-{Guid.NewGuid():N}");
     await using var listener = PipeAcceptor.Bind(endpoint);
     var token = TestContext.Current.CancellationToken;
     var accepting = listener.AcceptAsync(token);

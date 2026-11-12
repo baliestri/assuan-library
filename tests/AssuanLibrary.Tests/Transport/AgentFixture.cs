@@ -12,10 +12,10 @@ internal sealed class AgentFixture : IDisposable {
     _repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
     // Keep the deliberate space/percent sequence while fitting a Unix socket
     // below macOS's 103-byte native path budget in hosted workspaces.
-    Home = Path.Combine(_repository, "artifacts", "a", "h %20 " + Guid.NewGuid().ToString("N")[..8]);
+    Home = Path.Combine(_repository, "artifacts", "a", $"h %20 {Guid.NewGuid().ToString("N")[..8]}");
     Directory.CreateDirectory(Home);
     File.WriteAllText(Path.Combine(Home, "mode.txt"), mode);
-    File.WriteAllBytes(Path.Combine(Home, "output.bin"), output ?? Encoding.UTF8.GetBytes(SocketFile + "\n"));
+    File.WriteAllBytes(Path.Combine(Home, "output.bin"), output ?? Encoding.UTF8.GetBytes($"{SocketFile}\n"));
   }
 
   internal string Home { get; }
@@ -24,7 +24,7 @@ internal sealed class AgentFixture : IDisposable {
     get
     {
       var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
-      var name = "AssuanLibrary.GpgconfFixture" + (OperatingSystem.IsWindows() ? ".exe" : "");
+      var name = $"AssuanLibrary.GpgconfFixture{(OperatingSystem.IsWindows() ? ".exe" : "")}";
       return Path.Combine(_repository, "tests", "AssuanLibrary.GpgconfFixture", "bin", configuration, "net10.0", name);
     }
   }

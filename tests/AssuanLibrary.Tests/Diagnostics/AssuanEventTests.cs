@@ -30,8 +30,8 @@ public sealed class AssuanEventTests {
       });
     Assert.All(sink.Events, item =>
     {
-      Assert.DoesNotContain("secret-marker", item.ToString());
-      Assert.DoesNotContain("SECRET_MARKER", item.ToString());
+      Assert.DoesNotContain("secret-marker", item.ToString(), StringComparison.Ordinal);
+      Assert.DoesNotContain("SECRET_MARKER", item.ToString(), StringComparison.Ordinal);
     });
   }
 
@@ -52,7 +52,7 @@ public sealed class AssuanEventTests {
       item => item is {
         Component: AssuanComponent.Client, Id: AssuanEventId.RemoteFinal, Outcome: AssuanOutcome.RemoteError
       });
-    Assert.All(sink.Events, item => Assert.DoesNotContain("SECRET_MARKER", item.ToString()));
+    Assert.All(sink.Events, item => Assert.DoesNotContain("SECRET_MARKER", item.ToString(), StringComparison.Ordinal));
 
     var eof = new ScriptedClientStream("OK\n"u8.ToArray(), ""u8.ToArray());
     await using var other = await AssuanClient.FromStreamAsync(eof, new ClientOptions(eventSink: sink),

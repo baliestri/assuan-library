@@ -17,8 +17,8 @@ public sealed class SecretBufferTests {
     Assert.Equal(LimitErrorKind.CapacityExceeded, error.Kind);
     Assert.Equal(3, secret.Length);
     Assert.True(secret.Expose().SequenceEqual("abc"u8));
-    Assert.DoesNotContain("abc", secret.ToString());
-    Assert.DoesNotContain("abc", error.Message);
+    Assert.DoesNotContain("abc", secret.ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain("abc", error.Message, StringComparison.Ordinal);
     secret.Append("d"u8);
     Assert.True(secret.Expose().SequenceEqual("abcd"u8));
   }

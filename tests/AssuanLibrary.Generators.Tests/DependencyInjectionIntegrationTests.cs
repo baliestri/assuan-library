@@ -34,7 +34,7 @@ public sealed class DependencyInjectionIntegrationTests {
     Assert.Empty(result.OutputCompilationErrors);
     using var image = new MemoryStream();
     var emitted = result.OutputCompilation.Emit(image, cancellationToken: TestContext.Current.CancellationToken);
-    Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics));
+    Assert.True(emitted.Success, string.Join('\n', emitted.Diagnostics));
     var assembly = Assembly.Load(image.ToArray());
     var consumer = assembly.GetType("Consumer")!;
     var services = new ServiceCollection();
@@ -54,7 +54,7 @@ public sealed class DependencyInjectionIntegrationTests {
         [stream, TestContext.Current.CancellationToken])!;
       await opening;
       clients.Add(
-        Assert.IsAssignableFrom<IAsyncDisposable>(opening.GetType().GetProperty("Result")!.GetValue(opening)));
+        Assert.IsType<IAsyncDisposable>(opening.GetType().GetProperty("Result")!.GetValue(opening), false));
     }
 
     Assert.NotSame(clients[0], clients[1]);

@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -60,7 +61,7 @@ public sealed class AgentConnectionTests {
     listener.Start();
     var port = ((IPEndPoint)listener.LocalEndpoint).Port;
     File.WriteAllBytes(fixture.SocketFile,
-      [.. Encoding.ASCII.GetBytes(port + "\n"), .. nonce]);
+      [.. Encoding.ASCII.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{port}\n")), .. nonce]);
     var token = TestContext.Current.CancellationToken;
     var resolved = await new AgentLocator(fixture.Executable, fixture.Home).ResolveAsync(token);
     Assert.Equal(AgentEndpointKind.NativeWindowsAgent, resolved.Kind);
@@ -75,7 +76,7 @@ public sealed class AgentConnectionTests {
     var greeting = new byte[3];
     await stream.ReadExactlyAsync(greeting, token);
     Assert.Equal("OK\n"u8.ToArray(), greeting);
-    Assert.DoesNotContain("255", resolved.ToString());
+    Assert.DoesNotContain("255", resolved.ToString(), StringComparison.Ordinal);
     Assert.Equal(TransportErrorKind.Timeout,
       (await Assert.ThrowsAsync<TransportException>(() => resolved.ConnectAsync(TimeSpan.Zero, token))).Kind);
     resolved.Dispose();
@@ -93,7 +94,7 @@ public sealed class AgentConnectionTests {
     var error = await Assert.ThrowsAsync<DiscoveryException>(() =>
       new AgentLocator(fixture.Executable, fixture.Home).ResolveAsync(TestContext.Current.CancellationToken));
     Assert.Equal(DiscoveryErrorKind.InvalidOutput, error.Kind);
-    Assert.DoesNotContain(fixture.SocketFile, error.ToString());
+    Assert.DoesNotContain(fixture.SocketFile, error.ToString(), StringComparison.Ordinal);
   }
 
   private sealed class DelayedNonceStream : MemoryStream {

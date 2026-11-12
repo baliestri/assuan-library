@@ -23,7 +23,7 @@ public sealed class LifecycleTests {
       var error = Assert.Throws<ClientException>(first.Finish);
       Assert.Equal(ClientErrorKind.Remote, error.Kind);
       Assert.Equal(uint.MaxValue, error.RemoteCode);
-      Assert.DoesNotContain("denied", error.ToString());
+      Assert.DoesNotContain("denied", error.ToString(), StringComparison.Ordinal);
     }
 
     Assert.True(client.IsUsable);

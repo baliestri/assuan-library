@@ -44,7 +44,7 @@ public sealed class CollectionTests {
     var result = await client.CollectSecretAsync("GET", ReadOnlyMemory<byte>.Empty,
       new CollectLimits(64, 4), TestContext.Current.CancellationToken);
     Assert.Equal("SECRET_MARKER"u8.ToArray(), result.ExposeData().ToArray());
-    Assert.DoesNotContain("SECRET_MARKER", result.ToString());
+    Assert.DoesNotContain("SECRET_MARKER", result.ToString(), StringComparison.Ordinal);
     Assert.Equal("public"u8.ToArray(), Assert.Single(result.Statuses).Arguments.ToArray());
     result.Dispose();
     Assert.Throws<ObjectDisposedException>(() => _ = result.ExposeData().Length);

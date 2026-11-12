@@ -32,7 +32,7 @@ public sealed class WindowsAgentFileTests {
     using (nonce) {
       Assert.Equal((ushort)32123, port);
       Assert.True(nonce.Expose().SequenceEqual(file.AsSpan(6)));
-      Assert.DoesNotContain("32123", nonce.ToString());
+      Assert.DoesNotContain("32123", nonce.ToString(), StringComparison.Ordinal);
     }
 
     var maximum = WindowsSocketFile.Parse([.. "65535\n"u8.ToArray(), .. new byte[16]]);
@@ -57,7 +57,7 @@ public sealed class WindowsAgentFileTests {
     for (var index = 0; index < cases.Length; ++index) {
       var error = Assert.Throws<DiscoveryException>(() => WindowsSocketFile.Parse(cases[index]));
       Assert.Equal(index == 0 ? DiscoveryErrorKind.UnsupportedFormat : DiscoveryErrorKind.InvalidOutput, error.Kind);
-      Assert.DoesNotContain("xxxxxxxx", error.ToString());
+      Assert.DoesNotContain("xxxxxxxx", error.ToString(), StringComparison.Ordinal);
     }
   }
 

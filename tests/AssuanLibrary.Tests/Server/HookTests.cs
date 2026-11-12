@@ -28,7 +28,7 @@ public sealed class HookTests {
   [InlineData("na%me")]
   public void MalformedOptionsFailWithoutEchoingInput(string text) {
     var error = Assert.Throws<ProtocolException>(() => OptionRequest.Parse(Encoding.UTF8.GetBytes(text)));
-    Assert.DoesNotContain(text, error.ToString());
+    Assert.DoesNotContain(text, error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]

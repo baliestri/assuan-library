@@ -7,7 +7,7 @@ using AssuanLibrary.Docs;
 
 namespace AssuanLibrary.Tests.Release;
 
-internal sealed class ReleaseFixture : IDisposable {
+internal sealed partial class ReleaseFixture : IDisposable {
   private readonly string _parent;
 
   internal ReleaseFixture(bool versionProperty = true, bool patchRelease = false) {
@@ -21,8 +21,7 @@ internal sealed class ReleaseFixture : IDisposable {
     File.WriteAllText(Path.Combine(Root, ".gitignore"), "artifacts/\n");
     File.WriteAllText(Path.Combine(Root, "CHANGELOG.md"), HistoricalChangelog);
     File.WriteAllText(Path.Combine(Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"),
-      "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework>" +
-      (versionProperty ? "<Version>1.2.0</Version>" : "") + "</PropertyGroup></Project>\n");
+      $"<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework>{(versionProperty ? "<Version>1.2.0</Version>" : "")}</PropertyGroup></Project>\n");
     foreach (var path in new[] {
                "README.adoc", "docs/nuget/README.md", "docs/guides/getting-started.md",
                "cliff.toml"
@@ -41,8 +40,7 @@ internal sealed class ReleaseFixture : IDisposable {
       File.WriteAllText(Path.Combine(Root, "src", "AssuanLibrary", "AssuanLibrary.csproj"),
         "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework><Version>2.0.0</Version></PropertyGroup></Project>\n");
       File.WriteAllText(Path.Combine(Root, "CHANGELOG.md"),
-        "# Assuan Library .NET Changelog\n\n## [2.0.0] - published\n\nExisting release.\n\n" +
-        HistoricalChangelog["# Assuan Library .NET Changelog\n\n".Length..]);
+        $"# Assuan Library .NET Changelog\n\n## [2.0.0] - published\n\nExisting release.\n\n{HistoricalChangelog["# Assuan Library .NET Changelog\n\n".Length..]}");
       Git("add", ".");
       Git("commit", "-m", "chore(release): publish 2.0.0");
       Git("tag", "v2.0.0");
@@ -68,6 +66,10 @@ internal sealed class ReleaseFixture : IDisposable {
 
   internal string Head => Git("rev-parse", "HEAD").Trim();
 
+  [GeneratedRegex(@"dotnet add package AssuanLibrary --version (?<version>2\.[0-9]+\.[0-9]+)",
+    RegexOptions.ExplicitCapture, 5000)]
+  private static partial Regex VersionRegex { get; }
+
   public void Dispose() {
     foreach (var path in Directory.EnumerateFiles(_parent, "*", SearchOption.AllDirectories))
       File.SetAttributes(path, FileAttributes.Normal);
@@ -76,9 +78,7 @@ internal sealed class ReleaseFixture : IDisposable {
   }
 
   internal static string BaselinePackageReadme(string content) {
-    var matches = Regex.Matches(content,
-      @"dotnet add package AssuanLibrary --version (?<version>2\.[0-9]+\.[0-9]+)",
-      RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
+    var matches = VersionRegex.Matches(content);
     if (matches.Count != 1) {
       throw new InvalidDataException("The fixture requires exactly one package installation command.");
     }
@@ -113,11 +113,10 @@ internal sealed class ReleaseFixture : IDisposable {
 
   private static string GitIn(string directory, params string[] arguments) {
     var result = RunAsync("git", directory, arguments).GetAwaiter().GetResult();
-    if (result.ExitCode != 0) {
-      throw new InvalidOperationException("Disposable Git fixture failed: " + result.Output);
-    }
 
-    return result.Output;
+    return result.ExitCode != 0
+      ? throw new InvalidOperationException($"Disposable Git fixture failed: {result.Output}")
+      : result.Output;
   }
 
   private static async Task<(int ExitCode, string Output)> RunAsync(string executable, string directory,
@@ -133,9 +132,10 @@ internal sealed class ReleaseFixture : IDisposable {
     start.Environment["GIT_COMMITTER_NAME"] = "Fixture Author";
     start.Environment["GIT_COMMITTER_EMAIL"] = "fixture@example.invalid";
     using var process = Process.Start(start)!;
-    var stdout = process.StandardOutput.ReadToEndAsync();
-    var stderr = process.StandardError.ReadToEndAsync();
-    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+    var stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+    var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+    await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+      .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken).ConfigureAwait(false);
     return (process.ExitCode, await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false));
   }
 }

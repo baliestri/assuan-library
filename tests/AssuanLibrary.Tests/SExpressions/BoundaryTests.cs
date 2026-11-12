@@ -44,9 +44,9 @@ public sealed class BoundaryTests {
 
   [Fact]
   public void Accepts64LevelsByDefaultAndRejects65() {
-    var valid = Encoding.ASCII.GetBytes(new string('(', 64) + "0:" + new string(')', 64));
+    var valid = Encoding.ASCII.GetBytes($"{new string('(', 64)}0:{new string(')', 64)}");
     Assert.False(SExpressionParser.ParseComplete(valid).IsAtom);
-    var invalid = Encoding.ASCII.GetBytes(new string('(', 65) + "0:" + new string(')', 65));
+    var invalid = Encoding.ASCII.GetBytes($"{new string('(', 65)}0:{new string(')', 65)}");
     var error = ParserTests.Error(invalid);
     Assert.Equal(SExpressionParseErrorKind.DepthLimit, error.Kind);
     Assert.Equal(64, error.Offset);

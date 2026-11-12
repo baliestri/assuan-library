@@ -17,11 +17,9 @@ internal sealed class ControlledAcceptor : IAssuanAcceptor {
     return await _queue.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
   }
 
-  public ValueTask DisposeAsync() {
+  public async ValueTask DisposeAsync() {
     _queue.Writer.TryComplete();
-    while (_queue.Reader.TryRead(out var connection)) connection.Stream.Dispose();
-
-    return ValueTask.CompletedTask;
+    while (_queue.Reader.TryRead(out var connection)) await connection.Stream.DisposeAsync().ConfigureAwait(false);
   }
 
   internal void Enqueue(Stream stream) => _queue.Writer.TryWrite(new AcceptedConnection(stream));

@@ -28,6 +28,6 @@ public sealed class PublicSurfaceTests {
     Assert.True(File.Exists(Path.Combine(Repository, "examples", "AssuanLibrary.Examples",
       "AssuanLibrary.Examples.csproj")));
     Assert.Contains("examples/AssuanLibrary.Examples/AssuanLibrary.Examples.csproj",
-      File.ReadAllText(Path.Combine(Repository, "AssuanLibrary.slnx")));
+      File.ReadAllText(Path.Combine(Repository, "AssuanLibrary.slnx")), StringComparison.Ordinal);
   }
 }

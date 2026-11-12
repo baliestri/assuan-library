@@ -11,11 +11,11 @@ public sealed class CatalogTests {
     var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
     var readme = File.ReadAllText(Path.Combine(repository, "README.adoc"));
     foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" })
-      Assert.Contains("--example " + name, readme);
+      Assert.Contains($"--example {name}", readme, StringComparison.Ordinal);
 
-    Assert.Contains("--list", readme);
-    Assert.Contains("2.0.0", readme);
-    Assert.Contains("dotnet run --project examples/AssuanLibrary.Examples", readme);
+    Assert.Contains("--list", readme, StringComparison.Ordinal);
+    Assert.Contains("2.0.0", readme, StringComparison.Ordinal);
+    Assert.Contains("dotnet run --project examples/AssuanLibrary.Examples", readme, StringComparison.Ordinal);
   }
 
   [Fact]
@@ -26,7 +26,7 @@ public sealed class CatalogTests {
       TestContext.Current.CancellationToken);
     Assert.Equal(0, result);
     foreach (var name in new[] { "sexpressions", "tcp-server", "tcp-client", "custom-transport", "agent-info" })
-      Assert.Contains(name, output.ToString());
+      Assert.Contains(name, output.ToString(), StringComparison.Ordinal);
 
     Assert.Equal(5, output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     Assert.Empty(error.ToString());
@@ -42,8 +42,8 @@ public sealed class CatalogTests {
     var result = await ExampleCatalog.RunAsync(commandLine.Split(' '), new StringReader(""), output, error,
       TestContext.Current.CancellationToken);
     Assert.NotEqual(0, result);
-    Assert.Contains("--list", error.ToString());
-    Assert.DoesNotContain("Exception", error.ToString());
+    Assert.Contains("--list", error.ToString(), StringComparison.Ordinal);
+    Assert.DoesNotContain("Exception", error.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -53,8 +53,8 @@ public sealed class CatalogTests {
     var code = await ExampleCatalog.RunAsync([], new StringReader("1\n"), output, error,
       TestContext.Current.CancellationToken);
     Assert.Equal(0, code);
-    Assert.StartsWith("1. custom-transport", output.ToString());
-    Assert.Contains("BINARY reply=0x00FF", output.ToString());
+    Assert.StartsWith("1. custom-transport", output.ToString(), StringComparison.Ordinal);
+    Assert.Contains("BINARY reply=0x00FF", output.ToString(), StringComparison.Ordinal);
     Assert.Empty(error.ToString());
   }
 }

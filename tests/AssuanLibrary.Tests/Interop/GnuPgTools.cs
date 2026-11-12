@@ -37,10 +37,8 @@ internal sealed class GnuPgTools {
     }
 
     var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-    if (paths.Select(Path.GetDirectoryName).Distinct(comparer).Count() == 1) {
-      return new GnuPgTools(gpgconf!, gpgAgent!, gpgConnectAgent!);
-    }
-
-    throw new InvalidOperationException("GnuPG executables must come from one installation.");
+    return paths.Select(Path.GetDirectoryName).Distinct(comparer).Take(2).Count() == 1
+      ? new GnuPgTools(gpgconf!, gpgAgent!, gpgConnectAgent!)
+      : throw new InvalidOperationException("GnuPG executables must come from one installation.");
   }
 }

@@ -2,6 +2,7 @@
 // See the LICENSE file in the repository root for full license text.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using AssuanLibrary.SExpressions;
 using Xunit.Sdk;
@@ -34,7 +35,8 @@ public sealed class WriterTests {
       var atom = new byte[length];
       Array.Fill(atom, (byte)0xff);
       var wire = SExpressionWriter.ToCanonical(SExpression.Atom(atom));
-      Assert.True(wire.AsSpan().StartsWith(Encoding.ASCII.GetBytes(length + ":")));
+      Assert.True(wire.AsSpan()
+        .StartsWith(Encoding.ASCII.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{length}:"))));
       Assert.True(SExpressionParser.ParseComplete(wire).AtomBytes.SequenceEqual(atom));
     }
   }
@@ -83,7 +85,7 @@ public sealed class WriterTests {
     Assert.Equal(SExpressionEncodeErrorKind.AtomLimit, EncodeError(huge, output).Kind);
     Assert.Equal("keep"u8.ToArray(), output);
 
-    var input = Encoding.ASCII.GetBytes(new string('(', 65) + "0:" + new string(')', 65));
+    var input = Encoding.ASCII.GetBytes($"{new string('(', 65)}0:{new string(')', 65)}");
     var value = SExpressionParser.ParseComplete(input, new SExpressionLimits(1024, 1024, 128, 256));
     try {
       SExpressionWriter.AppendCanonical(value, output);

@@ -21,7 +21,7 @@ public sealed class GateScriptTests {
       "-SourceSha", invalid);
     Assert.NotEqual(0, result.ExitCode);
     if (invalid.Length != 0) {
-      Assert.DoesNotContain(invalid, result.Output);
+      Assert.DoesNotContain(invalid, result.Output, StringComparison.Ordinal);
     }
   }
 
@@ -44,7 +44,7 @@ public sealed class GateScriptTests {
   public async Task ReusableInputOverridesTheCallerDispatchShaOnlyWhenPresent() {
     var candidate = new string('b', 40);
     var reusable = await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_dispatch",
-      "-EventSha", ValidSha, "-CallInputsJson", "{\"source_sha\":\"" + candidate + "\"}");
+      "-EventSha", ValidSha, "-CallInputsJson", $"{{\"source_sha\":\"{candidate}\"}}");
     Assert.Equal(0, reusable.ExitCode);
     Assert.Equal(candidate, reusable.Output.Trim());
 
@@ -55,9 +55,9 @@ public sealed class GateScriptTests {
 
     foreach (var value in new[] { "", "main", new string('B', 40) }) {
       var rejected = await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_dispatch",
-        "-EventSha", ValidSha, "-CallInputsJson", "{\"source_sha\":\"" + value + "\"}");
+        "-EventSha", ValidSha, "-CallInputsJson", $"{{\"source_sha\":\"{value}\"}}");
       Assert.NotEqual(0, rejected.ExitCode);
-      Assert.DoesNotContain(ValidSha, rejected.Output);
+      Assert.DoesNotContain(ValidSha, rejected.Output, StringComparison.Ordinal);
     }
 
     Assert.NotEqual(0, (await RunPowerShellAsync("Resolve-SourceSha.ps1", "-EventName", "workflow_call",
@@ -87,7 +87,7 @@ public sealed class GateScriptTests {
       var rejected = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", ValidSha,
         "-RequiredJobsJson", REQUIRED, "-ResultsJson", results);
       Assert.NotEqual(0, rejected.ExitCode);
-      Assert.DoesNotContain(ValidSha, rejected.Output);
+      Assert.DoesNotContain(ValidSha, rejected.Output, StringComparison.Ordinal);
     }
 
     Assert.NotEqual(0, (await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", ValidSha,
@@ -108,7 +108,7 @@ public sealed class GateScriptTests {
         var rejected = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", ValidSha,
           "-RequiredJobsJson", requiredJson, "-ResultsJson", JsonSerializer.Serialize(results));
         Assert.NotEqual(0, rejected.ExitCode);
-        Assert.DoesNotContain(ValidSha, rejected.Output);
+        Assert.DoesNotContain(ValidSha, rejected.Output, StringComparison.Ordinal);
       }
 
       var missing = jobs.Where(name => !string.Equals(name, job, StringComparison.Ordinal))
@@ -133,11 +133,11 @@ public sealed class GateScriptTests {
     var different = JsonSerializer.Serialize(new Dictionary<string, string>(StringComparer.Ordinal) {
       ["ci"] = ValidSha, ["interop"] = new('b', 40)
     });
-    foreach (var outputs in new[] { different, "{\"ci\":\"" + ValidSha + "\"}" }) {
+    foreach (var outputs in new[] { different, $"{{\"ci\":\"{ValidSha}\"}}" }) {
       var rejected = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", ValidSha,
         "-RequiredJobsJson", REQUIRED, "-ResultsJson", SUCCEEDED, "-UpstreamShasJson", outputs);
       Assert.NotEqual(0, rejected.ExitCode);
-      Assert.DoesNotContain(ValidSha, rejected.Output);
+      Assert.DoesNotContain(ValidSha, rejected.Output, StringComparison.Ordinal);
     }
   }
 
@@ -152,7 +152,7 @@ public sealed class GateScriptTests {
       "-OutputFile", outputFile);
     Assert.Equal(0, success.ExitCode);
     Assert.Equal(ValidSha, success.Output.Trim());
-    Assert.Equal("source_sha=" + ValidSha,
+    Assert.Equal($"source_sha={ValidSha}",
       (await File.ReadAllTextAsync(outputFile, TestContext.Current.CancellationToken)).Trim());
 
     var unwritable = await RunPowerShellAsync("Assert-Gate.ps1", "-Sha", ValidSha,
@@ -160,7 +160,7 @@ public sealed class GateScriptTests {
       "-ResultsJson", "{\"matrix\":\"success\",\"docs\":\"success\"}",
       "-OutputFile", Path.Combine(parent, "missing-parent", "github-output.txt"));
     Assert.NotEqual(0, unwritable.ExitCode);
-    Assert.DoesNotContain(ValidSha, unwritable.Output);
+    Assert.DoesNotContain(ValidSha, unwritable.Output, StringComparison.Ordinal);
   }
 
   private static Task<ProcessResult> RunPowerShellAsync(string script, params string[] args)

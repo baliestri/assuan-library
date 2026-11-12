@@ -58,7 +58,7 @@ public sealed class ServerFailureTests {
       server.ServeAsync(acceptor, TestContext.Current.CancellationToken));
     Assert.Equal(ServerErrorKind.Transport, error.Kind);
     Assert.IsType<TransportException>(error.TechnicalCause);
-    Assert.DoesNotContain("SECRET_MARKER", error.ToString());
+    Assert.DoesNotContain("SECRET_MARKER", error.ToString(), StringComparison.Ordinal);
     Assert.True(acceptor.Disposed);
     Assert.Equal("OK\nOK\n"u8.ToArray(), first.WrittenBytes);
   }
@@ -103,7 +103,7 @@ public sealed class ServerFailureTests {
     if (fail) {
       var error = await Assert.ThrowsAsync<ServerException>(() => server.ServeAsync(acceptor, stop.Token));
       Assert.Equal(ServerErrorKind.Transport, error.Kind);
-      Assert.DoesNotContain("SECRET_MARKER", error.ToString());
+      Assert.DoesNotContain("SECRET_MARKER", error.ToString(), StringComparison.Ordinal);
       await stream.DisposeAsync();
     }
     else {
@@ -149,7 +149,7 @@ public sealed class ServerFailureTests {
 
     public void OnNext(KeyValuePair<string, object?> entry) {
       lock (_entries) {
-        _entries.Add(entry.Key + " " + entry.Value);
+        _entries.Add($"{entry.Key} {entry.Value}");
       }
     }
   }
@@ -212,6 +212,8 @@ public sealed class ServerFailureTests {
     : IAssuanAcceptor {
     internal bool Disposed;
 
+    // Synchronous on purpose: the stop must be requested and the accept result already completed
+    // within the same call, which is the race this acceptor exists to reproduce.
     public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken cancellationToken = default) {
       stop.Cancel();
       return fail

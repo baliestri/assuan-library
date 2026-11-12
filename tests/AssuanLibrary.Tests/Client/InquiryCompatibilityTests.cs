@@ -68,7 +68,7 @@ public sealed class InquiryCompatibilityTests {
     ev.Dispose();
     Assert.False(client.IsUsable);
     Assert.True(peer.Closed);
-    Assert.DoesNotContain("PIN", ev.ToString());
+    Assert.DoesNotContain("PIN", ev.ToString(), StringComparison.Ordinal);
   }
 
   [Fact]

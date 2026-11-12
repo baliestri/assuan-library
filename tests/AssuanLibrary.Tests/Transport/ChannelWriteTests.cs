@@ -45,7 +45,7 @@ public sealed class ChannelWriteTests {
       "NOP\n"u8.ToArray(), TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
     Assert.Equal(TransportErrorKind.Io, error.Kind);
     Assert.NotNull(error.IoCause);
-    Assert.DoesNotContain("SECRET_MARKER", error.ToString());
+    Assert.DoesNotContain("SECRET_MARKER", error.ToString(), StringComparison.Ordinal);
     Assert.Equal(1, stream.WriteCalls);
     Assert.Single(stream.Written);
     Assert.True(stream.Disposed);

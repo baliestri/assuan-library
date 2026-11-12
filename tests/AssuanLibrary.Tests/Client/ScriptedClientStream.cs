@@ -33,13 +33,14 @@ internal class ScriptedClientStream : Stream {
   public override void Write(byte[] buffer, int offset, int count)
     => _output.Write(buffer, offset, count);
 
-  public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) {
+  public override async ValueTask
+    WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) {
     if (_replies.TryDequeue(out var reply)) {
-      _input.Dispose();
+      await _input.DisposeAsync().ConfigureAwait(false);
       _input = new MemoryStream(reply, false);
     }
 
-    return _output.WriteAsync(buffer, cancellationToken);
+    await _output.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
   }
 
   public override void Flush()

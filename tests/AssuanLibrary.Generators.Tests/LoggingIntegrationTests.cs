@@ -21,17 +21,17 @@ public sealed class LoggingIntegrationTests {
     Assert.Empty(result.OutputCompilationErrors);
     using var image = new MemoryStream();
     var emitted = result.OutputCompilation.Emit(image, cancellationToken: TestContext.Current.CancellationToken);
-    Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics));
+    Assert.True(emitted.Success, string.Join('\n', emitted.Diagnostics));
     var assembly = Assembly.Load(image.ToArray());
     var logger = new RecordingLogger();
-    var sink = Assert.IsAssignableFrom<IAssuanEventSink>(assembly.GetType("Consumer")!
-      .GetMethod("Create")!.Invoke(null, [logger]));
+    var sink = Assert.IsType<IAssuanEventSink>(assembly.GetType("Consumer")!
+      .GetMethod("Create")!.Invoke(null, [logger]), false);
     var info = new AssuanEvent(AssuanComponent.Client, AssuanEventId.RemoteFinal, AssuanOutcome.RemoteError, 3);
     sink.Emit(in info);
     Assert.Null(logger.LastException);
     Assert.Equal((int)AssuanEventId.RemoteFinal, logger.EventId.Id);
-    Assert.Contains("RemoteError", logger.Message);
-    Assert.DoesNotContain("SECRET_MARKER", logger.Message);
+    Assert.Contains("RemoteError", logger.Message, StringComparison.Ordinal);
+    Assert.DoesNotContain("SECRET_MARKER", logger.Message, StringComparison.Ordinal);
   }
 
   private sealed class Scope : IDisposable {

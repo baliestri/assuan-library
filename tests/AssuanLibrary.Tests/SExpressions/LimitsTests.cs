@@ -24,7 +24,7 @@ public sealed class LimitsTests {
 
     var maximum = new SExpressionLimits(1024, 1024, 257, 256);
     Assert.False(SExpressionParser.ParseComplete(
-      Encoding.ASCII.GetBytes(new string('(', 256) + "0:" + new string(')', 256)), maximum).IsAtom);
+      Encoding.ASCII.GetBytes($"{new string('(', 256)}0:{new string(')', 256)}"), maximum).IsAtom);
   }
 
   [Theory]

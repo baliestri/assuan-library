@@ -46,6 +46,6 @@ public sealed class RustCompatibilityTests {
     using var secret = new SecretBuffer(4);
     secret.Append(new byte[] { 0, 0xff, (byte)'\r', (byte)'\n' });
     Assert.True(secret.Expose().SequenceEqual(new byte[] { 0, 0xff, (byte)'\r', (byte)'\n' }));
-    Assert.DoesNotContain("255", secret.ToString());
+    Assert.DoesNotContain("255", secret.ToString(), StringComparison.Ordinal);
   }
 }

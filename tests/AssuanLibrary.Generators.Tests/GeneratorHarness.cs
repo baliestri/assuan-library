@@ -20,21 +20,24 @@ internal static class GeneratorHarness {
     references.Add(MetadataReference.CreateFromFile(typeof(AssuanCommandHandlerAttribute).Assembly.Location));
     references.AddRange(extraReferences);
     var compilation = CSharpCompilation.Create("GeneratorConsumer",
-      [CSharpSyntaxTree.ParseText(source, parse)], references,
+      [CSharpSyntaxTree.ParseText(source, parse, cancellationToken: TestContext.Current.CancellationToken)], references,
       new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     if (!includeGenerator) {
       return new Result([], [], [],
-        compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).ToArray(), compilation);
+        compilation.GetDiagnostics(TestContext.Current.CancellationToken)
+          .Where(item => item.Severity == DiagnosticSeverity.Error).ToArray(), compilation);
     }
 
     GeneratorDriver driver = CSharpGeneratorDriver.Create(
       [new AssuanIncrementalGenerator().AsSourceGenerator()], parseOptions: parse);
-    driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
+    driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics,
+      TestContext.Current.CancellationToken);
     var run = driver.GetRunResult();
     var produced = run.Results.SelectMany(result => result.GeneratedSources).ToArray();
     return new Result(produced.Select(item => item.SourceText.ToString()).ToArray(),
       produced.Select(item => item.HintName).ToArray(), diagnostics.ToArray(),
-      output.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).ToArray(),
+      output.GetDiagnostics(TestContext.Current.CancellationToken)
+        .Where(item => item.Severity == DiagnosticSeverity.Error).ToArray(),
       (CSharpCompilation)output);
   }
 

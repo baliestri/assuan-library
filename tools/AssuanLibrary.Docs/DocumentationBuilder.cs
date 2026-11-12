@@ -19,6 +19,25 @@ public static partial class DocumentationBuilder {
     WriteIndented = true
   };
 
+  [GeneratedRegex("^[0-9][A-Za-z0-9.+-]*$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+    REGEX_TIMEOUT_MILLISECONDS)]
+  private static partial Regex VersionRegex { get; }
+
+  [GeneratedRegex(@"https?://[^\s)]+", RegexOptions.ExplicitCapture, REGEX_TIMEOUT_MILLISECONDS)]
+  private static partial Regex AbsoluteUrlRegex { get; }
+
+  [GeneratedRegex(@"(?<!!)\[[^\]]+\]\((?<url>[^)]+)\)", RegexOptions.ExplicitCapture, REGEX_TIMEOUT_MILLISECONDS)]
+  private static partial Regex MarkdownUrlRegex { get; }
+
+  [GeneratedRegex("(?:href|src)=[\"'](?<url>[^\"']+)[\"']", RegexOptions.ExplicitCapture,
+    REGEX_TIMEOUT_MILLISECONDS)]
+  private static partial Regex HtmlUrlRegex { get; }
+
+  [GeneratedRegex(@"(?<!\d)[1-9]\d* warning\(s\)",
+    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+    REGEX_TIMEOUT_MILLISECONDS)]
+  private static partial Regex ReportRegex { get; }
+
   /// <summary>Finds the checkout from a build output, including RID-specific outputs.</summary>
   public static string FindRepositoryRoot(string directory) {
     for (var current = new DirectoryInfo(Path.GetFullPath(directory));
@@ -76,18 +95,14 @@ public static partial class DocumentationBuilder {
       sources.Add(source);
     }
 
-    if (sources.Count == 0) {
-      throw new InvalidDataException("Manifest is empty.");
-    }
-
-    return sources;
+    return sources.Count == 0 ? throw new InvalidDataException("Manifest is empty.") : sources;
   }
 
   /// <summary>Builds metadata, HTML, curated Markdown and llms files without overwriting a version.</summary>
   public static async Task<string> BuildAsync(string repository, string version, string baseUrl,
     string outputRoot, CancellationToken token) {
     var root = Path.GetFullPath(repository);
-    if (!VersionRegex().IsMatch(version)) {
+    if (!VersionRegex.IsMatch(version)) {
       throw new ArgumentException("Invalid version or base URL.", nameof(version));
     }
 
@@ -104,7 +119,7 @@ public static partial class DocumentationBuilder {
       throw new IOException("Version output already exists.");
     }
 
-    var baseLink = baseUrl.TrimEnd('/') + "/" + version + "/";
+    var baseLink = $"{baseUrl.TrimEnd('/')}/{version}/";
     var stage = Path.Combine(versionRoot, "_stage");
     Directory.CreateDirectory(stage);
     await StageSourcesAsync(root, manifest, stage, baseLink, version, token).ConfigureAwait(false);
@@ -116,8 +131,8 @@ public static partial class DocumentationBuilder {
       .ConfigureAwait(false);
     var errors = Verify(versionRoot);
     if (errors.Count != 0) {
-      throw new InvalidDataException("Documentation verification failed: " +
-                                     string.Join("; ", errors.Distinct(StringComparer.Ordinal).Take(20)));
+      throw new InvalidDataException(
+        $"Documentation verification failed: {string.Join("; ", errors.Distinct(StringComparer.Ordinal).Take(20))}");
     }
 
     return versionRoot;
@@ -149,7 +164,7 @@ public static partial class DocumentationBuilder {
         content = new[] { new { files = new[] { "api/**.yml", "api/toc.yml", "guides/**.md", "index.md" } } },
         dest = "../site",
         template = new[] { "default" },
-        globalMetadata = new { _appTitle = "AssuanLibrary " + version }
+        globalMetadata = new { _appTitle = $"AssuanLibrary {version}" }
       }
     };
     await File.WriteAllTextAsync(tempConfig, JsonSerializer.Serialize(config, JsonOptions), token)
@@ -184,7 +199,7 @@ public static partial class DocumentationBuilder {
 
   private static async Task WriteLlmsAsync(IReadOnlyList<DocSource> manifest, string stage, string versionRoot,
     string baseLink, string version, CancellationToken token) {
-    var index = new StringBuilder("# AssuanLibrary " + version + "\n\n");
+    var index = new StringBuilder($"# AssuanLibrary {version}\n\n");
     index.AppendLine("> .NET 10 Assuan library: reviewed guides and generated API reference.").AppendLine();
     index.AppendLine("## Guides");
     foreach (var source in manifest.Where(item => item.IncludeInIndex))
@@ -196,7 +211,7 @@ public static partial class DocumentationBuilder {
       .AppendLine("api/toc.html): exported types and members.");
     index.Append("- [Selectable examples](https://github.com/baliestri/assuan-library/tree/v")
       .Append(version).AppendLine("/examples/AssuanLibrary.Examples): compiled .NET scenarios.");
-    var full = new StringBuilder("# AssuanLibrary " + version + " — user guides\n\n");
+    var full = new StringBuilder($"# AssuanLibrary {version} — user guides\n\n");
     full.Append("Public API reference: ").Append(baseLink).AppendLine("api/toc.html\n");
     foreach (var source in manifest.Where(item => item.IncludeInFull)) {
       full.Append("\n---\n\n## ").Append(source.Title).Append("\n\nSource: ")
@@ -230,7 +245,7 @@ public static partial class DocumentationBuilder {
                "site/api/AssuanLibrary.Server.ServerSession-1.html"
              })
       if (!File.Exists(Path.Combine(root, relative))) {
-        errors.Add("Missing required output: " + relative);
+        errors.Add($"Missing required output: {relative}");
       }
 
     if (File.Exists(Path.Combine(root, "site/api/AssuanLibrary.Transport.UnixNative.html"))) {
@@ -242,7 +257,7 @@ public static partial class DocumentationBuilder {
                "site/styles/docfx.js"
              })
       if (!File.Exists(Path.Combine(root, asset))) {
-        errors.Add("Missing site asset: " + asset);
+        errors.Add($"Missing site asset: {asset}");
       }
 
     VerifyLlmsLinks(root, errors);
@@ -262,20 +277,20 @@ public static partial class DocumentationBuilder {
           continue;
         }
 
-        foreach (Match match in AbsoluteUrlRegex().Matches(File.ReadAllText(filename))) {
+        foreach (Match match in AbsoluteUrlRegex.Matches(File.ReadAllText(filename))) {
           var url = match.Value;
           if (!url.StartsWith(baseLink, StringComparison.Ordinal)) {
             continue;
           }
 
           var relative = url[baseLink.Length..].TrimEnd('.', ',', ';');
-          if (relative.Contains('#')) {
-            relative = relative[..relative.IndexOf('#')];
+          if (relative.Contains('#', StringComparison.Ordinal)) {
+            relative = relative[..relative.IndexOf('#', StringComparison.Ordinal)];
           }
 
           var target = relative.Length == 0 ? "index.html" : relative;
           if (!File.Exists(Path.Combine(root, "site", target.Replace('/', Path.DirectorySeparatorChar)))) {
-            errors.Add("Broken llms link: " + relative);
+            errors.Add($"Broken llms link: {relative}");
           }
         }
       }
@@ -286,7 +301,7 @@ public static partial class DocumentationBuilder {
     var stage = Path.Combine(root, "_stage");
     if (Directory.Exists(stage)) {
       foreach (var source in Directory.EnumerateFiles(stage, "*.md", SearchOption.AllDirectories)) {
-        foreach (Match match in MarkdownUrlRegex().Matches(File.ReadAllText(source))) {
+        foreach (Match match in MarkdownUrlRegex.Matches(File.ReadAllText(source))) {
           var href = match.Groups["url"].Value;
           if (Uri.TryCreate(href, UriKind.Absolute, out var external)) {
             if (external.Scheme is not ("http" or "https")) {
@@ -312,21 +327,21 @@ public static partial class DocumentationBuilder {
           }
 
           if (!File.Exists(linked)) {
-            errors.Add("Broken local link: " + Path.GetFileName(linked));
+            errors.Add($"Broken local link: {Path.GetFileName(linked)}");
             continue;
           }
 
           var html = Path.Combine(root, "site", Path.GetRelativePath(stage, linked));
           html = Path.ChangeExtension(html, ".html");
           if (!File.Exists(html)) {
-            errors.Add("Broken generated page: " + Path.GetFileName(html));
+            errors.Add($"Broken generated page: {Path.GetFileName(html)}");
             continue;
           }
 
           if (parts.Length == 2 &&
               parts[1].Length != 0 &&
-              !File.ReadAllText(html).Contains("id=\"" + parts[1] + "\"", StringComparison.OrdinalIgnoreCase)) {
-            errors.Add("Broken anchor: " + parts[1]);
+              !File.ReadAllText(html).Contains($"id=\"{parts[1]}\"", StringComparison.OrdinalIgnoreCase)) {
+            errors.Add($"Broken anchor: {parts[1]}");
           }
         }
       }
@@ -338,11 +353,11 @@ public static partial class DocumentationBuilder {
     if (Directory.Exists(site)) {
       foreach (var page in Directory.EnumerateFiles(site, "*.html", SearchOption.AllDirectories)) {
         var html = File.ReadAllText(page);
-        foreach (Match match in HtmlUrlRegex().Matches(html)) {
+        foreach (Match match in HtmlUrlRegex.Matches(html)) {
           var href = WebUtility.HtmlDecode(match.Groups["url"].Value);
           if (Uri.TryCreate(href, UriKind.Absolute, out var external)) {
             if (external.Scheme is not ("http" or "https" or "mailto" or "data")) {
-              errors.Add("Unsupported site link scheme: " + Path.GetFileName(page));
+              errors.Add($"Unsupported site link scheme: {Path.GetFileName(page)}");
             }
 
             continue;
@@ -359,7 +374,7 @@ public static partial class DocumentationBuilder {
             : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(page)!,
               Uri.UnescapeDataString(pathPart.Replace('/', Path.DirectorySeparatorChar))));
           if (!target.StartsWith(site + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) {
-            errors.Add("Broken site link: outside bundle in " + Path.GetFileName(page));
+            errors.Add($"Broken site link: outside bundle in {Path.GetFileName(page)}");
             continue;
           }
 
@@ -368,15 +383,15 @@ public static partial class DocumentationBuilder {
           }
 
           if (!File.Exists(target)) {
-            errors.Add("Broken site link: " + href);
+            errors.Add($"Broken site link: {href}");
             continue;
           }
 
           if (parts.Length == 2 &&
               parts[1].Length != 0) {
             var anchor = Uri.UnescapeDataString(parts[1]);
-            if (!File.ReadAllText(target).Contains("id=\"" + anchor + "\"", StringComparison.OrdinalIgnoreCase)) {
-              errors.Add("Broken site anchor: " + href);
+            if (!File.ReadAllText(target).Contains($"id=\"{anchor}\"", StringComparison.OrdinalIgnoreCase)) {
+              errors.Add($"Broken site anchor: {href}");
             }
           }
         }
@@ -387,12 +402,12 @@ public static partial class DocumentationBuilder {
   private static string RewriteUrls(string text, string baseLink, string version) =>
     text.Replace(PUBLISHED_PREFIX, baseLink, StringComparison.Ordinal)
       .Replace("https://github.com/baliestri/assuan-library/tree/v2.0.0/",
-        "https://github.com/baliestri/assuan-library/tree/v" + version + "/", StringComparison.Ordinal);
+        $"https://github.com/baliestri/assuan-library/tree/v{version}/", StringComparison.Ordinal);
 
   private static void ValidateRelative(string path) {
     if (string.IsNullOrWhiteSpace(path) ||
         Path.IsPathRooted(path) ||
-        path.Contains(':') ||
+        path.Contains(':', StringComparison.Ordinal) ||
         path.Split('/', '\\').Any(segment => segment is "" or "." or "..")) {
       throw new InvalidDataException("Invalid relative manifest path.");
     }
@@ -402,7 +417,7 @@ public static partial class DocumentationBuilder {
     var full = Path.GetFullPath(path);
     var relative = Path.GetRelativePath(root, full);
     if (relative is ".." ||
-        relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+        relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
         Path.IsPathRooted(relative)) {
       throw new InvalidDataException("Path escapes repository.");
     }
@@ -427,7 +442,7 @@ public static partial class DocumentationBuilder {
       : Path.GetRelativePath(artifacts,
         Path.GetFullPath(configuredHome));
     start.Environment["DOTNET_CLI_HOME"] = localHome is ".." or "." ||
-                                           localHome.StartsWith(".." + Path.DirectorySeparatorChar,
+                                           localHome.StartsWith($"..{Path.DirectorySeparatorChar}",
                                              StringComparison.Ordinal) ||
                                            Path.IsPathRooted(localHome)
       ? Path.Combine(artifacts, OperatingSystem.IsWindows() ? "dotnet-home" : "dotnet-home-linux")
@@ -439,28 +454,9 @@ public static partial class DocumentationBuilder {
     await process.WaitForExitAsync(token).WaitAsync(TimeSpan.FromMinutes(3), token).ConfigureAwait(false);
     var report = await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false);
     if (process.ExitCode != 0 ||
-        ReportRegex().IsMatch(report)) {
-      throw new InvalidDataException("Documentation tool returned an error or warning (" +
-                                     string.Join(' ', args.Take(2)) + "): " + report[^Math.Min(report.Length, 1200)..]);
+        ReportRegex.IsMatch(report)) {
+      throw new InvalidDataException(
+        $"Documentation tool returned an error or warning ({string.Join(' ', args.Take(2))}): {report[^Math.Min(report.Length, 1200)..]}");
     }
   }
-
-  [GeneratedRegex("^[0-9][A-Za-z0-9.+-]*$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-    REGEX_TIMEOUT_MILLISECONDS)]
-  private static partial Regex VersionRegex();
-
-  [GeneratedRegex(@"https?://[^\s)]+", RegexOptions.ExplicitCapture, REGEX_TIMEOUT_MILLISECONDS)]
-  private static partial Regex AbsoluteUrlRegex();
-
-  [GeneratedRegex(@"(?<!!)\[[^\]]+\]\((?<url>[^)]+)\)", RegexOptions.ExplicitCapture, REGEX_TIMEOUT_MILLISECONDS)]
-  private static partial Regex MarkdownUrlRegex();
-
-  [GeneratedRegex("(?:href|src)=[\"'](?<url>[^\"']+)[\"']", RegexOptions.ExplicitCapture,
-    REGEX_TIMEOUT_MILLISECONDS)]
-  private static partial Regex HtmlUrlRegex();
-
-  [GeneratedRegex(@"(?<!\d)[1-9]\d* warning\(s\)",
-    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-    REGEX_TIMEOUT_MILLISECONDS)]
-  private static partial Regex ReportRegex();
 }

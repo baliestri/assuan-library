@@ -25,6 +25,6 @@ try {
   }
 }
 catch (Exception error) when (error is IOException or InvalidDataException or ArgumentException) {
-  Console.Error.WriteLine("Documentation operation failed: " + error.GetType().Name);
+  Console.Error.WriteLine($"Documentation operation failed: {error.GetType().Name}");
   return 1;
 }

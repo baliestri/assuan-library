@@ -78,7 +78,8 @@ public static class ExampleCatalog {
   private static async Task<string?> SelectFromMenuAsync(TextReader input, TextWriter output,
     CancellationToken token) {
     for (var index = 0; index < Entries.Length; ++index)
-      await output.WriteLineAsync($"{index + 1}. {Entries[index].Name} - {Entries[index].Description}")
+      await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
+          $"{index + 1}. {Entries[index].Name} - {Entries[index].Description}"))
         .ConfigureAwait(false);
 
     await output.WriteAsync("Select an example: ").ConfigureAwait(false);

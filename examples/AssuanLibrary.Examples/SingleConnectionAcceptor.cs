@@ -13,13 +13,12 @@ internal sealed class SingleConnectionAcceptor(Stream stream) : IAssuanAcceptor 
   public ValueTask<AcceptedConnection> AcceptAsync(CancellationToken token = default)
     => _queue.Reader.ReadAsync(token);
 
-  public ValueTask DisposeAsync() {
+  public async ValueTask DisposeAsync() {
     if (Interlocked.Exchange(ref _disposed, 1) == 0) {
       _queue.Writer.TryComplete();
-      while (_queue.Reader.TryRead(out var connection)) connection.Stream.Dispose();
+      while (_queue.Reader.TryRead(out var connection))
+        await connection.Stream.DisposeAsync().ConfigureAwait(false);
     }
-
-    return ValueTask.CompletedTask;
   }
 
   private static Channel<AcceptedConnection> CreateQueue(Stream stream) {

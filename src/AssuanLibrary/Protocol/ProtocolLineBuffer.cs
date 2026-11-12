@@ -11,7 +11,8 @@ public sealed class ProtocolLineBuffer : IDisposable {
   /// <summary>Maximum wire line size including the LF or CRLF terminator.</summary>
   public const int MAX_LINE_BYTES = ProtocolEncoder.MAX_LINE_BYTES;
 
-  private readonly byte[] _storage = new byte[MAX_LINE_BYTES];
+  // A framed line may be a secret data line; pinned storage is wiped without leaving moved copies.
+  private readonly byte[] _storage = GC.AllocateArray<byte>(MAX_LINE_BYTES, true);
   private int _contentLength;
   private bool _disposed;
   private bool _failed;

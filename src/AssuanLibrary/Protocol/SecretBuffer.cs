@@ -5,20 +5,21 @@ using System.Security.Cryptography;
 
 namespace AssuanLibrary.Protocol;
 
-/// <summary>Fixed-capacity managed secret bytes, wiped explicitly on clear or disposal.</summary>
+/// <summary>Fixed-capacity, pinned managed secret bytes, wiped explicitly on clear or disposal.</summary>
 /// <remarks>
 ///   Does not erase the caller's source, runtime/OS copies, swap, or crash dumps. Use <see langword="using" /> for
 ///   deterministic cleanup.
 /// </remarks>
 public sealed class SecretBuffer : IDisposable {
   private readonly byte[] _storage;
-  private bool _disposed;
+  private int _disposed;
   private int _length;
 
   /// <summary>Allocates exactly the specified number of initially zero bytes, without storing a secret yet.</summary>
   public SecretBuffer(int capacity) {
     ArgumentOutOfRangeException.ThrowIfNegative(capacity);
-    _storage = new byte[capacity];
+    // Pinned storage is never moved by the collector, so wiping it leaves no relocated copy behind.
+    _storage = GC.AllocateArray<byte>(capacity, true);
   }
 
   /// <summary>Number of initialized bytes.</summary>
@@ -41,13 +42,12 @@ public sealed class SecretBuffer : IDisposable {
 
   /// <summary>Wipes the entire allocation and prevents further use.</summary>
   public void Dispose() {
-    if (_disposed) {
+    if (Interlocked.Exchange(ref _disposed, 1) != 0) {
       return;
     }
 
     CryptographicOperations.ZeroMemory(_storage);
     _length = 0;
-    _disposed = true;
   }
 
   /// <summary>Appends bytes without reallocating; a failed append does not modify the buffer.</summary>
@@ -85,8 +85,8 @@ public sealed class SecretBuffer : IDisposable {
 
   /// <inheritdoc />
   public override string ToString()
-    => $"SecretBuffer {{ Length = {_length}, Capacity = {_storage.Length}, Closed = {_disposed} }}";
+    => $"SecretBuffer {{ Length = {_length}, Capacity = {_storage.Length}, Closed = {Volatile.Read(ref _disposed) != 0} }}";
 
   private void CheckDisposed()
-    => ObjectDisposedException.ThrowIf(_disposed, this);
+    => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 }

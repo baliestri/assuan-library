@@ -14,11 +14,12 @@ namespace AssuanLibrary.Transport;
 ///   are wiped regardless of whether received bytes have been classified as secret.
 /// </remarks>
 public sealed class AssuanChannel : IAsyncDisposable {
-  private readonly byte[] _ahead = new byte[ProtocolLineBuffer.MAX_LINE_BYTES];
+  // Both I/O buffers may carry secret payloads: pinned storage is wiped without leaving moved copies.
+  private readonly byte[] _ahead = GC.AllocateArray<byte>(ProtocolLineBuffer.MAX_LINE_BYTES, true);
   private readonly IAssuanEventSink? _eventSink;
   private readonly ProtocolLineBuffer _frame = new();
   private readonly Stream _stream;
-  private readonly byte[] _write = new byte[ProtocolLineBuffer.MAX_LINE_BYTES];
+  private readonly byte[] _write = GC.AllocateArray<byte>(ProtocolLineBuffer.MAX_LINE_BYTES, true);
   private int _active;
   private int _closed;
   private int _pending;

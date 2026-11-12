@@ -128,8 +128,10 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet restore AssuanLibrary.slnx --locked-mode
-      - name: Verify source formatting
-        run: dotnet format AssuanLibrary.slnx --verify-no-changes --no-restore
+      - run: dotnet build AssuanLibrary.slnx --no-restore
+      - name: Verify ReSharper cleanup and inspection leave nothing to change
+        shell: pwsh
+        run: ./scripts/ci/Verify-Format.ps1 -Repository $env:GITHUB_WORKSPACE
 
   workflows:
     needs: prepare

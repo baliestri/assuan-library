@@ -67,7 +67,15 @@ public sealed partial class WorkflowContractTests {
     Assert.DoesNotContain("docfx", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("tools/AssuanLibrary.Docs", yaml, StringComparison.Ordinal);
     Assert.Contains("dotnet restore AssuanLibrary.slnx --locked-mode", yaml, StringComparison.Ordinal);
-    Assert.Contains("dotnet format AssuanLibrary.slnx --verify-no-changes", yaml, StringComparison.Ordinal);
+    // The ReSharper tools are the formatter of record; dotnet format disagrees with their options.
+    Assert.Contains("./scripts/ci/Verify-Format.ps1", yaml, StringComparison.Ordinal);
+    Assert.DoesNotContain("dotnet format", yaml, StringComparison.Ordinal);
+    var check = File.ReadAllText(Path.Combine(Repository, "scripts", "ci", "Verify-Format.ps1"));
+    Assert.Contains("dotnet tool restore", check, StringComparison.Ordinal);
+    Assert.Contains("cleanupcode", check, StringComparison.Ordinal);
+    Assert.Contains("inspectcode", check, StringComparison.Ordinal);
+    var tools = File.ReadAllText(Path.Combine(Repository, ".config", "dotnet-tools.json"));
+    Assert.Contains("jetbrains.resharper.globaltools", tools, StringComparison.Ordinal);
     Assert.Contains("--filter-class", yaml, StringComparison.Ordinal);
     Assert.DoesNotContain("secrets: inherit", yaml, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("nuget push", yaml, StringComparison.OrdinalIgnoreCase);

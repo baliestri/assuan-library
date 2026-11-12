@@ -19,7 +19,9 @@ public sealed partial class WorkflowTests {
     Assert.Contains("net10.0", text, StringComparison.Ordinal);
     Assert.Contains("netstandard2.0", text, StringComparison.Ordinal);
     Assert.Contains("--locked-mode", text, StringComparison.Ordinal);
-    Assert.Contains("dotnet format", text, StringComparison.Ordinal);
+    Assert.Contains("Verify-Format.ps1", text, StringComparison.Ordinal);
+    Assert.Contains("jb cleanupcode", text, StringComparison.Ordinal);
+    Assert.DoesNotContain("--verify-no-changes", text, StringComparison.Ordinal);
     Assert.Contains("PACKAGE.md", text, StringComparison.Ordinal);
     Assert.Contains("git-cliff", text, StringComparison.Ordinal);
     Assert.Contains("macOS", text, StringComparison.Ordinal);
@@ -152,7 +154,8 @@ public sealed partial class WorkflowTests {
     var script = File.ReadAllText(Path.Combine(ReleaseFixture.ToolsRoot, "scripts", "release", "Test-Release.ps1"));
     Assert.Contains("artifacts/release-tests", script, StringComparison.Ordinal);
     Assert.Contains("--locked-mode", script, StringComparison.Ordinal);
-    Assert.Contains("--verify-no-changes", script, StringComparison.Ordinal);
+    Assert.Contains("Verify-Format.ps1", script, StringComparison.Ordinal);
+    Assert.DoesNotContain("dotnet format", script, StringComparison.Ordinal);
     Assert.Contains("Verify-Workflows.ps1", script, StringComparison.Ordinal);
     Assert.DoesNotContain("git push", script, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("nuget push", script, StringComparison.OrdinalIgnoreCase);

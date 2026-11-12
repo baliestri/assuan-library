@@ -36,7 +36,7 @@ Run these from the repository root:
 dotnet restore AssuanLibrary.slnx --locked-mode
 dotnet build AssuanLibrary.slnx -c Release --no-restore
 dotnet test --solution AssuanLibrary.slnx -c Release --no-restore
-dotnet format AssuanLibrary.slnx --verify-no-changes --no-restore
+pwsh ./scripts/ci/Verify-Format.ps1 -Repository .
 dotnet run --project examples/AssuanLibrary.Examples -- --example custom-transport
 ```
 
@@ -127,6 +127,10 @@ If a prepared branch needs a reviewed fix, fast-forward `release/v<version>` to 
   jb cleanupcode --profile="Built-in: Full Cleanup" AssuanLibrary.slnx
   jb inspectcode AssuanLibrary.slnx --stdout --format=Text
   ```
+
+  These tools are the formatter of record; `dotnet format` disagrees with the ReSharper options and is not used.
+  `scripts/ci/Verify-Format.ps1` runs both commands with the version pinned in `.config/dotnet-tools.json` and fails
+  when the cleanup changes a file or the inspection reports anything. CI runs the same script.
 
 - **Diagnostics stay redacted.** Never print command payloads, secrets, nonce bytes or private homedir paths in code,
   tests or logs.

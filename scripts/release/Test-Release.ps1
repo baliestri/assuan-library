@@ -24,7 +24,8 @@ try {
   & dotnet test (Join-Path $rootPath 'AssuanLibrary.slnx') -c Release --no-restore
   if ($LASTEXITCODE -ne 0) { throw 'Release test suite failed.' }
   $completed.Add('tests')
-  & dotnet format (Join-Path $rootPath 'AssuanLibrary.slnx') --verify-no-changes --no-restore
+  & pwsh -NoProfile -NonInteractive -File (Join-Path $rootPath 'scripts/ci/Verify-Format.ps1') `
+    -Repository $rootPath | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Source formatting check failed.' }
   $completed.Add('format')
 

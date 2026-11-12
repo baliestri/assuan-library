@@ -97,7 +97,7 @@ public sealed class AssuanClient : IAsyncDisposable {
           try { response = handler.RespondAsync(inquiry, linked.Token).AsTask(); }
           catch (Exception error) { throw new ClientException(ClientErrorKind.State, technicalCause: error); }
 
-          try { await response.WaitAsync(remaining, linked.Token).ConfigureAwait(false); }
+          try { await response.WaitAsync(remaining, clock, linked.Token).ConfigureAwait(false); }
           catch (Exception error) when (error is TimeoutException or OperationCanceledException) {
             await handshake.DisposeAsync().ConfigureAwait(false);
             if (!response.IsCompleted) {

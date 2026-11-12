@@ -16,6 +16,11 @@ internal static partial class PipeNative {
   private const uint UNLIMITED_INSTANCES = 255;
   private const uint GENERIC_READ_WRITE = 0xC0000000;
   private const uint OPEN_EXISTING = 3;
+
+  // Without an explicit quality of service a pipe server may impersonate its client. Identification
+  // lets the server learn who connected but never act as that user.
+  private const uint SECURITY_SQOS_PRESENT = 0x00100000;
+  private const uint SECURITY_IDENTIFICATION = 0x00010000;
   private const int ERROR_PIPE_BUSY = 231;
   private const int ERROR_SEMAPHORE_TIMEOUT = 121;
 
@@ -63,7 +68,8 @@ internal static partial class PipeNative {
   // A zero-wait CreateFile attempts one connect immediately. Busy pipes are retried
   // asynchronously by PipeConnector, never through a blocking connection worker.
   internal static NamedPipeClientStream? TryConnect(string path) {
-    var handle = CreateFile(path, GENERIC_READ_WRITE, 0, IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, IntPtr.Zero);
+    var handle = CreateFile(path, GENERIC_READ_WRITE, 0, IntPtr.Zero, OPEN_EXISTING,
+      FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, IntPtr.Zero);
     if (handle.IsInvalid) {
       var error = Marshal.GetLastPInvokeError();
       handle.Dispose();
@@ -73,11 +79,19 @@ internal static partial class PipeNative {
         : throw new TransportException(TransportErrorKind.Io, new Win32Exception(error));
     }
 
-    try {
-      return new NamedPipeClientStream(PipeDirection.InOut, true, true, handle);
-    }
+    NamedPipeClientStream stream;
+    try { stream = new NamedPipeClientStream(PipeDirection.InOut, true, true, handle); }
     catch {
       handle.Dispose();
+      throw;
+    }
+
+    try {
+      PipeSecurityFactory.RequireTrustedServerOwner(stream);
+      return stream;
+    }
+    catch {
+      stream.Dispose();
       throw;
     }
   }

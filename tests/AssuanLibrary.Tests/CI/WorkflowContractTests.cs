@@ -14,8 +14,8 @@ public sealed partial class WorkflowContractTests {
   [Fact]
   public void SdkPinKeepsTheTestingPlatformRunner() {
     using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_repository, "global.json")));
-    Assert.Equal("10.0.400", json.RootElement.GetProperty("sdk").GetProperty("version").GetString());
-    Assert.Equal("disable", json.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString());
+    Assert.Equal("10.0.403", json.RootElement.GetProperty("sdk").GetProperty("version").GetString());
+    Assert.Equal("latestPatch", json.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString());
     Assert.Equal("Microsoft.Testing.Platform",
       json.RootElement.GetProperty("test").GetProperty("runner").GetString());
   }

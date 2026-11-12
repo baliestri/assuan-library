@@ -8,7 +8,7 @@ Search existing issues and pull requests, and discuss substantial protocol or AP
 
 == Checkout and project layout
 
-The solution is `AssuanLibrary.slnx`, with a .NET *10.0.400* SDK pin in `global.json`:
+The solution is `AssuanLibrary.slnx`, with a .NET *10.0.403* SDK pin in `global.json`:
 
 * `src/AssuanLibrary/` — the main `net10.0` runtime and public XML documentation.
 * `src/AssuanLibrary.Generators/` — the `netstandard2.0` incremental analyzer included in the main NuGet package.

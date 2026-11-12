@@ -67,11 +67,10 @@ internal static partial class PipeNative {
     if (handle.IsInvalid) {
       var error = Marshal.GetLastPInvokeError();
       handle.Dispose();
-      if (error is ERROR_PIPE_BUSY or ERROR_SEMAPHORE_TIMEOUT) {
-        return null;
-      }
 
-      throw new TransportException(TransportErrorKind.Io, new Win32Exception(error));
+      return error is ERROR_PIPE_BUSY or ERROR_SEMAPHORE_TIMEOUT
+        ? null
+        : throw new TransportException(TransportErrorKind.Io, new Win32Exception(error));
     }
 
     try {

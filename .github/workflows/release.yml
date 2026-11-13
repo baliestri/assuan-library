@@ -162,7 +162,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Artifact assembly failed.' }
           $verified = & pwsh -NoProfile -NonInteractive -File ./scripts/release/Verify-Release.ps1 -Root $root -Version $env:RELEASE_VERSION -PreparedSha $env:PREPARED_SHA -CiSha $env:CI_SHA -InteropSha $env:INTEROP_SHA -PackagePath $package -ManifestPath (Join-Path $candidate 'release-artifacts.json')
           if ($LASTEXITCODE -ne 0) { throw 'Artifact verification failed.' }
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-v${{ inputs.version }}-${{ needs.prepare.outputs.prepared_sha }}
           path: |
